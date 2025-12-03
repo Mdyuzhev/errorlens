@@ -10,10 +10,15 @@ from app.config import settings
 from app.models import (
     AnalyzeRequest,
     AnalyzeResponse,
+    DetectedVariable,
     ExportPostmanRequest,
     ExportPostmanResponse,
+    RequestAssertion,
+    SessionAnalysisRequest,
+    SessionAnalysisResponse,
 )
 from app.postman_generator import generate_postman_collection
+from app.session_analyzer import analyze_session
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -97,3 +102,60 @@ async def export_postman(request: ExportPostmanRequest) -> ExportPostmanResponse
     except Exception as e:
         logger.exception(f"Postman export failed: {e}")
         raise HTTPException(status_code=500, detail=f"Export failed: {e}")
+
+
+@app.post("/analyze/session", response_model=SessionAnalysisResponse)
+async def analyze_session_endpoint(request: SessionAnalysisRequest) -> SessionAnalysisResponse:
+    """
+    Analyze recorded session for test generation.
+
+    Detects variables (tokens, IDs), groups requests by scenario,
+    and extracts assertions for each request.
+    """
+    if not request.recorded_requests:
+        raise HTTPException(
+            status_code=400,
+            detail="No recorded requests to analyze.",
+        )
+
+    logger.info(f"Analyzing session with {len(request.recorded_requests)} requests")
+
+    try:
+        result = analyze_session(request.recorded_requests)
+
+        # Convert to response model
+        variables = {
+            name: DetectedVariable(
+                name=name,
+                source_request_id=data["source_request_id"],
+                source_path=data["source_path"],
+                value=data["value"][:50] + "..." if len(data["value"]) > 50 else data["value"],
+                used_in=data["used_in"],
+            )
+            for name, data in result["variables"].items()
+        }
+
+        assertions = {
+            req_id: [
+                RequestAssertion(
+                    type=a["type"],
+                    path=a.get("path"),
+                    expected=str(a["expected"]),
+                    description=a["description"],
+                )
+                for a in assertion_list
+            ]
+            for req_id, assertion_list in result["assertions"].items()
+        }
+
+        logger.info(f"Analysis complete: {result['summary']}")
+
+        return SessionAnalysisResponse(
+            variables=variables,
+            groups=result["groups"],
+            assertions=assertions,
+            summary=result["summary"],
+        )
+    except Exception as e:
+        logger.exception(f"Session analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {e}")

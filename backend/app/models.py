@@ -205,3 +205,46 @@ class ExportPostmanResponse(BaseModel):
     collection: PostmanCollection
     requests_count: int
     variables_count: int
+
+
+# Story 7.2: Session analysis models
+class DetectedVariable(BaseModel):
+    """Variable detected in session (token, ID, etc.)."""
+
+    name: str = Field(..., description="Variable name")
+    source_request_id: int = Field(..., description="Request ID where value originated")
+    source_path: str = Field(..., description="Path to value (e.g., response.body.token)")
+    value: str = Field(..., description="Actual value (may be truncated for security)")
+    used_in: list[int] = Field(default_factory=list, description="Request IDs where this value is used")
+
+
+class RequestAssertion(BaseModel):
+    """Assertion extracted from response."""
+
+    type: str = Field(..., description="Assertion type: status, header, json_field, etc.")
+    path: str | None = Field(None, description="Field path for JSON/header assertions")
+    expected: str = Field(..., description="Expected value or type")
+    description: str = Field(..., description="Human-readable description")
+
+
+class SessionAnalysisRequest(BaseModel):
+    """Request body for session analysis endpoint."""
+
+    recorded_requests: list[RecordedHttpExchange] = Field(
+        ..., description="Recorded HTTP exchanges to analyze"
+    )
+
+
+class SessionAnalysisResponse(BaseModel):
+    """Response from session analysis endpoint."""
+
+    variables: dict[str, DetectedVariable] = Field(
+        default_factory=dict, description="Detected variables (tokens, IDs)"
+    )
+    groups: dict[str, list[int]] = Field(
+        default_factory=dict, description="Requests grouped by scenario"
+    )
+    assertions: dict[int, list[RequestAssertion]] = Field(
+        default_factory=dict, description="Assertions per request ID"
+    )
+    summary: dict = Field(default_factory=dict, description="Analysis summary")
