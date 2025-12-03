@@ -1,14 +1,16 @@
 """ErrorLens API - FastAPI entrypoint."""
 
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.analyzer import analyze_errors
 from app.config import settings
+from app.database import init_db
 from app.middleware.rate_limit import rate_limit_middleware
-from app.models import (
+from app.models_pydantic import (
     AnalyzeRequest,
     AnalyzeResponse,
     DetectedVariable,
@@ -24,10 +26,24 @@ from app.session_analyzer import analyze_session
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup and shutdown events."""
+    # Startup: initialize database
+    logger.info("Initializing database...")
+    await init_db()
+    logger.info("Database initialized")
+    yield
+    # Shutdown: cleanup if needed
+    logger.info("Shutting down...")
+
+
 app = FastAPI(
     title="ErrorLens API",
     description="AI-powered error analysis for QA engineers",
     version=settings.version,
+    lifespan=lifespan,
 )
 
 # CORS: allow all origins (bookmarklet runs on any domain)

@@ -10,7 +10,7 @@ from app.analyzer import (
     analyze_errors,
     SYSTEM_PROMPT,
 )
-from app.models import AnalyzeRequest, ConsoleLogEntry, NetworkError, JSException
+from app.models_pydantic import AnalyzeRequest, ConsoleLogEntry, NetworkError, JSException
 
 
 class TestFormatContext:

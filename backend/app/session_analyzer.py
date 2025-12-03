@@ -5,7 +5,7 @@ import re
 from collections import defaultdict
 from urllib.parse import urlparse
 
-from app.models import RecordedHttpExchange
+from app.models_pydantic import RecordedHttpExchange
 
 
 # Common token/ID field names
