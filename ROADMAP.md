@@ -320,7 +320,9 @@
 | 8.6.1 | Экспорт в Markdown | ✅ |
 | 8.6.2 | Экспорт в Postman Collection | ✅ |
 | 8.6.3 | Экспорт в pytest (шаблон) | ✅ |
-| 8.6.4 | Webhook интеграции (Jira, Slack) | ⬜ |
+| 8.6.4 | Генератор тикетов (Jira/GitHub/Markdown) | ✅ |
+| 8.6.5 | Запуск pytest из dashboard | ✅ |
+| 8.6.6 | Webhook интеграции (Jira, Slack) | ⬜ |
 
 ---
 
