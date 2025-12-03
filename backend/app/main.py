@@ -21,6 +21,7 @@ from app.models_pydantic import (
     SessionAnalysisResponse,
 )
 from app.postman_generator import generate_postman_collection
+from app.routers import sessions
 from app.session_analyzer import analyze_session
 
 logging.basicConfig(level=logging.INFO)
@@ -54,6 +55,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(sessions.router)
 
 
 @app.get("/health")
