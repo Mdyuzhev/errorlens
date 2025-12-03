@@ -57,7 +57,7 @@
         WIDGET_STYLE: 'new', // 'new' (pill) or 'classic' (floating button)
         WIDGET_SIZE: 60,     // For classic mode only
         USE_SESSIONS_API: true, // Use new /sessions endpoint (saves to DB)
-        DASHBOARD_URL: 'http://localhost:3000/dashboard' // Dashboard location
+        DASHBOARD_URL: 'http://localhost:3000/dashboard/' // Dashboard location
     };
 
     // URL patterns to filter out (analytics, ads, static assets)
@@ -766,14 +766,87 @@
     }
 
     // Handle record button click in new UI
-    function handleRecordClick() {
+    function handleRecordClick(event) {
         if (!state.isRecording) {
-            // Start recording (errors mode by default, can be extended)
-            startRecording('errors');
-            updateBarToRecording();
+            // Show mode selection menu
+            showModeMenuForPill(event);
         } else {
             stopRecordingAndSend();
         }
+    }
+
+    // Show mode selection menu for pill widget
+    function showModeMenuForPill(event) {
+        // Remove existing menu if any
+        const existingMenu = document.getElementById('errorlens-mode-menu');
+        if (existingMenu) existingMenu.remove();
+
+        const menu = document.createElement('div');
+        menu.id = 'errorlens-mode-menu';
+        menu.style.cssText = `
+            position: fixed;
+            top: 52px;
+            right: 12px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 2147483647;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            overflow: hidden;
+            min-width: 180px;
+        `;
+
+        // Option 1: Record errors only
+        const errorsOption = document.createElement('div');
+        errorsOption.style.cssText = `
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s;
+        `;
+        errorsOption.innerHTML = `
+            <div style="font-weight: 600; color: #F44336; font-size: 13px;">Только ошибки</div>
+            <div style="font-size: 11px; color: #666; margin-top: 2px;">4xx/5xx, console.error</div>
+        `;
+        errorsOption.addEventListener('mouseenter', () => errorsOption.style.background = '#f5f5f5');
+        errorsOption.addEventListener('mouseleave', () => errorsOption.style.background = 'white');
+        errorsOption.addEventListener('click', () => {
+            menu.remove();
+            startRecording('errors');
+            updateBarToRecording();
+        });
+
+        // Option 2: Record all requests
+        const allOption = document.createElement('div');
+        allOption.style.cssText = `
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        `;
+        allOption.innerHTML = `
+            <div style="font-weight: 600; color: #2196F3; font-size: 13px;">Все запросы</div>
+            <div style="font-size: 11px; color: #666; margin-top: 2px;">Для Postman/тестов</div>
+        `;
+        allOption.addEventListener('mouseenter', () => allOption.style.background = '#f5f5f5');
+        allOption.addEventListener('mouseleave', () => allOption.style.background = 'white');
+        allOption.addEventListener('click', () => {
+            menu.remove();
+            startRecording('all');
+            updateBarToRecording();
+        });
+
+        menu.appendChild(errorsOption);
+        menu.appendChild(allOption);
+        document.body.appendChild(menu);
+
+        // Close menu on outside click
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target) && e.target.id !== 'errorlens-record-btn') {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeMenu), 100);
     }
 
     // Update pill to recording state
@@ -1527,6 +1600,60 @@
                 }
             });
             btnContainer.appendChild(postmanBtn);
+
+            // Export pytest button
+            const pytestBtn = document.createElement('button');
+            pytestBtn.textContent = 'Экспорт в pytest';
+            pytestBtn.style.cssText = `
+                background: #009688; color: white; border: none; padding: 10px 20px;
+                border-radius: 5px; cursor: pointer; font-size: 14px;
+            `;
+            pytestBtn.addEventListener('click', async () => {
+                pytestBtn.textContent = 'Генерация...';
+                pytestBtn.disabled = true;
+
+                try {
+                    const response = await fetch(`${CONFIG.BACKEND_URL}/export/pytest`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            recorded_requests: state.recordedRequests,
+                            test_name: `test_${new URL(window.location.href).hostname.replace(/\./g, '_')}`,
+                            base_url_variable: true
+                        })
+                    });
+
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `test_session_${new Date().toISOString().slice(0, 10)}.py`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    pytestBtn.textContent = 'Скачано!';
+                    pytestBtn.style.background = '#4CAF50';
+                    setTimeout(() => {
+                        pytestBtn.textContent = 'Экспорт в pytest';
+                        pytestBtn.style.background = '#009688';
+                        pytestBtn.disabled = false;
+                    }, 2000);
+                } catch (error) {
+                    console.error('[ErrorLens] pytest export failed:', error);
+                    pytestBtn.textContent = 'Ошибка';
+                    pytestBtn.style.background = '#f44336';
+                    setTimeout(() => {
+                        pytestBtn.textContent = 'Экспорт в pytest';
+                        pytestBtn.style.background = '#009688';
+                        pytestBtn.disabled = false;
+                    }, 2000);
+                }
+            });
+            btnContainer.appendChild(pytestBtn);
         }
 
         // Export Markdown button
@@ -1570,6 +1697,18 @@ ${result.details ? `### Подробности\n\`\`\`\n${result.details}\n\`\`\
             }, 2000);
         });
         btnContainer.appendChild(exportBtn);
+
+        // Dashboard link
+        const dashboardBtn = document.createElement('button');
+        dashboardBtn.textContent = 'Открыть Dashboard';
+        dashboardBtn.style.cssText = `
+            background: #4FC3F7; color: white; border: none; padding: 10px 20px;
+            border-radius: 5px; cursor: pointer; font-size: 14px;
+        `;
+        dashboardBtn.addEventListener('click', () => {
+            window.open(CONFIG.DASHBOARD_URL, '_blank');
+        });
+        btnContainer.appendChild(dashboardBtn);
 
         // Close button
         const closeBtn = document.createElement('button');

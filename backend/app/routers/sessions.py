@@ -300,7 +300,7 @@ async def export_session(
     """
     Export session in specified format.
 
-    Supported formats: markdown, postman
+    Supported formats: markdown, postman, pytest
     """
     query = (
         select(Session)
@@ -342,6 +342,28 @@ async def export_session(
             content=json.dumps(result.collection, indent=2),
             media_type="application/json",
             headers={"Content-Disposition": f"attachment; filename=errorlens-{session_id[:8]}.postman_collection.json"}
+        )
+    elif format == "pytest":
+        from app.pytest_generator import generate_pytest_file
+        from app.models_pydantic import RecordedHttpExchange
+
+        if not session.data or not session.data.recorded_requests:
+            raise HTTPException(status_code=400, detail="No recorded requests to export")
+
+        # Convert dicts to RecordedHttpExchange objects
+        exchanges = [
+            RecordedHttpExchange(**req) for req in session.data.recorded_requests
+        ]
+
+        content = generate_pytest_file(
+            recorded_requests=exchanges,
+            test_name=f"test_session_{session_id[:8]}",
+        )
+
+        return Response(
+            content=content,
+            media_type="text/x-python",
+            headers={"Content-Disposition": f"attachment; filename=test_session_{session_id[:8]}.py"}
         )
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported format: {format}")

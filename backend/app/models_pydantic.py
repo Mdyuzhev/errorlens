@@ -207,6 +207,20 @@ class ExportPostmanResponse(BaseModel):
     variables_count: int
 
 
+class ExportPytestRequest(BaseModel):
+    """Request body for pytest export endpoint."""
+
+    recorded_requests: list[RecordedHttpExchange] = Field(
+        ..., description="Recorded HTTP exchanges to convert"
+    )
+    test_name: str = Field(
+        default="test_session", description="Name for the test file/class"
+    )
+    base_url_variable: bool = Field(
+        default=True, description="Extract base URL as variable"
+    )
+
+
 # Story 7.2: Session analysis models
 class DetectedVariable(BaseModel):
     """Variable detected in session (token, ID, etc.)."""
