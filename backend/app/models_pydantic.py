@@ -221,6 +221,31 @@ class ExportPytestRequest(BaseModel):
     )
 
 
+# Story 8.6.1: Ticket generator models
+class GenerateTicketRequest(BaseModel):
+    """Request body for ticket generation endpoint."""
+
+    session_id: str = Field(..., description="Session ID to generate ticket from")
+    format: str = Field(
+        default="jira", description="Ticket format: jira, github, markdown"
+    )
+    additional_info: str = Field(
+        default="", description="Additional info to include in ticket"
+    )
+
+
+class GenerateTicketResponse(BaseModel):
+    """Response from ticket generation endpoint."""
+
+    title: str
+    description: str | None = None
+    body: str | None = None
+    content: str | None = None
+    priority: str | None = None
+    labels: list[str] | None = None
+    format: str
+
+
 # Story 7.2: Session analysis models
 class DetectedVariable(BaseModel):
     """Variable detected in session (token, ID, etc.)."""
