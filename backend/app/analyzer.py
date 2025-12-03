@@ -11,25 +11,46 @@ from app.providers.groq import GroqProvider
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """CRITICAL: You MUST respond in Russian language only. All text values in JSON must be in Russian.
+SYSTEM_PROMPT = """Ты — опытный QA-инженер. Анализируй ошибки браузера и давай практичные рекомендации.
 
-You are an expert QA engineer and frontend debugger. Analyze the following browser error data.
+Входные данные: console-логи, сетевые ошибки, JS-исключения с веб-страницы.
 
-The data includes:
-- Console logs (errors, warnings)
-- Network failures (4xx/5xx responses)
-- JavaScript exceptions
+Твоя задача:
+1. Определить главную проблему
+2. Найти вероятную причину
+3. Предложить конкретное решение
+4. Оценить критичность (low/medium/high/critical)
 
-Respond in JSON format with these fields (ALL VALUES MUST BE IN RUSSIAN):
+Отвечай строго в JSON-формате:
 {
-  "summary": "Краткое описание проблемы (на русском)",
-  "probable_cause": "Вероятная причина ошибки (на русском)",
-  "suggested_fix": "Рекомендация по исправлению (на русском)",
-  "severity": "low|medium|high|critical",
-  "details": "Подробный технический анализ (на русском)"
+    "summary": "краткое описание главной проблемы",
+    "probable_cause": "техническая причина ошибки",
+    "suggested_fix": "конкретные шаги для исправления",
+    "severity": "low|medium|high|critical",
+    "details": "дополнительный анализ если нужен"
 }
 
-Remember: ALL text content MUST be in Russian language!"""
+Примеры хороших ответов:
+
+Для TypeError:
+{
+    "summary": "Ошибка доступа к свойству несуществующего объекта",
+    "probable_cause": "Переменная user равна null или undefined при обращении к user.profile",
+    "suggested_fix": "Добавить проверку: if (user?.profile) { ... } или использовать optional chaining",
+    "severity": "medium",
+    "details": "Ошибка в файле app.js:42, вызвана отсутствием данных пользователя"
+}
+
+Для сетевой ошибки 500:
+{
+    "summary": "Сервер вернул внутреннюю ошибку",
+    "probable_cause": "Сбой на бэкенде при обработке запроса к /api/users",
+    "suggested_fix": "Проверить логи сервера, убедиться что БД доступна, проверить валидность входных данных",
+    "severity": "high",
+    "details": "POST запрос к /api/users вернул 500 Internal Server Error"
+}
+
+Будь конкретным и практичным. Избегай общих фраз."""
 
 
 def _get_provider() -> LLMProvider:
@@ -48,32 +69,34 @@ def _format_context(request: AnalyzeRequest) -> str:
     parts = [
         SYSTEM_PROMPT,
         "",
-        f"Page URL: {request.url}",
+        "Проанализируй следующие ошибки браузера:",
+        "",
+        f"URL страницы: {request.url}",
         f"User Agent: {request.user_agent}",
-        f"Recording Duration: {request.recording_duration_ms}ms",
+        f"Длительность записи: {request.recording_duration_ms}мс",
         "",
     ]
 
     if request.console_logs:
-        parts.append("=== Console Logs ===")
+        parts.append("=== Логи консоли ===")
         for log in request.console_logs[:50]:  # Limit to prevent token overflow
             parts.append(f"[{log.timestamp}] [{log.level.upper()}] {log.message}")
             if log.stack:
-                parts.append(f"  Stack: {log.stack[:500]}")
+                parts.append(f"  Стек: {log.stack[:500]}")
         parts.append("")
 
     if request.js_exceptions:
-        parts.append("=== JavaScript Exceptions ===")
+        parts.append("=== JavaScript исключения ===")
         for exc in request.js_exceptions[:20]:
             parts.append(f"[{exc.timestamp}] {exc.message}")
             if exc.source:
-                parts.append(f"  Source: {exc.source}:{exc.lineno}:{exc.colno}")
+                parts.append(f"  Файл: {exc.source}:{exc.lineno}:{exc.colno}")
             if exc.stack:
-                parts.append(f"  Stack: {exc.stack[:500]}")
+                parts.append(f"  Стек: {exc.stack[:500]}")
         parts.append("")
 
     if request.network_errors:
-        parts.append("=== Network Errors ===")
+        parts.append("=== Сетевые ошибки ===")
         for err in request.network_errors[:30]:
             parts.append(
                 f"[{err.timestamp}] {err.method} {err.url} -> {err.status} {err.status_text or ''}"
@@ -103,9 +126,9 @@ def _parse_llm_response(raw_response: str) -> dict:
     except json.JSONDecodeError:
         # Fallback: return raw response as details
         return {
-            "summary": "Analysis completed",
-            "probable_cause": "See details for full analysis",
-            "suggested_fix": "Review the detailed analysis below",
+            "summary": "Анализ завершён",
+            "probable_cause": "Смотри подробности ниже",
+            "suggested_fix": "Изучи детальный анализ",
             "severity": "medium",
             "details": raw_response,
         }
@@ -133,9 +156,9 @@ async def analyze_errors(request: AnalyzeRequest) -> AnalyzeResponse:
     )
 
     return AnalyzeResponse(
-        summary=parsed.get("summary", "Analysis completed"),
-        probable_cause=parsed.get("probable_cause", "Unknown"),
-        suggested_fix=parsed.get("suggested_fix", "Further investigation needed"),
+        summary=parsed.get("summary", "Анализ завершён"),
+        probable_cause=parsed.get("probable_cause", "Неизвестно"),
+        suggested_fix=parsed.get("suggested_fix", "Требуется дополнительное исследование"),
         severity=parsed.get("severity", "medium"),
         raw_events_count=total_events,
         details=details,
