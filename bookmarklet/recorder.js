@@ -48,8 +48,10 @@
     // Configuration
     const CONFIG = {
         BACKEND_URL: 'http://localhost:8000',
-        WIDGET_STYLE: 'new', // 'new' (top bar) or 'classic' (floating button)
-        WIDGET_SIZE: 60      // For classic mode only
+        WIDGET_STYLE: 'new', // 'new' (pill) or 'classic' (floating button)
+        WIDGET_SIZE: 60,     // For classic mode only
+        USE_SESSIONS_API: true, // Use new /sessions endpoint (saves to DB)
+        DASHBOARD_URL: 'http://localhost:3000/dashboard' // Dashboard location
     };
 
     // URL patterns to filter out (analytics, ads, static assets)
@@ -1082,7 +1084,12 @@
         showModal('Анализирую...' + retryText, 'Подождите, ErrorLens анализирует ваши ошибки.', true);
 
         try {
-            const response = await fetch(`${CONFIG.BACKEND_URL}/analyze`, {
+            // Choose API endpoint based on config
+            const endpoint = CONFIG.USE_SESSIONS_API
+                ? `${CONFIG.BACKEND_URL}/sessions`
+                : `${CONFIG.BACKEND_URL}/analyze`;
+
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1095,8 +1102,24 @@
                 throw new Error(error.detail || `HTTP ${response.status}`);
             }
 
-            const result = await response.json();
-            console.log('[ErrorLens] Analysis result:', result);
+            const responseData = await response.json();
+            console.log('[ErrorLens] Response:', responseData);
+
+            // Handle different response formats
+            let result;
+            if (CONFIG.USE_SESSIONS_API) {
+                // Sessions API returns {session_id, analysis}
+                result = responseData.analysis || {
+                    summary: 'Сессия сохранена',
+                    probable_cause: 'Нет данных об ошибках для анализа',
+                    suggested_fix: 'Попробуйте записать сессию с ошибками',
+                    severity: 'low',
+                    raw_events_count: 0
+                };
+                result.session_id = responseData.session_id;
+            } else {
+                result = responseData;
+            }
 
             // Store results globally for re-launch handling
             state.lastResults = result;
