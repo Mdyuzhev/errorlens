@@ -198,10 +198,10 @@
 
 | ID | Задача | Статус |
 |----|--------|--------|
-| 7.1.1 | Режим "Record All" — все запросы, не только ошибки | ⬜ |
-| 7.1.2 | Полный захват request (method, url, headers, body) | ⬜ |
-| 7.1.3 | Полный захват response (status, headers, body, time) | ⬜ |
-| 7.1.4 | Фильтрация мусора (analytics, ads, static assets) | ⬜ |
+| 7.1.1 | Режим "Record All" — все запросы, не только ошибки | ✅ |
+| 7.1.2 | Полный захват request (method, url, headers, body) | ✅ |
+| 7.1.3 | Полный захват response (status, headers, body, time) | ✅ |
+| 7.1.4 | Фильтрация мусора (analytics, ads, static assets) | ✅ |
 | 7.1.5 | Сохранение в модель Session (Epic 8) | ⬜ |
 
 ### Story 7.2: Анализ сессии
@@ -217,11 +217,11 @@
 
 | ID | Задача | Статус |
 |----|--------|--------|
-| 7.3.1 | Модель Postman Collection v2.1 (Pydantic) | ⬜ |
-| 7.3.2 | Конвертация сессии → Postman requests | ⬜ |
-| 7.3.3 | Генерация pm.test() assertions | ⬜ |
-| 7.3.4 | Переменные окружения {{baseUrl}}, {{token}} | ⬜ |
-| 7.3.5 | Endpoint GET /sessions/{id}/export/postman | ⬜ |
+| 7.3.1 | Модель Postman Collection v2.1 (Pydantic) | ✅ |
+| 7.3.2 | Конвертация сессии → Postman requests | ✅ |
+| 7.3.3 | Генерация pm.test() assertions | ✅ |
+| 7.3.4 | Переменные окружения {{baseUrl}}, {{token}} | ✅ |
+| 7.3.5 | Endpoint POST /export/postman | ✅ |
 
 ### Story 7.4: UI генератора в dashboard
 

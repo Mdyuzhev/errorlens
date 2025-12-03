@@ -7,7 +7,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.analyzer import analyze_errors
 from app.config import settings
-from app.models import AnalyzeRequest, AnalyzeResponse
+from app.models import (
+    AnalyzeRequest,
+    AnalyzeResponse,
+    ExportPostmanRequest,
+    ExportPostmanResponse,
+)
+from app.postman_generator import generate_postman_collection
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -66,3 +72,28 @@ async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     except Exception as e:
         logger.exception(f"Analysis failed: {e}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {e}")
+
+
+@app.post("/export/postman", response_model=ExportPostmanResponse)
+async def export_postman(request: ExportPostmanRequest) -> ExportPostmanResponse:
+    """
+    Generate Postman Collection from recorded HTTP exchanges.
+
+    Converts recorded requests/responses into a Postman Collection v2.1
+    with optional test assertions and environment variables.
+    """
+    if not request.recorded_requests:
+        raise HTTPException(
+            status_code=400,
+            detail="No recorded requests to export.",
+        )
+
+    logger.info(f"Generating Postman collection from {len(request.recorded_requests)} requests")
+
+    try:
+        result = generate_postman_collection(request)
+        logger.info(f"Generated collection with {result.requests_count} items")
+        return result
+    except Exception as e:
+        logger.exception(f"Postman export failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Export failed: {e}")

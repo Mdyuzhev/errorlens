@@ -33,6 +33,37 @@ class JSException(BaseModel):
     stack: str | None = Field(None, description="Stack trace")
 
 
+# Story 7.1: Extended request recording models
+class RecordedRequest(BaseModel):
+    """Full HTTP request captured for test generation."""
+
+    timestamp: str = Field(..., description="ISO 8601 timestamp")
+    method: str = Field(..., description="HTTP method: GET, POST, PUT, DELETE, etc.")
+    url: str = Field(..., description="Full request URL")
+    headers: dict[str, str] = Field(default_factory=dict, description="Request headers")
+    body: str | None = Field(None, description="Request body (JSON string or form data)")
+    content_type: str | None = Field(None, description="Content-Type header value")
+
+
+class RecordedResponse(BaseModel):
+    """Full HTTP response captured for test generation."""
+
+    status: int = Field(..., description="HTTP status code")
+    status_text: str | None = Field(None, description="HTTP status text")
+    headers: dict[str, str] = Field(default_factory=dict, description="Response headers")
+    body: str | None = Field(None, description="Response body (truncated if large)")
+    duration_ms: int = Field(..., description="Response time in milliseconds")
+
+
+class RecordedHttpExchange(BaseModel):
+    """Complete HTTP request/response pair for test generation."""
+
+    id: int = Field(..., description="Sequential ID within session")
+    timestamp: str = Field(..., description="ISO 8601 timestamp")
+    request: RecordedRequest = Field(..., description="Request details")
+    response: RecordedResponse = Field(..., description="Response details")
+
+
 class AnalyzeRequest(BaseModel):
     """Request body for /analyze endpoint."""
 
@@ -49,6 +80,13 @@ class AnalyzeRequest(BaseModel):
     )
     screenshot: str | None = Field(None, description="Base64-encoded screenshot")
     recording_duration_ms: int = Field(..., description="Recording duration in ms")
+    # Story 7.1: Extended recording data
+    recorded_requests: list[RecordedHttpExchange] = Field(
+        default_factory=list, description="All recorded HTTP exchanges for test generation"
+    )
+    record_mode: str = Field(
+        default="errors", description="Recording mode: 'errors' or 'all'"
+    )
 
 
 class AnalyzeResponse(BaseModel):
@@ -60,3 +98,110 @@ class AnalyzeResponse(BaseModel):
     severity: str = Field(..., description="Severity: low, medium, high, critical")
     raw_events_count: int = Field(..., description="Total events analyzed")
     details: str = Field(..., description="Detailed analysis")
+
+
+# Story 7.3: Postman Collection models (v2.1 schema)
+class PostmanHeader(BaseModel):
+    """Postman request header."""
+
+    key: str
+    value: str
+    type: str = "text"
+
+
+class PostmanBody(BaseModel):
+    """Postman request body."""
+
+    mode: str = "raw"
+    raw: str | None = None
+    options: dict | None = None
+
+
+class PostmanUrl(BaseModel):
+    """Postman URL object."""
+
+    raw: str
+    protocol: str | None = None
+    host: list[str] | None = None
+    path: list[str] | None = None
+    query: list[dict] | None = None
+
+
+class PostmanRequest(BaseModel):
+    """Postman request object."""
+
+    method: str
+    header: list[PostmanHeader] = Field(default_factory=list)
+    body: PostmanBody | None = None
+    url: PostmanUrl
+
+
+class PostmanEvent(BaseModel):
+    """Postman test script event."""
+
+    listen: str = "test"
+    script: dict
+
+
+class PostmanItem(BaseModel):
+    """Single request item in Postman collection."""
+
+    name: str
+    event: list[PostmanEvent] = Field(default_factory=list)
+    request: PostmanRequest
+    response: list = Field(default_factory=list)
+
+
+class PostmanVariable(BaseModel):
+    """Postman collection variable."""
+
+    key: str
+    value: str
+    type: str = "string"
+
+
+class PostmanInfo(BaseModel):
+    """Postman collection info."""
+
+    name: str
+    description: str = ""
+    schema_url: str = Field(
+        default="https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        alias="schema"
+    )
+
+    class Config:
+        populate_by_name = True
+
+
+class PostmanCollection(BaseModel):
+    """Postman Collection v2.1 format."""
+
+    info: PostmanInfo
+    item: list[PostmanItem] = Field(default_factory=list)
+    variable: list[PostmanVariable] = Field(default_factory=list)
+
+
+class ExportPostmanRequest(BaseModel):
+    """Request body for Postman export endpoint."""
+
+    recorded_requests: list[RecordedHttpExchange] = Field(
+        ..., description="Recorded HTTP exchanges to convert"
+    )
+    collection_name: str = Field(
+        default="ErrorLens Session", description="Name for the Postman collection"
+    )
+    base_url_variable: bool = Field(
+        default=True, description="Extract base URL as {{baseUrl}} variable"
+    )
+    generate_tests: bool = Field(
+        default=True, description="Generate pm.test() assertions"
+    )
+
+
+class ExportPostmanResponse(BaseModel):
+    """Response from Postman export endpoint."""
+
+    collection: PostmanCollection
+    requests_count: int
+    variables_count: int

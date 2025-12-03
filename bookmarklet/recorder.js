@@ -1,13 +1,14 @@
 /**
  * ErrorLens Bookmarklet Recorder
  *
- * Stories 2.1 + 2.4:
+ * Stories 2.1 + 2.4 + 7.1:
  * - Intercepts console.log/warn/error
  * - Captures window.onerror and unhandledrejection
  * - Records timestamps for each event
  * - Floating UI widget (red dot = recording)
  * - Click to start/stop and send to backend
  * - Shows result in modal
+ * - Record All mode for test generation (Epic 7)
  */
 (function() {
     'use strict';
@@ -16,13 +17,40 @@
     const BACKEND_URL = 'http://localhost:8000';
     const WIDGET_SIZE = 60;
 
+    // URL patterns to filter out (analytics, ads, static assets)
+    const JUNK_URL_PATTERNS = [
+        /google-analytics\.com/i,
+        /googletagmanager\.com/i,
+        /facebook\.com\/tr/i,
+        /doubleclick\.net/i,
+        /hotjar\.com/i,
+        /segment\.io/i,
+        /mixpanel\.com/i,
+        /amplitude\.com/i,
+        /sentry\.io/i,
+        /newrelic\.com/i,
+        /\.(png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|css)(\?|$)/i,
+        /\/_next\/static\//i,
+        /\/static\/js\//i,
+        /\/static\/css\//i,
+        /\/favicon/i,
+    ];
+
+    // Check if URL is junk (analytics, static assets)
+    function isJunkUrl(url) {
+        return JUNK_URL_PATTERNS.some(pattern => pattern.test(url));
+    }
+
     // State
     const state = {
         isRecording: false,
+        recordMode: 'errors', // 'errors' or 'all' (for test generation)
         startTime: null,
         consoleLogs: [],
         jsExceptions: [],
         networkErrors: [],
+        recordedRequests: [], // Story 7.1: All HTTP exchanges for test generation
+        requestIdCounter: 0,
         screenshot: null,
         originalConsole: {
             log: console.log,
@@ -210,30 +238,64 @@
             const method = (init && init.method) || 'GET';
             const url = typeof input === 'string' ? input : input.url;
 
+            // Skip junk URLs in record-all mode
+            if (state.recordMode === 'all' && isJunkUrl(url)) {
+                return state.originalFetch.apply(window, arguments);
+            }
+
             // Extract request headers and body
             const requestHeaders = init && init.headers ? headersToObject(init.headers) : {};
             const requestBody = init && init.body ? String(init.body).substring(0, 10240) : null;
+            const contentType = requestHeaders['content-type'] || requestHeaders['Content-Type'] || null;
 
             try {
                 const response = await state.originalFetch.apply(window, arguments);
+                const duration = Date.now() - startTime;
 
-                // Record only error responses (4xx, 5xx)
-                if (state.isRecording && isErrorStatus(response.status)) {
+                if (state.isRecording) {
                     const responseBody = await safeReadBody(response);
+                    const responseHeaders = headersToObject(response.headers);
+                    const timestamp = getTimestamp();
 
-                    state.networkErrors.push({
-                        timestamp: getTimestamp(),
-                        type: 'fetch',
-                        method: method,
-                        url: url,
-                        status: response.status,
-                        status_text: response.statusText,
-                        duration_ms: Date.now() - startTime,
-                        request_headers: requestHeaders,
-                        request_body: requestBody,
-                        response_headers: headersToObject(response.headers),
-                        response_body: responseBody
-                    });
+                    // Record error responses (4xx, 5xx) - original behavior
+                    if (isErrorStatus(response.status)) {
+                        state.networkErrors.push({
+                            timestamp: timestamp,
+                            type: 'fetch',
+                            method: method,
+                            url: url,
+                            status: response.status,
+                            status_text: response.statusText,
+                            duration_ms: duration,
+                            request_headers: requestHeaders,
+                            request_body: requestBody,
+                            response_headers: responseHeaders,
+                            response_body: responseBody
+                        });
+                    }
+
+                    // Story 7.1: Record ALL requests in 'all' mode for test generation
+                    if (state.recordMode === 'all') {
+                        state.recordedRequests.push({
+                            id: ++state.requestIdCounter,
+                            timestamp: timestamp,
+                            request: {
+                                timestamp: timestamp,
+                                method: method,
+                                url: url,
+                                headers: requestHeaders,
+                                body: requestBody,
+                                content_type: contentType
+                            },
+                            response: {
+                                status: response.status,
+                                status_text: response.statusText,
+                                headers: responseHeaders,
+                                body: responseBody,
+                                duration_ms: duration
+                            }
+                        });
+                    }
 
                     updateEventCounter();
                 }
@@ -242,19 +304,45 @@
             } catch (error) {
                 // Network error (no response at all)
                 if (state.isRecording) {
+                    const timestamp = getTimestamp();
+                    const duration = Date.now() - startTime;
+
                     state.networkErrors.push({
-                        timestamp: getTimestamp(),
+                        timestamp: timestamp,
                         type: 'fetch',
                         method: method,
                         url: url,
                         status: 0,
                         status_text: 'Network Error',
-                        duration_ms: Date.now() - startTime,
+                        duration_ms: duration,
                         request_headers: requestHeaders,
                         request_body: requestBody,
                         response_headers: null,
                         response_body: error.message
                     });
+
+                    // Record failed request in 'all' mode too
+                    if (state.recordMode === 'all') {
+                        state.recordedRequests.push({
+                            id: ++state.requestIdCounter,
+                            timestamp: timestamp,
+                            request: {
+                                timestamp: timestamp,
+                                method: method,
+                                url: url,
+                                headers: requestHeaders,
+                                body: requestBody,
+                                content_type: contentType
+                            },
+                            response: {
+                                status: 0,
+                                status_text: 'Network Error',
+                                headers: {},
+                                body: error.message,
+                                duration_ms: duration
+                            }
+                        });
+                    }
 
                     updateEventCounter();
                 }
@@ -299,56 +387,118 @@
 
             // Listen for load event
             xhr.addEventListener('load', function() {
-                if (state.isRecording && xhr._errorlens && isErrorStatus(xhr.status)) {
-                    // Extract response headers
-                    const responseHeaders = {};
-                    const headerString = xhr.getAllResponseHeaders();
-                    if (headerString) {
-                        headerString.split('\r\n').forEach(line => {
-                            const parts = line.split(': ');
-                            if (parts.length === 2) {
-                                responseHeaders[parts[0]] = parts[1];
-                            }
-                        });
-                    }
+                if (!state.isRecording || !xhr._errorlens) return;
 
+                // Skip junk URLs in record-all mode
+                if (state.recordMode === 'all' && isJunkUrl(xhr._errorlens.url)) return;
+
+                const timestamp = getTimestamp();
+                const duration = Date.now() - xhr._errorlens.startTime;
+
+                // Extract response headers
+                const responseHeaders = {};
+                const headerString = xhr.getAllResponseHeaders();
+                if (headerString) {
+                    headerString.split('\r\n').forEach(line => {
+                        const parts = line.split(': ');
+                        if (parts.length === 2) {
+                            responseHeaders[parts[0]] = parts[1];
+                        }
+                    });
+                }
+
+                const responseBody = xhr.responseText ? xhr.responseText.substring(0, 10240) : null;
+                const contentType = xhr._errorlens.requestHeaders['content-type'] || xhr._errorlens.requestHeaders['Content-Type'] || null;
+
+                // Record error responses (4xx, 5xx) - original behavior
+                if (isErrorStatus(xhr.status)) {
                     state.networkErrors.push({
-                        timestamp: getTimestamp(),
+                        timestamp: timestamp,
                         type: 'xhr',
                         method: xhr._errorlens.method,
                         url: xhr._errorlens.url,
                         status: xhr.status,
                         status_text: xhr.statusText,
-                        duration_ms: Date.now() - xhr._errorlens.startTime,
+                        duration_ms: duration,
                         request_headers: xhr._errorlens.requestHeaders,
                         request_body: xhr._errorlens.requestBody,
                         response_headers: responseHeaders,
-                        response_body: xhr.responseText ? xhr.responseText.substring(0, 10240) : null
+                        response_body: responseBody
                     });
-
-                    updateEventCounter();
                 }
+
+                // Story 7.1: Record ALL requests in 'all' mode for test generation
+                if (state.recordMode === 'all') {
+                    state.recordedRequests.push({
+                        id: ++state.requestIdCounter,
+                        timestamp: timestamp,
+                        request: {
+                            timestamp: timestamp,
+                            method: xhr._errorlens.method,
+                            url: xhr._errorlens.url,
+                            headers: xhr._errorlens.requestHeaders,
+                            body: xhr._errorlens.requestBody,
+                            content_type: contentType
+                        },
+                        response: {
+                            status: xhr.status,
+                            status_text: xhr.statusText,
+                            headers: responseHeaders,
+                            body: responseBody,
+                            duration_ms: duration
+                        }
+                    });
+                }
+
+                updateEventCounter();
             });
 
             // Listen for error event (network error)
             xhr.addEventListener('error', function() {
-                if (state.isRecording && xhr._errorlens) {
-                    state.networkErrors.push({
-                        timestamp: getTimestamp(),
-                        type: 'xhr',
-                        method: xhr._errorlens.method,
-                        url: xhr._errorlens.url,
-                        status: 0,
-                        status_text: 'Network Error',
-                        duration_ms: Date.now() - xhr._errorlens.startTime,
-                        request_headers: xhr._errorlens.requestHeaders,
-                        request_body: xhr._errorlens.requestBody,
-                        response_headers: null,
-                        response_body: null
-                    });
+                if (!state.isRecording || !xhr._errorlens) return;
 
-                    updateEventCounter();
+                const timestamp = getTimestamp();
+                const duration = Date.now() - xhr._errorlens.startTime;
+                const contentType = xhr._errorlens.requestHeaders['content-type'] || xhr._errorlens.requestHeaders['Content-Type'] || null;
+
+                state.networkErrors.push({
+                    timestamp: timestamp,
+                    type: 'xhr',
+                    method: xhr._errorlens.method,
+                    url: xhr._errorlens.url,
+                    status: 0,
+                    status_text: 'Network Error',
+                    duration_ms: duration,
+                    request_headers: xhr._errorlens.requestHeaders,
+                    request_body: xhr._errorlens.requestBody,
+                    response_headers: null,
+                    response_body: null
+                });
+
+                // Record failed request in 'all' mode too
+                if (state.recordMode === 'all') {
+                    state.recordedRequests.push({
+                        id: ++state.requestIdCounter,
+                        timestamp: timestamp,
+                        request: {
+                            timestamp: timestamp,
+                            method: xhr._errorlens.method,
+                            url: xhr._errorlens.url,
+                            headers: xhr._errorlens.requestHeaders,
+                            body: xhr._errorlens.requestBody,
+                            content_type: contentType
+                        },
+                        response: {
+                            status: 0,
+                            status_text: 'Network Error',
+                            headers: {},
+                            body: null,
+                            duration_ms: duration
+                        }
+                    });
                 }
+
+                updateEventCounter();
             });
 
             return state.originalXHRSend.apply(this, arguments);
@@ -499,21 +649,96 @@
     }
 
     // Handle widget click
-    function handleWidgetClick() {
+    function handleWidgetClick(event) {
         if (!state.isRecording) {
-            startRecording();
+            // Show mode selection menu
+            showModeMenu(event);
         } else {
             stopRecordingAndSend();
         }
     }
 
+    // Show recording mode selection menu
+    function showModeMenu(event) {
+        // Remove existing menu if any
+        const existingMenu = document.getElementById('errorlens-mode-menu');
+        if (existingMenu) existingMenu.remove();
+
+        const menu = document.createElement('div');
+        menu.id = 'errorlens-mode-menu';
+        menu.style.cssText = `
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 1000000;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        `;
+
+        // Option 1: Record errors only
+        const errorsOption = document.createElement('div');
+        errorsOption.style.cssText = `
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s;
+        `;
+        errorsOption.innerHTML = `
+            <div style="font-weight: bold; color: #ff4444;">Только ошибки</div>
+            <div style="font-size: 12px; color: #666;">Записывать 4xx/5xx ошибки</div>
+        `;
+        errorsOption.addEventListener('mouseenter', () => errorsOption.style.background = '#f5f5f5');
+        errorsOption.addEventListener('mouseleave', () => errorsOption.style.background = 'white');
+        errorsOption.addEventListener('click', () => {
+            menu.remove();
+            startRecording('errors');
+        });
+
+        // Option 2: Record all requests
+        const allOption = document.createElement('div');
+        allOption.style.cssText = `
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+        `;
+        allOption.innerHTML = `
+            <div style="font-weight: bold; color: #2196F3;">Все запросы</div>
+            <div style="font-size: 12px; color: #666;">Для генерации тестов</div>
+        `;
+        allOption.addEventListener('mouseenter', () => allOption.style.background = '#f5f5f5');
+        allOption.addEventListener('mouseleave', () => allOption.style.background = 'white');
+        allOption.addEventListener('click', () => {
+            menu.remove();
+            startRecording('all');
+        });
+
+        menu.appendChild(errorsOption);
+        menu.appendChild(allOption);
+        document.body.appendChild(menu);
+
+        // Close menu on outside click
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target) && e.target !== document.getElementById('errorlens-widget')) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeMenu), 100);
+    }
+
     // Start recording
-    function startRecording() {
+    function startRecording(mode = 'errors') {
         state.isRecording = true;
+        state.recordMode = mode; // 'errors' or 'all'
         state.startTime = Date.now();
         state.consoleLogs = [];
         state.jsExceptions = [];
         state.networkErrors = [];
+        state.recordedRequests = [];
+        state.requestIdCounter = 0;
         state.screenshot = null;
 
         // Setup interceptors
@@ -523,10 +748,10 @@
         interceptFetch();
         interceptXHR();
 
-        // Update widget UI
+        // Update widget UI - red for errors, blue for all
         const widget = document.getElementById('errorlens-widget');
         if (widget) {
-            widget.style.background = '#ff0000';
+            widget.style.background = mode === 'all' ? '#2196F3' : '#ff0000';
             widget.style.animation = 'pulse 1.5s infinite';
         }
 
@@ -570,7 +795,8 @@
         console.log('[ErrorLens] Events captured:', {
             consoleLogs: state.consoleLogs.length,
             jsExceptions: state.jsExceptions.length,
-            networkErrors: state.networkErrors.length
+            networkErrors: state.networkErrors.length,
+            recordedRequests: state.recordedRequests.length
         });
 
         // Capture screenshot before sending
@@ -593,7 +819,10 @@
             network_errors: state.networkErrors,
             js_exceptions: state.jsExceptions,
             screenshot: state.screenshot,
-            recording_duration_ms: duration
+            recording_duration_ms: duration,
+            // Story 7.1: Extended recording data
+            recorded_requests: state.recordedRequests,
+            record_mode: state.recordMode
         };
 
         console.log('[ErrorLens] Sending to backend:', payload);
@@ -953,6 +1182,64 @@
             });
         });
         btnContainer.appendChild(copyBtn);
+
+        // Export Postman button (only in 'all' mode with recorded requests)
+        if (state.recordMode === 'all' && state.recordedRequests.length > 0) {
+            const postmanBtn = document.createElement('button');
+            postmanBtn.textContent = 'Экспорт в Postman';
+            postmanBtn.style.cssText = `
+                background: #FF6C37; color: white; border: none; padding: 10px 20px;
+                border-radius: 5px; cursor: pointer; font-size: 14px;
+            `;
+            postmanBtn.addEventListener('click', async () => {
+                postmanBtn.textContent = 'Генерация...';
+                postmanBtn.disabled = true;
+
+                try {
+                    const response = await fetch(`${BACKEND_URL}/export/postman`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            recorded_requests: state.recordedRequests,
+                            collection_name: `ErrorLens - ${new URL(window.location.href).hostname}`,
+                            base_url_variable: true,
+                            generate_tests: true
+                        })
+                    });
+
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                    const data = await response.json();
+                    const blob = new Blob([JSON.stringify(data.collection, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `errorlens-collection-${new Date().toISOString().slice(0, 10)}.postman_collection.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    postmanBtn.textContent = 'Скачано!';
+                    postmanBtn.style.background = '#4CAF50';
+                    setTimeout(() => {
+                        postmanBtn.textContent = 'Экспорт в Postman';
+                        postmanBtn.style.background = '#FF6C37';
+                        postmanBtn.disabled = false;
+                    }, 2000);
+                } catch (error) {
+                    console.error('[ErrorLens] Postman export failed:', error);
+                    postmanBtn.textContent = 'Ошибка';
+                    postmanBtn.style.background = '#f44336';
+                    setTimeout(() => {
+                        postmanBtn.textContent = 'Экспорт в Postman';
+                        postmanBtn.style.background = '#FF6C37';
+                        postmanBtn.disabled = false;
+                    }, 2000);
+                }
+            });
+            btnContainer.appendChild(postmanBtn);
+        }
 
         // Export Markdown button
         const exportBtn = document.createElement('button');
