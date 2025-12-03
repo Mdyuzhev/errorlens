@@ -29,10 +29,6 @@ class GroqProvider(LLMProvider):
         payload = {
             "model": self.MODEL,
             "messages": [
-                {
-                    "role": "system",
-                    "content": "You are a QA assistant. Respond in Russian language when possible."
-                },
                 {"role": "user", "content": context}
             ],
             "temperature": 0.3,
