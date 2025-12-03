@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint Python
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install linting tools
+        run: |
+          pip install ruff black isort
+
+      - name: Run ruff (linter)
+        run: |
+          ruff check backend/app/
+
+      - name: Check black formatting
+        run: |
+          black --check backend/app/
+
+      - name: Check isort imports
+        run: |
+          isort --check-only backend/app/
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+
+      - name: Run tests
+        run: |
+          cd backend
+          pytest tests/ -v --tb=short
+        env:
+          # Use empty keys for tests (mocked)
+          GEMINI_API_KEY: ""
+          GROQ_API_KEY: ""
