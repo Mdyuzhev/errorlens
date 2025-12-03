@@ -10,7 +10,7 @@ class GroqProvider(LLMProvider):
     """Groq API provider (Llama models)."""
 
     API_URL = "https://api.groq.com/openai/v1/chat/completions"
-    MODEL = "llama-3.1-70b-versatile"
+    MODEL = "llama-3.3-70b-versatile"
 
     @property
     def name(self) -> str:
@@ -28,7 +28,13 @@ class GroqProvider(LLMProvider):
 
         payload = {
             "model": self.MODEL,
-            "messages": [{"role": "user", "content": context}],
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a QA assistant. Respond in Russian language when possible."
+                },
+                {"role": "user", "content": context}
+            ],
             "temperature": 0.3,
             "max_tokens": 2048,
         }
@@ -39,6 +45,9 @@ class GroqProvider(LLMProvider):
                 headers=headers,
                 json=payload,
             )
+            if response.status_code != 200:
+                import logging
+                logging.error(f"Groq API error: {response.status_code} - {response.text}")
             response.raise_for_status()
             data = response.json()
 
