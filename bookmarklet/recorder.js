@@ -13,6 +13,38 @@
 (function() {
     'use strict';
 
+    // Handle re-launch: check if already loaded
+    if (window.__errorLensLoaded) {
+        const bar = document.getElementById('errorlens-bar');
+        const widget = document.getElementById('errorlens-widget');
+        const existingWidget = bar || widget;
+
+        if (existingWidget) {
+            const isRecording = window.__errorLensState && window.__errorLensState.isRecording;
+            const hasResults = window.__errorLensResults;
+
+            if (isRecording) {
+                if (confirm('ErrorLens уже записывает.\n\nОстановить и начать заново?')) {
+                    window.__errorLensReset();
+                }
+            } else if (hasResults) {
+                const choice = confirm('Есть результаты прошлой записи.\n\nОК = Показать результаты\nОтмена = Новая запись');
+                if (choice) {
+                    window.__errorLensShowResults();
+                } else {
+                    window.__errorLensReset();
+                }
+            } else {
+                // Idle state - offer to start recording
+                console.log('[ErrorLens] Already loaded, widget ready');
+            }
+        }
+        return;
+    }
+
+    // Mark as loaded
+    window.__errorLensLoaded = true;
+
     // Configuration
     const CONFIG = {
         BACKEND_URL: 'http://localhost:8000',
@@ -66,8 +98,13 @@
         originalOnUnhandledRejection: window.onunhandledrejection,
         originalFetch: window.fetch,
         originalXHROpen: XMLHttpRequest.prototype.open,
-        originalXHRSend: XMLHttpRequest.prototype.send
+        originalXHRSend: XMLHttpRequest.prototype.send,
+        lastResults: null  // Store last analysis results
     };
+
+    // Expose state globally for re-launch handling
+    window.__errorLensState = state;
+    window.__errorLensResults = null;
 
     // Utility: Get ISO timestamp
     function getTimestamp() {
@@ -1059,6 +1096,10 @@
             const result = await response.json();
             console.log('[ErrorLens] Analysis result:', result);
 
+            // Store results globally for re-launch handling
+            state.lastResults = result;
+            window.__errorLensResults = result;
+
             // Show result in modal and update bar
             if (CONFIG.WIDGET_STYLE === 'new') {
                 updateBarToDone(result);
@@ -1527,6 +1568,58 @@ ${result.details ? `### Подробности\n\`\`\`\n${result.details}\n\`\`\
         createWidget();
         console.log('[ErrorLens] Ready! Click the red button to start recording.');
     }
+
+    // Global reset function for re-launch handling
+    window.__errorLensReset = function() {
+        // Stop recording if active
+        if (state.isRecording) {
+            state.isRecording = false;
+            restoreConsole();
+            restoreErrorHandler();
+            restoreRejectionHandler();
+            restoreFetch();
+            restoreXHR();
+        }
+
+        // Clear captured data
+        state.consoleLogs = [];
+        state.networkErrors = [];
+        state.jsExceptions = [];
+        state.recordedRequests = [];
+        state.requestIdCounter = 0;
+        state.screenshot = null;
+        state.lastResults = null;
+        window.__errorLensResults = null;
+
+        // Reset widget to idle state
+        if (CONFIG.WIDGET_STYLE === 'new') {
+            updateBarToIdle();
+        } else {
+            const widget = document.getElementById('errorlens-widget');
+            if (widget) {
+                widget.style.background = '#ff4444';
+                widget.style.animation = 'none';
+            }
+        }
+
+        // Update counter
+        updateEventCounter();
+
+        // Close any open modals
+        const modal = document.getElementById('errorlens-modal');
+        if (modal) modal.remove();
+
+        console.log('[ErrorLens] Reset complete, ready for new recording');
+    };
+
+    // Global show results function for re-launch handling
+    window.__errorLensShowResults = function() {
+        if (window.__errorLensResults) {
+            showResult(window.__errorLensResults);
+        } else {
+            console.log('[ErrorLens] No results to show');
+        }
+    };
 
     // Start the bookmarklet
     init();
