@@ -1,7 +1,7 @@
 # ErrorLens - Project Snapshot
 
 > Architecture review document for Epic 8 (Web Application) planning.
-> Generated: 2025-12-03
+> Updated: 2025-12-03 (Epic 9 complete)
 
 ---
 
@@ -46,7 +46,10 @@ errorlens/
 │   └── PROJECT_SNAPSHOT.md     # This file
 ├── landing/
 │   └── index.html              # GitHub Pages landing
-├── docker-compose.yml
+├── nginx/
+│   ├── Dockerfile              # nginx image with baked-in static files
+│   └── nginx.conf              # Reverse proxy config
+├── docker-compose.yml          # Full stack: backend + nginx
 ├── pyproject.toml
 ├── README.md
 ├── ROADMAP.md
@@ -565,10 +568,11 @@ const JUNK_URL_PATTERNS = [
 - [ ] Offline queue
 
 ### Infrastructure
-- [ ] Docker Compose with nginx for landing
-- [ ] Volume mounts for database
+- [x] Docker Compose with nginx for landing (port 3000)
+- [x] nginx Dockerfile with baked-in static files
+- [x] Backend Dockerfile with health checks
+- [ ] Volume mounts for database (Epic 8)
 - [ ] Production Dockerfile (multi-stage)
-- [ ] Health checks
 
 ### Current Limitations
 1. **Stateless** - No data persistence between requests
