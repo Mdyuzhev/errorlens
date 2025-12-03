@@ -338,6 +338,7 @@
                 <button class="btn" id="postmanExportBtn" onclick="exportSession('postman')" style="display: none;">Экспорт Postman</button>
                 <button class="btn" id="pytestExportBtn" onclick="exportSession('pytest')" style="display: none;">Экспорт pytest</button>
                 <button class="btn" id="ticketBtn" onclick="openTicketModal()" style="display: none; background: #FF9800;">Создать тикет</button>
+                <button class="btn" id="runnerBtn" onclick="openRunnerModal()" style="display: none; background: #4CAF50; color: white;">Запустить тесты</button>
                 <button class="btn btn-danger" onclick="deleteCurrentSession()">Удалить</button>
             </div>
         </div>
@@ -378,6 +379,54 @@
             </div>
         </div>
     </div>
+
+    <!-- Test Runner Modal -->
+    <div class="modal-overlay" id="runnerModalOverlay" style="display: none;" onclick="closeRunnerModal(event)">
+        <div class="modal" style="max-width: 900px;" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>Запуск тестов</h2>
+                <button class="modal-close" onclick="closeRunnerModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="runnerStatus" style="margin-bottom: 16px;">
+                    <span class="runner-badge idle">Готов к запуску</span>
+                </div>
+                <div class="runner-output" style="background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 8px; max-height: 400px; overflow-y: auto; margin-bottom: 16px;">
+                    <pre id="testOutput" style="margin: 0; font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; line-height: 1.5; white-space: pre-wrap;">Нажмите "Запустить" для начала...</pre>
+                </div>
+                <div id="runnerSummary" style="display: none; background: #f5f5f5; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                    <div style="display: flex; gap: 24px; font-weight: 600; font-size: 16px;">
+                        <span style="color: #4CAF50;">Passed: <span id="countPassed">0</span></span>
+                        <span style="color: #F44336;">Failed: <span id="countFailed">0</span></span>
+                        <span style="color: #FF9800;">Errors: <span id="countErrors">0</span></span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="runTestsBtn" onclick="runTests()">Запустить</button>
+                <button class="btn" onclick="closeRunnerModal()">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .runner-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .runner-badge.idle { background: #e0e0e0; color: #666; }
+        .runner-badge.running { background: #2196F3; color: white; animation: pulse 1s infinite; }
+        .runner-badge.passed { background: #4CAF50; color: white; }
+        .runner-badge.failed { background: #F44336; color: white; }
+        .runner-badge.error { background: #FF9800; color: white; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
 
     <script>
         const API_URL = window.location.port === '3000' ? '/api' : 'http://localhost:8000';
@@ -568,6 +617,11 @@
                     ticketBtn.style.display = hasAnalysis ? 'inline-block' : 'none';
                 }
 
+                const runnerBtn = document.getElementById('runnerBtn');
+                if (runnerBtn) {
+                    runnerBtn.style.display = hasRecordedRequests ? 'inline-block' : 'none';
+                }
+
             } catch (error) {
                 body.innerHTML = `<div class="empty-state"><h3>Ошибка</h3><p>${error.message}</p></div>`;
             }
@@ -683,6 +737,103 @@
                 document.body.removeChild(textarea);
                 alert('Скопировано в буфер обмена!');
             });
+        }
+
+        // Test Runner functions
+        let pollInterval = null;
+
+        function openRunnerModal() {
+            document.getElementById('runnerModalOverlay').style.display = 'flex';
+            document.getElementById('testOutput').textContent = 'Нажмите "Запустить" для начала...';
+            document.getElementById('runnerSummary').style.display = 'none';
+            updateRunnerStatus('idle', 'Готов к запуску');
+            document.getElementById('runTestsBtn').disabled = false;
+            document.getElementById('runTestsBtn').textContent = 'Запустить';
+        }
+
+        function closeRunnerModal(event) {
+            if (!event || event.target === document.getElementById('runnerModalOverlay')) {
+                document.getElementById('runnerModalOverlay').style.display = 'none';
+                if (pollInterval) {
+                    clearInterval(pollInterval);
+                    pollInterval = null;
+                }
+            }
+        }
+
+        function updateRunnerStatus(status, text) {
+            const badge = document.querySelector('.runner-badge');
+            badge.className = 'runner-badge ' + status;
+            badge.textContent = text;
+        }
+
+        async function runTests() {
+            const btn = document.getElementById('runTestsBtn');
+            btn.disabled = true;
+            btn.textContent = 'Запуск...';
+
+            updateRunnerStatus('running', 'Выполняется...');
+            document.getElementById('testOutput').textContent = 'Подготовка тестов...\n';
+            document.getElementById('runnerSummary').style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_URL}/tests/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: currentSessionId })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to start tests');
+                }
+
+                const data = await response.json();
+                const testId = data.test_id;
+
+                // Poll for results
+                pollInterval = setInterval(async () => {
+                    try {
+                        const statusResp = await fetch(`${API_URL}/tests/${testId}/status`);
+                        const status = await statusResp.json();
+
+                        if (status.output) {
+                            document.getElementById('testOutput').textContent = status.output;
+                            // Auto-scroll to bottom
+                            const output = document.querySelector('.runner-output');
+                            output.scrollTop = output.scrollHeight;
+                        }
+
+                        if (status.status === 'passed' || status.status === 'failed' || status.status === 'error') {
+                            clearInterval(pollInterval);
+                            pollInterval = null;
+
+                            const statusText = status.status === 'passed' ? 'Тесты пройдены!' :
+                                               status.status === 'failed' ? 'Есть ошибки' :
+                                               'Ошибка выполнения';
+                            updateRunnerStatus(status.status, statusText);
+
+                            if (status.summary) {
+                                document.getElementById('countPassed').textContent = status.summary.passed || 0;
+                                document.getElementById('countFailed').textContent = status.summary.failed || 0;
+                                document.getElementById('countErrors').textContent = status.summary.errors || 0;
+                                document.getElementById('runnerSummary').style.display = 'block';
+                            }
+
+                            btn.disabled = false;
+                            btn.textContent = 'Запустить снова';
+                        }
+                    } catch (e) {
+                        console.error('Poll error:', e);
+                    }
+                }, 1000);
+
+            } catch (error) {
+                updateRunnerStatus('error', 'Ошибка: ' + error.message);
+                document.getElementById('testOutput').textContent = 'Ошибка: ' + error.message;
+                btn.disabled = false;
+                btn.textContent = 'Запустить';
+            }
         }
 
         // Initial load
