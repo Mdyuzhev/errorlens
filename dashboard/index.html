@@ -337,7 +337,44 @@
                 <button class="btn" onclick="exportSession('markdown')">Экспорт MD</button>
                 <button class="btn" id="postmanExportBtn" onclick="exportSession('postman')" style="display: none;">Экспорт Postman</button>
                 <button class="btn" id="pytestExportBtn" onclick="exportSession('pytest')" style="display: none;">Экспорт pytest</button>
+                <button class="btn" id="ticketBtn" onclick="openTicketModal()" style="display: none; background: #FF9800;">Создать тикет</button>
                 <button class="btn btn-danger" onclick="deleteCurrentSession()">Удалить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ticket Generator Modal -->
+    <div class="modal-overlay" id="ticketModalOverlay" style="display: none;" onclick="closeTicketModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>Создать тикет</h2>
+                <button class="modal-close" onclick="closeTicketModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Формат:</label>
+                    <select id="ticketFormat" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                        <option value="jira">Jira</option>
+                        <option value="github">GitHub Issue</option>
+                        <option value="markdown">Markdown</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Дополнительная информация:</label>
+                    <textarea id="ticketAdditionalInfo" rows="4" placeholder="Шаги воспроизведения, комментарии..."
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; resize: vertical;"></textarea>
+                </div>
+                <div id="ticketResult" style="display: none;">
+                    <div style="background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                        <div id="ticketTitle" style="font-weight: 700; font-size: 16px; margin-bottom: 12px; color: #333;"></div>
+                        <pre id="ticketBody" style="white-space: pre-wrap; font-size: 13px; max-height: 300px; overflow-y: auto; margin: 0;"></pre>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="generateTicketBtn" onclick="generateTicket()">Сгенерировать</button>
+                <button class="btn" id="copyTicketBtn" onclick="copyTicket()" style="display: none; background: #4CAF50; color: white;">Скопировать</button>
+                <button class="btn" onclick="closeTicketModal()">Закрыть</button>
             </div>
         </div>
     </div>
@@ -513,15 +550,22 @@
 
                 body.innerHTML = html;
 
-                // Show/hide Postman and pytest export buttons based on recorded_requests
+                // Show/hide export buttons based on data
                 const hasRecordedRequests = session.recorded_requests && session.recorded_requests.length > 0;
+                const hasAnalysis = session.analysis !== null;
+
                 const postmanBtn = document.getElementById('postmanExportBtn');
                 const pytestBtn = document.getElementById('pytestExportBtn');
+                const ticketBtn = document.getElementById('ticketBtn');
+
                 if (postmanBtn) {
                     postmanBtn.style.display = hasRecordedRequests ? 'inline-block' : 'none';
                 }
                 if (pytestBtn) {
                     pytestBtn.style.display = hasRecordedRequests ? 'inline-block' : 'none';
+                }
+                if (ticketBtn) {
+                    ticketBtn.style.display = hasAnalysis ? 'inline-block' : 'none';
                 }
 
             } catch (error) {
@@ -564,6 +608,81 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // Ticket Generator functions
+        function openTicketModal() {
+            document.getElementById('ticketModalOverlay').style.display = 'flex';
+            document.getElementById('ticketResult').style.display = 'none';
+            document.getElementById('ticketAdditionalInfo').value = '';
+            document.getElementById('copyTicketBtn').style.display = 'none';
+        }
+
+        function closeTicketModal(event) {
+            if (!event || event.target === document.getElementById('ticketModalOverlay')) {
+                document.getElementById('ticketModalOverlay').style.display = 'none';
+            }
+        }
+
+        async function generateTicket() {
+            const format = document.getElementById('ticketFormat').value;
+            const additionalInfo = document.getElementById('ticketAdditionalInfo').value;
+            const btn = document.getElementById('generateTicketBtn');
+
+            btn.textContent = 'Генерация...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_URL}/tickets/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: currentSessionId,
+                        format: format,
+                        additional_info: additionalInfo
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Generation failed');
+                }
+
+                const ticket = await response.json();
+
+                document.getElementById('ticketTitle').textContent = ticket.title || '';
+                document.getElementById('ticketBody').textContent =
+                    ticket.description || ticket.body || ticket.content || '';
+                document.getElementById('ticketResult').style.display = 'block';
+                document.getElementById('copyTicketBtn').style.display = 'inline-block';
+
+            } catch (error) {
+                alert('Ошибка генерации: ' + error.message);
+            } finally {
+                btn.textContent = 'Сгенерировать';
+                btn.disabled = false;
+            }
+        }
+
+        function copyTicket() {
+            const title = document.getElementById('ticketTitle').textContent;
+            const body = document.getElementById('ticketBody').textContent;
+            const fullText = title + '\n\n' + body;
+
+            navigator.clipboard.writeText(fullText).then(() => {
+                const btn = document.getElementById('copyTicketBtn');
+                btn.textContent = 'Скопировано!';
+                setTimeout(() => { btn.textContent = 'Скопировать'; }, 2000);
+            }).catch(err => {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = fullText;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('Скопировано в буфер обмена!');
+            });
         }
 
         // Initial load

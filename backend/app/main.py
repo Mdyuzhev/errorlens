@@ -17,6 +17,8 @@ from app.models_pydantic import (
     ExportPostmanRequest,
     ExportPostmanResponse,
     ExportPytestRequest,
+    GenerateTicketRequest,
+    GenerateTicketResponse,
     RecordedHttpExchange,
     RequestAssertion,
     SessionAnalysisRequest,
@@ -24,6 +26,7 @@ from app.models_pydantic import (
 )
 from app.postman_generator import generate_postman_collection
 from app.pytest_generator import generate_pytest_file
+from app.ticket_generator import generate_ticket
 from app.routers import sessions
 from app.session_analyzer import analyze_session
 
@@ -241,3 +244,53 @@ async def analyze_session_endpoint(request: SessionAnalysisRequest) -> SessionAn
     except Exception as e:
         logger.exception(f"Session analysis failed: {e}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {e}")
+
+
+@app.post("/tickets/generate", response_model=GenerateTicketResponse)
+async def create_ticket(
+    request: GenerateTicketRequest,
+    db=Depends(sessions.get_db),
+) -> GenerateTicketResponse:
+    """
+    Generate bug ticket from session analysis.
+
+    Supports Jira, GitHub Issue, and plain Markdown formats.
+    """
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from app.models.db_models import Session
+
+    # Get session with analysis
+    query = (
+        select(Session)
+        .options(selectinload(Session.analysis))
+        .where(Session.id == request.session_id)
+    )
+    result = await db.execute(query)
+    session = result.scalar_one_or_none()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if not session.analysis:
+        raise HTTPException(status_code=400, detail="Session has no analysis")
+
+    analysis_dict = {
+        "summary": session.analysis.summary,
+        "probable_cause": session.analysis.probable_cause,
+        "suggested_fix": session.analysis.suggested_fix,
+        "severity": session.analysis.severity,
+        "details": session.analysis.details,
+    }
+
+    ticket = generate_ticket(
+        analysis=analysis_dict,
+        url=session.url,
+        user_agent=session.user_agent,
+        additional_info=request.additional_info,
+        format=request.format,
+    )
+
+    logger.info(f"Generated {request.format} ticket for session {request.session_id}")
+
+    return GenerateTicketResponse(**ticket)
