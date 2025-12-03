@@ -104,6 +104,18 @@ h2 {
 .note {
     color: var(--text-muted);
     font-size: 0.9rem;
+    margin-top: 1.5rem;
+}
+
+.instructions {
+    text-align: left;
+    display: inline-block;
+    margin-top: 0.5rem;
+    color: var(--text-muted);
+}
+
+.instructions li {
+    padding: 0.4rem 0;
 }
 
 .features ul,

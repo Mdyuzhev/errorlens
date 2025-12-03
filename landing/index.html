@@ -1,61 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ErrorLens - AI Error Analysis for QA</title>
+    <title>ErrorLens — AI-анализ ошибок для QA</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
         <h1>ErrorLens</h1>
-        <p class="tagline">AI-powered error analysis for QA engineers</p>
+        <p class="tagline">AI-анализ ошибок для QA-инженеров</p>
     </header>
 
     <main>
         <section class="hero">
-            <h2>Debug faster with AI</h2>
+            <h2>Отлаживайте быстрее с AI</h2>
             <p>
-                A lightweight bookmarklet that captures browser errors and sends them
-                to AI for instant analysis. No registration, no extensions, works everywhere.
+                Легковесный букмарклет, который захватывает ошибки браузера и отправляет их
+                на AI-анализ. Без регистрации, без расширений, работает везде.
             </p>
         </section>
 
         <section class="install">
-            <h2>Installation</h2>
-            <p>Drag this button to your bookmarks bar:</p>
-            <a href="javascript:void(0);" class="bookmarklet" id="bookmarklet">
+            <h2>Установка</h2>
+            <p>Перетащите эту кнопку в панель закладок:</p>
+            <a href="javascript:(function(){if(window.__errorLensLoaded){alert('ErrorLens уже загружен!');return;}var s=document.createElement('script');s.src='http://localhost:3000/bookmarklet/recorder.js';s.onload=function(){window.__errorLensLoaded=true;};s.onerror=function(){alert('Ошибка загрузки ErrorLens');};document.head.appendChild(s);})();" class="bookmarklet" id="bookmarklet">
                 ErrorLens
             </a>
             <p class="note">
-                <em>Bookmarklet coming soon! Backend is ready.</em>
+                <strong>Как использовать:</strong>
             </p>
+            <ol class="instructions">
+                <li>Перетащите кнопку выше в панель закладок</li>
+                <li>Откройте страницу, которую хотите протестировать</li>
+                <li>Нажмите на закладку ErrorLens</li>
+                <li>Появится виджет записи — нажмите для старта</li>
+                <li>Воспроизведите баг</li>
+                <li>Нажмите "Стоп" для получения AI-анализа</li>
+            </ol>
         </section>
 
         <section class="features">
-            <h2>Features</h2>
+            <h2>Возможности</h2>
             <ul>
-                <li>Captures console errors, warnings, and logs</li>
-                <li>Records failed network requests (4xx, 5xx)</li>
-                <li>Catches unhandled JavaScript exceptions</li>
-                <li>AI analysis with probable cause and fix suggestions</li>
-                <li>Export to Markdown for Jira/GitHub issues</li>
+                <li>Захват console.log, warn, error</li>
+                <li>Запись неудачных сетевых запросов (4xx, 5xx)</li>
+                <li>Перехват необработанных JavaScript исключений</li>
+                <li>AI-анализ с указанием причины и способа исправления</li>
+                <li>Экспорт в Markdown для Jira/GitHub</li>
+                <li>Генерация Postman-коллекций из записанных запросов</li>
             </ul>
         </section>
 
         <section class="links">
-            <h2>Resources</h2>
+            <h2>Ресурсы</h2>
             <ul>
-                <li><a href="https://github.com/Mdyuzhev/errorlens">GitHub Repository</a></li>
-                <li><a href="https://github.com/Mdyuzhev/errorlens/blob/main/README.md">Documentation</a></li>
-                <li><a href="https://github.com/Mdyuzhev/errorlens/issues">Report Issues</a></li>
+                <li><a href="https://github.com/Mdyuzhev/errorlens">GitHub репозиторий</a></li>
+                <li><a href="https://github.com/Mdyuzhev/errorlens/blob/main/README.md">Документация</a></li>
+                <li><a href="https://github.com/Mdyuzhev/errorlens/issues">Сообщить о проблеме</a></li>
             </ul>
         </section>
     </main>
 
     <footer>
         <p>
-            Made with AI |
+            Сделано с AI |
             <a href="https://github.com/Mdyuzhev/errorlens">Open Source</a> |
             MIT License
         </p>
