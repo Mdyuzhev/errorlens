@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+    env_file:
+      - ./backend/.env
+    volumes:
+      # Hot reload for development
+      - ./backend/app:/app/app:ro
+    restart: unless-stopped
+
+# =============================================================================
+# USAGE:
+# =============================================================================
+# 1. Copy backend/.env.example to backend/.env and fill in API keys
+# 2. Run: docker-compose up --build
+# 3. API available at: http://localhost:8000
+# 4. Swagger docs at: http://localhost:8000/docs
+# =============================================================================
