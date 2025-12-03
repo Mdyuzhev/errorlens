@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 from app.analyzer import analyze_errors
 from app.database import get_db
 from app.models.db_models import AnalysisResult, Session, SessionData
-from app.models_pydantic import AnalyzeRequest, ConsoleLog, JSException, NetworkError
+from app.models_pydantic import AnalyzeRequest, ConsoleLogEntry, JSException, NetworkError
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +124,7 @@ async def create_session(
                 url=request.url,
                 user_agent=request.user_agent,
                 recording_duration_ms=request.recording_duration_ms,
-                console_logs=[ConsoleLog(**log) for log in request.console_logs],
+                console_logs=[ConsoleLogEntry(**log) for log in request.console_logs],
                 js_exceptions=[JSException(**exc) for exc in request.js_exceptions],
                 network_errors=[NetworkError(**err) for err in request.network_errors],
                 screenshot=request.screenshot,
