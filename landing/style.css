@@ -89,16 +89,22 @@ h2 {
     background: var(--primary);
     color: white;
     text-decoration: none;
+    border: none;
     border-radius: 8px;
     font-weight: 600;
     font-size: 1.1rem;
     margin: 1rem 0;
-    cursor: grab;
-    transition: background 0.2s;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
 }
 
 .bookmarklet:hover {
     background: var(--primary-dark);
+    transform: scale(1.02);
+}
+
+.bookmarklet:active {
+    transform: scale(0.98);
 }
 
 .note {
@@ -116,6 +122,56 @@ h2 {
 
 .instructions li {
     padding: 0.4rem 0;
+}
+
+.copy-status {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    min-height: 1.5em;
+}
+
+.copy-status.success {
+    color: #22c55e;
+}
+
+.copy-status.error {
+    color: #ef4444;
+}
+
+.install-steps {
+    margin-top: 1.5rem;
+    text-align: left;
+    display: inline-block;
+}
+
+.install-steps code {
+    background: var(--bg-light);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+.install-steps kbd {
+    background: var(--bg-light);
+    border: 1px solid var(--text-muted);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.usage {
+    margin-top: 1.5rem;
+    text-align: left;
+    display: inline-block;
+}
+
+.usage summary {
+    cursor: pointer;
+    color: var(--accent);
+}
+
+.usage summary:hover {
+    text-decoration: underline;
 }
 
 .features ul,

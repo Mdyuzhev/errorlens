@@ -2,11 +2,12 @@
 
 import logging
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.analyzer import analyze_errors
 from app.config import settings
+from app.middleware.rate_limit import rate_limit_middleware
 from app.models import (
     AnalyzeRequest,
     AnalyzeResponse,
@@ -46,13 +47,35 @@ async def health_check() -> dict:
 
 
 @app.post("/analyze", response_model=AnalyzeResponse)
-async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
+async def analyze(
+    request: AnalyzeRequest,
+    http_request: Request,
+    response: Response,
+    remaining: int = Depends(rate_limit_middleware),
+) -> AnalyzeResponse:
     """
     Analyze captured browser errors using AI.
 
     Accepts console logs, network errors, and JS exceptions,
     returns structured analysis with probable cause and fix suggestions.
     """
+    # Add rate limit header
+    if remaining >= 0:
+        response.headers["X-RateLimit-Remaining"] = str(remaining)
+        response.headers["X-RateLimit-Limit"] = str(settings.rate_limit_per_day)
+
+    # Validate payload limits
+    if len(request.console_logs) > settings.max_console_logs:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Превышен лимит console_logs: максимум {settings.max_console_logs}",
+        )
+    if len(request.network_errors) > settings.max_network_errors:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Превышен лимит network_errors: максимум {settings.max_network_errors}",
+        )
+
     total_events = (
         len(request.console_logs)
         + len(request.js_exceptions)
