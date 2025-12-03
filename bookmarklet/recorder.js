@@ -14,8 +14,11 @@
     'use strict';
 
     // Configuration
-    const BACKEND_URL = 'http://localhost:8000';
-    const WIDGET_SIZE = 60;
+    const CONFIG = {
+        BACKEND_URL: 'http://localhost:8000',
+        WIDGET_STYLE: 'new', // 'new' (top bar) or 'classic' (floating button)
+        WIDGET_SIZE: 60      // For classic mode only
+    };
 
     // URL patterns to filter out (analytics, ads, static assets)
     const JUNK_URL_PATTERNS = [
@@ -589,23 +592,245 @@
         }
     }
 
-    // UI Widget
+    // UI Widget - creates either new top bar or classic floating button
     function createWidget() {
         // Check if widget already exists
-        if (document.getElementById('errorlens-widget')) {
+        if (document.getElementById('errorlens-widget') || document.getElementById('errorlens-bar')) {
             console.log('[ErrorLens] Widget already exists');
             return;
         }
 
-        // Create widget container
+        // Add common styles
+        if (!document.getElementById('errorlens-style')) {
+            const style = document.createElement('style');
+            style.id = 'errorlens-style';
+            style.textContent = `
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.7; }
+                }
+                @keyframes pulse-scale {
+                    0%, 100% { transform: scale(1); opacity: 1; }
+                    50% { transform: scale(1.1); opacity: 0.8; }
+                }
+                .errorlens-bar {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 40px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 16px;
+                    z-index: 2147483647;
+                    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                    transition: background-color 0.3s ease;
+                }
+                .errorlens-bar.idle { background: #4FC3F7; }
+                .errorlens-bar.recording { background: #F44336; animation: pulse 1.5s infinite; }
+                .errorlens-bar.done { background: #4CAF50; }
+                .errorlens-btn {
+                    width: 28px;
+                    height: 28px;
+                    border: none;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: rgba(255,255,255,0.9);
+                    color: #333;
+                    font-size: 14px;
+                    transition: background 0.2s;
+                }
+                .errorlens-btn:hover { background: #fff; }
+                .errorlens-counter {
+                    color: white;
+                    font-size: 13px;
+                    font-weight: 600;
+                    min-width: 24px;
+                    text-align: center;
+                }
+                .errorlens-link {
+                    color: white;
+                    font-size: 13px;
+                    text-decoration: underline;
+                    cursor: pointer;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        if (CONFIG.WIDGET_STYLE === 'new') {
+            createTopBarWidget();
+        } else {
+            createClassicWidget();
+        }
+
+        console.log('[ErrorLens] Widget created');
+    }
+
+    // New top bar widget (Story 8.4)
+    function createTopBarWidget() {
+        const bar = document.createElement('div');
+        bar.id = 'errorlens-bar';
+        bar.className = 'errorlens-bar idle';
+
+        // Record/Stop button
+        const recordBtn = document.createElement('button');
+        recordBtn.id = 'errorlens-record-btn';
+        recordBtn.className = 'errorlens-btn';
+        recordBtn.innerHTML = '&#9679;'; // Circle (record)
+        recordBtn.title = 'Start recording';
+        recordBtn.addEventListener('click', handleRecordClick);
+        bar.appendChild(recordBtn);
+
+        // Event counter (hidden until recording)
+        const counter = document.createElement('div');
+        counter.id = 'errorlens-counter';
+        counter.className = 'errorlens-counter';
+        counter.style.display = 'none';
+        counter.textContent = '0';
+        bar.appendChild(counter);
+
+        // Result link (hidden until done)
+        const resultLink = document.createElement('span');
+        resultLink.id = 'errorlens-result-link';
+        resultLink.className = 'errorlens-link';
+        resultLink.style.display = 'none';
+        resultLink.textContent = 'View Results';
+        bar.appendChild(resultLink);
+
+        // Close button
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'errorlens-btn';
+        closeBtn.innerHTML = '&#10005;'; // X
+        closeBtn.title = 'Close ErrorLens';
+        closeBtn.addEventListener('click', removeWidget);
+        bar.appendChild(closeBtn);
+
+        document.body.appendChild(bar);
+
+        // Push page content down
+        document.body.style.marginTop = '40px';
+    }
+
+    // Handle record button click in new UI
+    function handleRecordClick() {
+        if (!state.isRecording) {
+            // Start recording (errors mode by default, can be extended)
+            startRecording('errors');
+            updateBarToRecording();
+        } else {
+            stopRecordingAndSend();
+        }
+    }
+
+    // Update bar to recording state
+    function updateBarToRecording() {
+        const bar = document.getElementById('errorlens-bar');
+        const recordBtn = document.getElementById('errorlens-record-btn');
+        const counter = document.getElementById('errorlens-counter');
+
+        if (bar) {
+            bar.className = 'errorlens-bar recording';
+        }
+        if (recordBtn) {
+            recordBtn.innerHTML = '&#9632;'; // Square (stop)
+            recordBtn.title = 'Stop recording';
+        }
+        if (counter) {
+            counter.style.display = 'block';
+        }
+    }
+
+    // Update bar to done state
+    function updateBarToDone(result) {
+        const bar = document.getElementById('errorlens-bar');
+        const recordBtn = document.getElementById('errorlens-record-btn');
+        const counter = document.getElementById('errorlens-counter');
+        const resultLink = document.getElementById('errorlens-result-link');
+
+        if (bar) {
+            bar.className = 'errorlens-bar done';
+        }
+        if (recordBtn) {
+            recordBtn.innerHTML = '&#9679;'; // Circle (ready for new recording)
+            recordBtn.title = 'Start new recording';
+        }
+        if (counter) {
+            counter.style.display = 'none';
+        }
+        if (resultLink) {
+            resultLink.style.display = 'block';
+            resultLink.textContent = 'View Results';
+            resultLink.onclick = () => showResult(result);
+        }
+    }
+
+    // Update bar to idle state
+    function updateBarToIdle() {
+        const bar = document.getElementById('errorlens-bar');
+        const recordBtn = document.getElementById('errorlens-record-btn');
+        const counter = document.getElementById('errorlens-counter');
+        const resultLink = document.getElementById('errorlens-result-link');
+
+        if (bar) {
+            bar.className = 'errorlens-bar idle';
+        }
+        if (recordBtn) {
+            recordBtn.innerHTML = '&#9679;';
+            recordBtn.title = 'Start recording';
+        }
+        if (counter) {
+            counter.style.display = 'none';
+            counter.textContent = '0';
+        }
+        if (resultLink) {
+            resultLink.style.display = 'none';
+        }
+    }
+
+    // Remove widget and cleanup
+    function removeWidget() {
+        const bar = document.getElementById('errorlens-bar');
+        const widget = document.getElementById('errorlens-widget');
+        const modal = document.getElementById('errorlens-modal');
+        const menu = document.getElementById('errorlens-mode-menu');
+
+        if (bar) {
+            bar.remove();
+            document.body.style.marginTop = '';
+        }
+        if (widget) widget.remove();
+        if (modal) modal.remove();
+        if (menu) menu.remove();
+
+        // Restore handlers if recording
+        if (state.isRecording) {
+            state.isRecording = false;
+            restoreConsole();
+            restoreErrorHandler();
+            restoreRejectionHandler();
+            restoreFetch();
+            restoreXHR();
+        }
+
+        console.log('[ErrorLens] Widget removed');
+    }
+
+    // Classic floating button widget (original design)
+    function createClassicWidget() {
         const widget = document.createElement('div');
         widget.id = 'errorlens-widget';
         widget.style.cssText = `
             position: fixed;
             bottom: 20px;
             right: 20px;
-            width: ${WIDGET_SIZE}px;
-            height: ${WIDGET_SIZE}px;
+            width: ${CONFIG.WIDGET_SIZE}px;
+            height: ${CONFIG.WIDGET_SIZE}px;
             border-radius: 50%;
             background: #ff4444;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
@@ -633,10 +858,7 @@
         // Click handler
         widget.addEventListener('click', handleWidgetClick);
 
-        // Add to page
         document.body.appendChild(widget);
-
-        console.log('[ErrorLens] Widget created');
     }
 
     // Update event counter in widget
@@ -748,24 +970,13 @@
         interceptFetch();
         interceptXHR();
 
-        // Update widget UI - red for errors, blue for all
-        const widget = document.getElementById('errorlens-widget');
-        if (widget) {
-            widget.style.background = mode === 'all' ? '#2196F3' : '#ff0000';
-            widget.style.animation = 'pulse 1.5s infinite';
-        }
-
-        // Add pulse animation
-        if (!document.getElementById('errorlens-style')) {
-            const style = document.createElement('style');
-            style.id = 'errorlens-style';
-            style.textContent = `
-                @keyframes pulse {
-                    0%, 100% { transform: scale(1); opacity: 1; }
-                    50% { transform: scale(1.1); opacity: 0.8; }
-                }
-            `;
-            document.head.appendChild(style);
+        // Update widget UI based on style
+        if (CONFIG.WIDGET_STYLE === 'classic') {
+            const widget = document.getElementById('errorlens-widget');
+            if (widget) {
+                widget.style.background = mode === 'all' ? '#2196F3' : '#ff0000';
+                widget.style.animation = 'pulse-scale 1.5s infinite';
+            }
         }
 
         updateEventCounter();
@@ -832,7 +1043,7 @@
         showModal('Анализирую...' + retryText, 'Подождите, ErrorLens анализирует ваши ошибки.', true);
 
         try {
-            const response = await fetch(`${BACKEND_URL}/analyze`, {
+            const response = await fetch(`${CONFIG.BACKEND_URL}/analyze`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -848,7 +1059,10 @@
             const result = await response.json();
             console.log('[ErrorLens] Analysis result:', result);
 
-            // Show result in modal
+            // Show result in modal and update bar
+            if (CONFIG.WIDGET_STYLE === 'new') {
+                updateBarToDone(result);
+            }
             showResult(result);
 
         } catch (error) {
@@ -865,10 +1079,12 @@
             // All retries failed - show error with retry button
             showErrorWithRetry(error.message, duration);
         } finally {
-            // Reset widget UI
-            const widget = document.getElementById('errorlens-widget');
-            if (widget) {
-                widget.style.background = '#ff4444';
+            // Reset classic widget UI (new bar is handled separately)
+            if (CONFIG.WIDGET_STYLE === 'classic') {
+                const widget = document.getElementById('errorlens-widget');
+                if (widget) {
+                    widget.style.background = '#ff4444';
+                }
             }
             updateEventCounter();
         }
@@ -1196,7 +1412,7 @@
                 postmanBtn.disabled = true;
 
                 try {
-                    const response = await fetch(`${BACKEND_URL}/export/postman`, {
+                    const response = await fetch(`${CONFIG.BACKEND_URL}/export/postman`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({

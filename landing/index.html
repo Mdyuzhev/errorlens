@@ -23,21 +23,33 @@
 
         <section class="install">
             <h2>Установка</h2>
-            <p>Перетащите эту кнопку в панель закладок:</p>
-            <a href="javascript:(function(){if(window.__errorLensLoaded){alert('ErrorLens уже загружен!');return;}var s=document.createElement('script');s.src='http://localhost:3000/bookmarklet/recorder.js';s.onload=function(){window.__errorLensLoaded=true;};s.onerror=function(){alert('Ошибка загрузки ErrorLens');};document.head.appendChild(s);})();" class="bookmarklet" id="bookmarklet">
-                ErrorLens
-            </a>
-            <p class="note">
-                <strong>Как использовать:</strong>
-            </p>
-            <ol class="instructions">
-                <li>Перетащите кнопку выше в панель закладок</li>
-                <li>Откройте страницу, которую хотите протестировать</li>
-                <li>Нажмите на закладку ErrorLens</li>
-                <li>Появится виджет записи — нажмите для старта</li>
-                <li>Воспроизведите баг</li>
-                <li>Нажмите "Стоп" для получения AI-анализа</li>
-            </ol>
+            <p>Нажмите кнопку, чтобы скопировать код букмарклета:</p>
+            <button class="bookmarklet" id="copyBtn" onclick="copyBookmarklet()">
+                Скопировать ErrorLens
+            </button>
+            <p class="copy-status" id="copyStatus"></p>
+
+            <div class="install-steps">
+                <p><strong>После копирования:</strong></p>
+                <ol class="instructions">
+                    <li>Нажмите <kbd>Ctrl+Shift+B</kbd> чтобы показать панель закладок</li>
+                    <li>Правый клик на панели закладок → "Добавить страницу..."</li>
+                    <li>Имя: <code>ErrorLens</code></li>
+                    <li>URL: вставьте скопированный код (<kbd>Ctrl+V</kbd>)</li>
+                    <li>Сохраните</li>
+                </ol>
+            </div>
+
+            <details class="usage">
+                <summary><strong>Как использовать</strong></summary>
+                <ol class="instructions">
+                    <li>Откройте страницу, которую хотите протестировать</li>
+                    <li>Нажмите на закладку ErrorLens</li>
+                    <li>Появится виджет записи — нажмите для старта</li>
+                    <li>Воспроизведите баг</li>
+                    <li>Нажмите "Стоп" для получения AI-анализа</li>
+                </ol>
+            </details>
         </section>
 
         <section class="features">
@@ -69,5 +81,30 @@
             MIT License
         </p>
     </footer>
+
+    <script>
+        const BOOKMARKLET_CODE = `javascript:(function(){if(window.__errorLensLoaded){alert('ErrorLens уже загружен!');return;}var s=document.createElement('script');s.src='http://localhost:3000/bookmarklet/recorder.js';s.onload=function(){window.__errorLensLoaded=true;};s.onerror=function(){alert('Ошибка загрузки ErrorLens');};document.head.appendChild(s);})();`;
+
+        function copyBookmarklet() {
+            navigator.clipboard.writeText(BOOKMARKLET_CODE).then(function() {
+                const status = document.getElementById('copyStatus');
+                status.textContent = '✓ Скопировано! Теперь создайте закладку.';
+                status.className = 'copy-status success';
+
+                const btn = document.getElementById('copyBtn');
+                btn.textContent = '✓ Скопировано!';
+                btn.style.background = '#22c55e';
+
+                setTimeout(function() {
+                    btn.textContent = 'Скопировать ErrorLens';
+                    btn.style.background = '';
+                }, 3000);
+            }).catch(function(err) {
+                const status = document.getElementById('copyStatus');
+                status.textContent = 'Ошибка копирования. Попробуйте ещё раз.';
+                status.className = 'copy-status error';
+            });
+        }
+    </script>
 </body>
 </html>
