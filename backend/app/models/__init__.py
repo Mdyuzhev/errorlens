@@ -4,7 +4,7 @@
 from app.models_pydantic import (
     AnalyzeRequest,
     AnalyzeResponse,
-    ConsoleLog,
+    ConsoleLogEntry,
     DetectedVariable,
     ExportPostmanRequest,
     ExportPostmanResponse,
@@ -23,7 +23,7 @@ __all__ = [
     # Pydantic models
     "AnalyzeRequest",
     "AnalyzeResponse",
-    "ConsoleLog",
+    "ConsoleLogEntry",
     "DetectedVariable",
     "ExportPostmanRequest",
     "ExportPostmanResponse",
