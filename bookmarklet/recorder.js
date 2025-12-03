@@ -35,11 +35,17 @@
                     window.__errorLensReset();
                 }
             } else {
-                // Idle state - offer to start recording
+                // Idle state - widget exists, ready to use
                 console.log('[ErrorLens] Already loaded, widget ready');
             }
+            return;
+        } else {
+            // Flag is set but widget is gone - reset and continue
+            console.log('[ErrorLens] Reinitializing (widget was removed)');
+            window.__errorLensLoaded = false;
+            window.__errorLensState = null;
+            window.__errorLensResults = null;
         }
-        return;
     }
 
     // Mark as loaded
