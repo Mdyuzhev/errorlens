@@ -2,7 +2,7 @@
   "permissions": {
     "allow": [
       "Bash",
-      "Read",
+      "Read", 
       "Write",
       "Edit",
       "Glob",
@@ -11,51 +11,8 @@
       "WebSearch",
       "Task",
       "TodoWrite",
-      "NotebookEdit",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git push)"
-    ],
-    "auto_approve": [
-      "git add",
-      "git commit",
-      "git push",
-      "git status",
-      "git log",
-      "git diff",
-      "gh issue",
-      "gh repo",
-      "uvicorn",
-      "pip install",
-      "pip freeze",
-      "python -m venv",
-      "pytest",
-      "cat",
-      "ls",
-      "cd",
-      "mkdir",
-      "touch"
+      "NotebookEdit"
     ]
-  },
-  "workflows": {
-    "story_complete": {
-      "description": "После завершения Story",
-      "steps": [
-        "1. Проверить что код работает (запустить локально)",
-        "2. git add, commit, push",
-        "3. Закрыть issue: gh issue close N --comment 'Completed'",
-        "4. Обновить ROADMAP.md (поставить ✅)",
-        "5. Обновить чеклист в родительском Epic"
-      ]
-    },
-    "before_coding": {
-      "description": "Перед началом работы над задачей",
-      "steps": [
-        "1. Прочитать issue: gh issue view N",
-        "2. Проверить AGENT_INSTRUCTIONS.md если нужен контекст",
-        "3. Проверить текущий статус: gh issue list --state open"
-      ]
-    }
   },
   "preferences": {
     "language": "russian",
@@ -69,11 +26,11 @@
       "emoji": false,
       "tables": true,
       "code_comments": "на английском",
-      "commits": "[Story X.Y] описание на английском"
+      "commits": "[Story X.Y] description in English"
     }
   },
   "quick_start": {
-    "description": "Читай документы ПО СИТУАЦИИ",
+    "description": "Читай документы ПО СИТУАЦИИ, не все подряд!",
     "always_read": [
       "ROADMAP.md"
     ],
@@ -83,7 +40,7 @@
         "backend/app/models.py"
       ],
       "frontend": [
-        "AGENT_INSTRUCTIONS.md",
+        "AGENT_INSTRUCTIONS.md", 
         "bookmarklet/README.md"
       ],
       "any_task": [
@@ -94,31 +51,26 @@
   "memory": {
     "project": "ErrorLens - bookmarklet для QA, анализ ошибок через AI",
     "stack": "Python/FastAPI backend, Vanilla JS bookmarklet, Gemini/Groq LLM",
-    "hosting": "Railway/Vercel (backend), GitHub Pages (landing)"
+    "hosting": "Railway/Vercel (backend), GitHub Pages (landing)",
+    "repo": "https://github.com/Mdyuzhev/errorlens"
   },
   "git_workflow": {
-    "branch": "main (solo dev, прямой push)",
-    "commit_format": "[Story X.Y] Brief description in English",
-    "after_push": "gh issue close N --comment 'Completed'"
+    "main": "Прямой push (solo dev)",
+    "process": "code → commit → push → close issue"
   },
   "task_workflows": {
+    "story": {
+      "naming": "[Story X.Y] Description",
+      "after_complete": "gh issue close N --comment 'Completed'"
+    },
     "epic": {
       "label": "epic",
       "contains": "checklist of stories"
-    },
-    "story": {
-      "label": "story",
-      "naming": "[Story X.Y] Description",
-      "link_to_epic": "Part of #N в body"
-    },
-    "task": {
-      "label": "task",
-      "naming": "Verb + object"
     }
   },
   "critical_rules": [
-    "Bookmarklet = vanilla JS, no dependencies",
-    "Backend = FastAPI + Pydantic, async everywhere",
+    "Bookmarklet = vanilla JS, no dependencies, IIFE pattern",
+    "Backend = FastAPI + Pydantic, async everywhere", 
     "LLM = Gemini primary, Groq fallback",
     "No database, stateless design",
     "CORS allow all (bookmarklet runs on any domain)"
@@ -132,10 +84,5 @@
       "run": "cd backend && uvicorn app.main:app --reload",
       "test": "cd backend && pytest"
     }
-  },
-  "repository": {
-    "root": "E:\\EL\\errorlens",
-    "backend": "E:\\EL\\errorlens\\backend",
-    "bookmarklet": "E:\\EL\\errorlens\\bookmarklet"
   }
 }
