@@ -581,8 +581,11 @@
         sendToBackend(duration);
     }
 
-    // Send collected data to backend
-    async function sendToBackend(duration) {
+    // Send collected data to backend with retry
+    async function sendToBackend(duration, retryCount = 0) {
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY = 1000;
+
         const payload = {
             url: window.location.href,
             user_agent: navigator.userAgent,
@@ -596,7 +599,8 @@
         console.log('[ErrorLens] Sending to backend:', payload);
 
         // Show loading state
-        showModal('Анализирую...', 'Подождите, ErrorLens анализирует ваши ошибки.', true);
+        const retryText = retryCount > 0 ? ` (попытка ${retryCount + 1}/${MAX_RETRIES})` : '';
+        showModal('Анализирую...' + retryText, 'Подождите, ErrorLens анализирует ваши ошибки.', true);
 
         try {
             const response = await fetch(`${BACKEND_URL}/analyze`, {
@@ -620,7 +624,17 @@
 
         } catch (error) {
             console.error('[ErrorLens] Failed to send data:', error);
-            showModal('Ошибка', `Не удалось проанализировать: ${error.message}`, false);
+
+            // Retry logic
+            if (retryCount < MAX_RETRIES - 1) {
+                console.log(`[ErrorLens] Retrying in ${RETRY_DELAY}ms... (attempt ${retryCount + 2}/${MAX_RETRIES})`);
+                showModal('Повторная попытка...', `Ошибка: ${error.message}. Повторяем запрос...`, true);
+                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+                return sendToBackend(duration, retryCount + 1);
+            }
+
+            // All retries failed - show error with retry button
+            showErrorWithRetry(error.message, duration);
         } finally {
             // Reset widget UI
             const widget = document.getElementById('errorlens-widget');
@@ -629,6 +643,63 @@
             }
             updateEventCounter();
         }
+    }
+
+    // Show error modal with retry button
+    function showErrorWithRetry(errorMessage, duration) {
+        const existingModal = document.getElementById('errorlens-modal');
+        if (existingModal) existingModal.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'errorlens-modal';
+        overlay.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7); display: flex; align-items: center;
+            justify-content: center; z-index: 1000000; font-family: Arial, sans-serif;
+        `;
+
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            background: white; padding: 30px; border-radius: 10px;
+            max-width: 500px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        `;
+
+        modal.innerHTML = `
+            <h2 style="margin-top: 0; color: #D32F2F;">Ошибка</h2>
+            <p style="color: #666; line-height: 1.5;">Не удалось проанализировать после 3 попыток:<br><strong>${errorMessage}</strong></p>
+        `;
+
+        const btnContainer = document.createElement('div');
+        btnContainer.style.cssText = 'display: flex; gap: 10px; margin-top: 20px;';
+
+        const retryBtn = document.createElement('button');
+        retryBtn.textContent = 'Попробовать снова';
+        retryBtn.style.cssText = `
+            background: #ff4444; color: white; border: none; padding: 10px 20px;
+            border-radius: 5px; cursor: pointer; font-size: 14px;
+        `;
+        retryBtn.addEventListener('click', () => {
+            overlay.remove();
+            sendToBackend(duration, 0);
+        });
+
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'Закрыть';
+        closeBtn.style.cssText = `
+            background: #999; color: white; border: none; padding: 10px 20px;
+            border-radius: 5px; cursor: pointer; font-size: 14px;
+        `;
+        closeBtn.addEventListener('click', () => overlay.remove());
+
+        btnContainer.appendChild(retryBtn);
+        btnContainer.appendChild(closeBtn);
+        modal.appendChild(btnContainer);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
     }
 
     // Show modal with message
@@ -855,22 +926,87 @@
             modal.appendChild(detailsContent);
         }
 
+        // Button container
+        const btnContainer = document.createElement('div');
+        btnContainer.style.cssText = 'display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;';
+
+        // Copy button
+        const copyBtn = document.createElement('button');
+        copyBtn.textContent = 'Скопировать';
+        copyBtn.style.cssText = `
+            background: #2196F3; color: white; border: none; padding: 10px 20px;
+            border-radius: 5px; cursor: pointer; font-size: 14px;
+        `;
+        copyBtn.addEventListener('click', () => {
+            const text = `Итог: ${result.summary}\n\nВероятная причина: ${result.probable_cause}\n\nРекомендация: ${result.suggested_fix}\n\nКритичность: ${severityLabels[result.severity] || result.severity}`;
+            navigator.clipboard.writeText(text).then(() => {
+                copyBtn.textContent = 'Скопировано!';
+                copyBtn.style.background = '#4CAF50';
+                setTimeout(() => {
+                    copyBtn.textContent = 'Скопировать';
+                    copyBtn.style.background = '#2196F3';
+                }, 2000);
+            }).catch(err => {
+                console.error('[ErrorLens] Copy failed:', err);
+                copyBtn.textContent = 'Ошибка';
+                copyBtn.style.background = '#f44336';
+            });
+        });
+        btnContainer.appendChild(copyBtn);
+
+        // Export Markdown button
+        const exportBtn = document.createElement('button');
+        exportBtn.textContent = 'Экспорт в Markdown';
+        exportBtn.style.cssText = `
+            background: #9C27B0; color: white; border: none; padding: 10px 20px;
+            border-radius: 5px; cursor: pointer; font-size: 14px;
+        `;
+        exportBtn.addEventListener('click', () => {
+            const markdown = `## Анализ ошибки ErrorLens
+
+**Критичность:** ${severityLabels[result.severity] || result.severity}
+
+**Итог:** ${result.summary}
+
+**Вероятная причина:** ${result.probable_cause}
+
+**Рекомендация:** ${result.suggested_fix}
+
+${result.details ? `### Подробности\n\`\`\`\n${result.details}\n\`\`\`` : ''}
+
+---
+*Сгенерировано ErrorLens*`;
+
+            const blob = new Blob([markdown], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `errorlens-report-${new Date().toISOString().slice(0, 10)}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            exportBtn.textContent = 'Скачано!';
+            exportBtn.style.background = '#4CAF50';
+            setTimeout(() => {
+                exportBtn.textContent = 'Экспорт в Markdown';
+                exportBtn.style.background = '#9C27B0';
+            }, 2000);
+        });
+        btnContainer.appendChild(exportBtn);
+
         // Close button
         const closeBtn = document.createElement('button');
         closeBtn.textContent = 'Закрыть';
         closeBtn.style.cssText = `
-            background: #ff4444;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            margin-top: 20px;
+            background: #ff4444; color: white; border: none; padding: 10px 20px;
+            border-radius: 5px; cursor: pointer; font-size: 14px;
         `;
         closeBtn.addEventListener('click', () => overlay.remove());
-        modal.appendChild(closeBtn);
+        btnContainer.appendChild(closeBtn);
 
+        modal.appendChild(btnContainer);
         overlay.appendChild(modal);
         document.body.appendChild(overlay);
 
