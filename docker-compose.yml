@@ -1,6 +1,5 @@
-version: "3.8"
-
 services:
+  # FastAPI Backend
   backend:
     build:
       context: ./backend
@@ -17,12 +16,37 @@ services:
       # Hot reload for development
       - ./backend/app:/app/app:ro
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Nginx for landing page + API proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./landing:/usr/share/nginx/html:ro
+      - ./bookmarklet:/usr/share/nginx/html/bookmarklet:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/nginx-health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 # =============================================================================
 # USAGE:
 # =============================================================================
 # 1. Copy backend/.env.example to backend/.env and fill in API keys
 # 2. Run: docker-compose up --build
-# 3. API available at: http://localhost:8000
-# 4. Swagger docs at: http://localhost:8000/docs
+# 3. Landing page: http://localhost
+# 4. API: http://localhost:8000 (direct) or http://localhost/api (via nginx)
+# 5. Swagger docs: http://localhost:8000/docs
 # =============================================================================
