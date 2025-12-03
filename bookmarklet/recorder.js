@@ -23,6 +23,7 @@
         consoleLogs: [],
         jsExceptions: [],
         networkErrors: [],
+        screenshot: null,
         originalConsole: {
             log: console.log,
             warn: console.warn,
@@ -31,7 +32,10 @@
             debug: console.debug
         },
         originalOnError: window.onerror,
-        originalOnUnhandledRejection: window.onunhandledrejection
+        originalOnUnhandledRejection: window.onunhandledrejection,
+        originalFetch: window.fetch,
+        originalXHROpen: XMLHttpRequest.prototype.open,
+        originalXHRSend: XMLHttpRequest.prototype.send
     };
 
     // Utility: Get ISO timestamp
@@ -167,6 +171,274 @@
         window.onunhandledrejection = state.originalOnUnhandledRejection;
     }
 
+    // Utility: Check if status code is an error (4xx or 5xx)
+    function isErrorStatus(status) {
+        return status >= 400;
+    }
+
+    // Utility: Extract headers as object
+    function headersToObject(headers) {
+        const obj = {};
+        if (headers instanceof Headers) {
+            headers.forEach((value, key) => {
+                obj[key] = value;
+            });
+        } else if (headers && typeof headers === 'object') {
+            Object.keys(headers).forEach(key => {
+                obj[key] = headers[key];
+            });
+        }
+        return obj;
+    }
+
+    // Utility: Safely read response body (clone to avoid consuming)
+    async function safeReadBody(response) {
+        try {
+            const clone = response.clone();
+            const text = await clone.text();
+            // Limit body size to 10KB
+            return text.length > 10240 ? text.substring(0, 10240) + '...[truncated]' : text;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Fetch interception
+    function interceptFetch() {
+        window.fetch = async function(input, init) {
+            const startTime = Date.now();
+            const method = (init && init.method) || 'GET';
+            const url = typeof input === 'string' ? input : input.url;
+
+            // Extract request headers and body
+            const requestHeaders = init && init.headers ? headersToObject(init.headers) : {};
+            const requestBody = init && init.body ? String(init.body).substring(0, 10240) : null;
+
+            try {
+                const response = await state.originalFetch.apply(window, arguments);
+
+                // Record only error responses (4xx, 5xx)
+                if (state.isRecording && isErrorStatus(response.status)) {
+                    const responseBody = await safeReadBody(response);
+
+                    state.networkErrors.push({
+                        timestamp: getTimestamp(),
+                        type: 'fetch',
+                        method: method,
+                        url: url,
+                        status: response.status,
+                        status_text: response.statusText,
+                        duration_ms: Date.now() - startTime,
+                        request_headers: requestHeaders,
+                        request_body: requestBody,
+                        response_headers: headersToObject(response.headers),
+                        response_body: responseBody
+                    });
+
+                    updateEventCounter();
+                }
+
+                return response;
+            } catch (error) {
+                // Network error (no response at all)
+                if (state.isRecording) {
+                    state.networkErrors.push({
+                        timestamp: getTimestamp(),
+                        type: 'fetch',
+                        method: method,
+                        url: url,
+                        status: 0,
+                        status_text: 'Network Error',
+                        duration_ms: Date.now() - startTime,
+                        request_headers: requestHeaders,
+                        request_body: requestBody,
+                        response_headers: null,
+                        response_body: error.message
+                    });
+
+                    updateEventCounter();
+                }
+                throw error;
+            }
+        };
+    }
+
+    // Restore original fetch
+    function restoreFetch() {
+        window.fetch = state.originalFetch;
+    }
+
+    // XMLHttpRequest interception
+    function interceptXHR() {
+        XMLHttpRequest.prototype.open = function(method, url) {
+            this._errorlens = {
+                method: method,
+                url: url,
+                startTime: null,
+                requestHeaders: {}
+            };
+            return state.originalXHROpen.apply(this, arguments);
+        };
+
+        XMLHttpRequest.prototype.send = function(body) {
+            const xhr = this;
+
+            if (xhr._errorlens) {
+                xhr._errorlens.startTime = Date.now();
+                xhr._errorlens.requestBody = body ? String(body).substring(0, 10240) : null;
+            }
+
+            // Override setRequestHeader to capture headers
+            const originalSetRequestHeader = xhr.setRequestHeader;
+            xhr.setRequestHeader = function(name, value) {
+                if (xhr._errorlens) {
+                    xhr._errorlens.requestHeaders[name] = value;
+                }
+                return originalSetRequestHeader.apply(this, arguments);
+            };
+
+            // Listen for load event
+            xhr.addEventListener('load', function() {
+                if (state.isRecording && xhr._errorlens && isErrorStatus(xhr.status)) {
+                    // Extract response headers
+                    const responseHeaders = {};
+                    const headerString = xhr.getAllResponseHeaders();
+                    if (headerString) {
+                        headerString.split('\r\n').forEach(line => {
+                            const parts = line.split(': ');
+                            if (parts.length === 2) {
+                                responseHeaders[parts[0]] = parts[1];
+                            }
+                        });
+                    }
+
+                    state.networkErrors.push({
+                        timestamp: getTimestamp(),
+                        type: 'xhr',
+                        method: xhr._errorlens.method,
+                        url: xhr._errorlens.url,
+                        status: xhr.status,
+                        status_text: xhr.statusText,
+                        duration_ms: Date.now() - xhr._errorlens.startTime,
+                        request_headers: xhr._errorlens.requestHeaders,
+                        request_body: xhr._errorlens.requestBody,
+                        response_headers: responseHeaders,
+                        response_body: xhr.responseText ? xhr.responseText.substring(0, 10240) : null
+                    });
+
+                    updateEventCounter();
+                }
+            });
+
+            // Listen for error event (network error)
+            xhr.addEventListener('error', function() {
+                if (state.isRecording && xhr._errorlens) {
+                    state.networkErrors.push({
+                        timestamp: getTimestamp(),
+                        type: 'xhr',
+                        method: xhr._errorlens.method,
+                        url: xhr._errorlens.url,
+                        status: 0,
+                        status_text: 'Network Error',
+                        duration_ms: Date.now() - xhr._errorlens.startTime,
+                        request_headers: xhr._errorlens.requestHeaders,
+                        request_body: xhr._errorlens.requestBody,
+                        response_headers: null,
+                        response_body: null
+                    });
+
+                    updateEventCounter();
+                }
+            });
+
+            return state.originalXHRSend.apply(this, arguments);
+        };
+    }
+
+    // Restore original XHR
+    function restoreXHR() {
+        XMLHttpRequest.prototype.open = state.originalXHROpen;
+        XMLHttpRequest.prototype.send = state.originalXHRSend;
+    }
+
+    // html2canvas CDN URL
+    const HTML2CANVAS_CDN = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+
+    // Load html2canvas dynamically
+    function loadHtml2Canvas() {
+        return new Promise((resolve, reject) => {
+            // Check if already loaded
+            if (window.html2canvas) {
+                resolve(window.html2canvas);
+                return;
+            }
+
+            // Check if script is already loading
+            if (document.querySelector(`script[src="${HTML2CANVAS_CDN}"]`)) {
+                // Wait for it to load
+                const checkInterval = setInterval(() => {
+                    if (window.html2canvas) {
+                        clearInterval(checkInterval);
+                        resolve(window.html2canvas);
+                    }
+                }, 100);
+                return;
+            }
+
+            // Load script
+            const script = document.createElement('script');
+            script.src = HTML2CANVAS_CDN;
+            script.onload = () => {
+                console.log('[ErrorLens] html2canvas loaded');
+                resolve(window.html2canvas);
+            };
+            script.onerror = () => {
+                console.warn('[ErrorLens] Failed to load html2canvas, skipping screenshot');
+                resolve(null);
+            };
+            document.head.appendChild(script);
+        });
+    }
+
+    // Capture screenshot using html2canvas
+    async function captureScreenshot() {
+        try {
+            const html2canvas = await loadHtml2Canvas();
+            if (!html2canvas) {
+                return null;
+            }
+
+            // Hide our widget temporarily
+            const widget = document.getElementById('errorlens-widget');
+            const modal = document.getElementById('errorlens-modal');
+            if (widget) widget.style.display = 'none';
+            if (modal) modal.style.display = 'none';
+
+            // Capture
+            const canvas = await html2canvas(document.body, {
+                logging: false,
+                useCORS: true,
+                allowTaint: true,
+                scale: 0.5, // Reduce size for faster upload
+                windowWidth: document.documentElement.scrollWidth,
+                windowHeight: document.documentElement.scrollHeight
+            });
+
+            // Restore widget
+            if (widget) widget.style.display = 'flex';
+            if (modal) modal.style.display = 'flex';
+
+            // Convert to base64 with reduced quality
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            console.log('[ErrorLens] Screenshot captured, size:', Math.round(dataUrl.length / 1024), 'KB');
+
+            return dataUrl;
+        } catch (error) {
+            console.warn('[ErrorLens] Screenshot failed:', error.message);
+            return null;
+        }
+    }
+
     // UI Widget
     function createWidget() {
         // Check if widget already exists
@@ -242,11 +514,14 @@
         state.consoleLogs = [];
         state.jsExceptions = [];
         state.networkErrors = [];
+        state.screenshot = null;
 
         // Setup interceptors
         interceptConsole();
         setupErrorHandler();
         setupRejectionHandler();
+        interceptFetch();
+        interceptXHR();
 
         // Update widget UI
         const widget = document.getElementById('errorlens-widget');
@@ -273,7 +548,7 @@
     }
 
     // Stop recording and send to backend
-    function stopRecordingAndSend() {
+    async function stopRecordingAndSend() {
         state.isRecording = false;
         const duration = Date.now() - state.startTime;
 
@@ -281,8 +556,10 @@
         restoreConsole();
         restoreErrorHandler();
         restoreRejectionHandler();
+        restoreFetch();
+        restoreXHR();
 
-        // Update widget UI
+        // Update widget UI - show "capturing" state
         const widget = document.getElementById('errorlens-widget');
         if (widget) {
             widget.style.background = '#ffaa00';
@@ -296,6 +573,10 @@
             networkErrors: state.networkErrors.length
         });
 
+        // Capture screenshot before sending
+        console.log('[ErrorLens] Capturing screenshot...');
+        state.screenshot = await captureScreenshot();
+
         // Send to backend
         sendToBackend(duration);
     }
@@ -308,14 +589,14 @@
             console_logs: state.consoleLogs,
             network_errors: state.networkErrors,
             js_exceptions: state.jsExceptions,
-            screenshot: null, // TODO: Story 2.4.1 - Add html2canvas integration
+            screenshot: state.screenshot,
             recording_duration_ms: duration
         };
 
         console.log('[ErrorLens] Sending to backend:', payload);
 
         // Show loading state
-        showModal('Analyzing...', 'Please wait while ErrorLens analyzes your errors.', true);
+        showModal('Анализирую...', 'Подождите, ErrorLens анализирует ваши ошибки.', true);
 
         try {
             const response = await fetch(`${BACKEND_URL}/analyze`, {
@@ -339,7 +620,7 @@
 
         } catch (error) {
             console.error('[ErrorLens] Failed to send data:', error);
-            showModal('Error', `Failed to analyze errors: ${error.message}`, false);
+            showModal('Ошибка', `Не удалось проанализировать: ${error.message}`, false);
         } finally {
             // Reset widget UI
             const widget = document.getElementById('errorlens-widget');
@@ -406,7 +687,7 @@
 
         if (!isLoading) {
             const closeBtn = document.createElement('button');
-            closeBtn.textContent = 'Close';
+            closeBtn.textContent = 'Закрыть';
             closeBtn.style.cssText = `
                 background: #ff4444;
                 color: white;
@@ -472,22 +753,28 @@
 
         // Title
         const title = document.createElement('h2');
-        title.textContent = 'ErrorLens Analysis';
+        title.textContent = 'Анализ ErrorLens';
         title.style.cssText = `
             margin-top: 0;
             color: #333;
         `;
         modal.appendChild(title);
 
-        // Severity badge
+        // Severity badge with Russian labels
         const severityColors = {
             low: '#4CAF50',
             medium: '#FF9800',
             high: '#FF5722',
             critical: '#D32F2F'
         };
+        const severityLabels = {
+            low: 'НИЗКИЙ',
+            medium: 'СРЕДНИЙ',
+            high: 'ВЫСОКИЙ',
+            critical: 'КРИТИЧНЫЙ'
+        };
         const severity = document.createElement('div');
-        severity.textContent = result.severity.toUpperCase();
+        severity.textContent = severityLabels[result.severity] || result.severity.toUpperCase();
         severity.style.cssText = `
             display: inline-block;
             padding: 5px 15px;
@@ -502,7 +789,7 @@
 
         // Summary
         const summary = document.createElement('div');
-        summary.innerHTML = `<strong>Summary:</strong><br>${result.summary}`;
+        summary.innerHTML = `<strong>Итог:</strong><br>${result.summary}`;
         summary.style.cssText = `
             margin: 15px 0;
             color: #333;
@@ -512,7 +799,7 @@
 
         // Probable cause
         const cause = document.createElement('div');
-        cause.innerHTML = `<strong>Probable Cause:</strong><br>${result.probable_cause}`;
+        cause.innerHTML = `<strong>Вероятная причина:</strong><br>${result.probable_cause}`;
         cause.style.cssText = `
             margin: 15px 0;
             color: #333;
@@ -522,7 +809,7 @@
 
         // Suggested fix
         const fix = document.createElement('div');
-        fix.innerHTML = `<strong>Suggested Fix:</strong><br>${result.suggested_fix}`;
+        fix.innerHTML = `<strong>Рекомендация:</strong><br>${result.suggested_fix}`;
         fix.style.cssText = `
             margin: 15px 0;
             color: #333;
@@ -533,7 +820,7 @@
         // Details (collapsible)
         if (result.details) {
             const detailsTitle = document.createElement('div');
-            detailsTitle.textContent = 'Show Details';
+            detailsTitle.textContent = 'Подробнее';
             detailsTitle.style.cssText = `
                 margin: 20px 0 10px 0;
                 color: #ff4444;
@@ -557,10 +844,10 @@
             detailsTitle.addEventListener('click', () => {
                 if (detailsContent.style.display === 'none') {
                     detailsContent.style.display = 'block';
-                    detailsTitle.textContent = 'Hide Details';
+                    detailsTitle.textContent = 'Скрыть подробности';
                 } else {
                     detailsContent.style.display = 'none';
-                    detailsTitle.textContent = 'Show Details';
+                    detailsTitle.textContent = 'Подробнее';
                 }
             });
 
@@ -570,7 +857,7 @@
 
         // Close button
         const closeBtn = document.createElement('button');
-        closeBtn.textContent = 'Close';
+        closeBtn.textContent = 'Закрыть';
         closeBtn.style.cssText = `
             background: #ff4444;
             color: white;

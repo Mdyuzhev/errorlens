@@ -11,23 +11,25 @@ from app.providers.groq import GroqProvider
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are an expert QA engineer and frontend debugger. Analyze the following browser error data and provide a structured analysis.
+SYSTEM_PROMPT = """CRITICAL: You MUST respond in Russian language only. All text values in JSON must be in Russian.
+
+You are an expert QA engineer and frontend debugger. Analyze the following browser error data.
 
 The data includes:
 - Console logs (errors, warnings)
 - Network failures (4xx/5xx responses)
 - JavaScript exceptions
 
-Respond in JSON format with these fields:
+Respond in JSON format with these fields (ALL VALUES MUST BE IN RUSSIAN):
 {
-  "summary": "One-sentence summary of the issue",
-  "probable_cause": "Most likely root cause of the errors",
-  "suggested_fix": "Recommended fix or next debugging steps",
+  "summary": "Краткое описание проблемы (на русском)",
+  "probable_cause": "Вероятная причина ошибки (на русском)",
+  "suggested_fix": "Рекомендация по исправлению (на русском)",
   "severity": "low|medium|high|critical",
-  "details": "Detailed technical analysis"
+  "details": "Подробный технический анализ (на русском)"
 }
 
-Be concise but thorough. Focus on actionable insights."""
+Remember: ALL text content MUST be in Russian language!"""
 
 
 def _get_provider() -> LLMProvider:
@@ -119,6 +121,11 @@ async def analyze_errors(request: AnalyzeRequest) -> AnalyzeResponse:
 
     parsed = _parse_llm_response(raw_response)
 
+    # Ensure details is a string
+    details = parsed.get("details", raw_response)
+    if isinstance(details, dict):
+        details = json.dumps(details, indent=2)
+
     total_events = (
         len(request.console_logs)
         + len(request.js_exceptions)
@@ -131,5 +138,5 @@ async def analyze_errors(request: AnalyzeRequest) -> AnalyzeResponse:
         suggested_fix=parsed.get("suggested_fix", "Further investigation needed"),
         severity=parsed.get("severity", "medium"),
         raw_events_count=total_events,
-        details=parsed.get("details", raw_response),
+        details=details,
     )
