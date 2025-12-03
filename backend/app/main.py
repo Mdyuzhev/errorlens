@@ -21,12 +21,15 @@ from app.models_pydantic import (
     GenerateTicketResponse,
     RecordedHttpExchange,
     RequestAssertion,
+    RunTestRequest,
     SessionAnalysisRequest,
     SessionAnalysisResponse,
+    TestRunStatus,
 )
 from app.postman_generator import generate_postman_collection
 from app.pytest_generator import generate_pytest_file
 from app.ticket_generator import generate_ticket
+from app.test_runner import run_pytest, get_test_run, create_test_run
 from app.routers import sessions
 from app.session_analyzer import analyze_session
 
@@ -294,3 +297,70 @@ async def create_ticket(
     logger.info(f"Generated {request.format} ticket for session {request.session_id}")
 
     return GenerateTicketResponse(**ticket)
+
+
+@app.post("/tests/run")
+async def start_test_run(
+    request: RunTestRequest,
+    db=Depends(sessions.get_db),
+) -> dict:
+    """
+    Start pytest execution.
+
+    Provide either session_id to generate tests from recorded requests,
+    or test_code to run custom test code.
+    """
+    import asyncio
+
+    test_id = create_test_run()
+
+    if request.session_id:
+        # Get test code from session
+        from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
+        from app.models.db_models import Session
+
+        query = (
+            select(Session)
+            .options(selectinload(Session.data))
+            .where(Session.id == request.session_id)
+        )
+        result = await db.execute(query)
+        session = result.scalar_one_or_none()
+
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        if not session.data or not session.data.recorded_requests:
+            raise HTTPException(status_code=400, detail="Session has no recorded requests")
+
+        # Generate test code
+        recorded = []
+        for req_dict in session.data.recorded_requests:
+            if isinstance(req_dict, dict):
+                recorded.append(RecordedHttpExchange(**req_dict))
+            else:
+                recorded.append(req_dict)
+
+        test_code = generate_pytest_file(recorded)
+
+    elif request.test_code:
+        test_code = request.test_code
+    else:
+        raise HTTPException(status_code=400, detail="Provide session_id or test_code")
+
+    # Run in background
+    asyncio.create_task(run_pytest(test_code, test_id))
+
+    logger.info(f"Started test run {test_id}")
+
+    return {"test_id": test_id, "status": "started"}
+
+
+@app.get("/tests/{test_id}/status")
+async def get_test_status(test_id: str) -> dict:
+    """Get test run status and output."""
+    result = get_test_run(test_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Test run not found")
+    return result

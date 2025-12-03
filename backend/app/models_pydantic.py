@@ -246,6 +246,39 @@ class GenerateTicketResponse(BaseModel):
     format: str
 
 
+# Story 8.6.2: Test runner models
+class RunTestRequest(BaseModel):
+    """Request body for test runner endpoint."""
+
+    session_id: str | None = Field(
+        default=None, description="Session ID to run tests for"
+    )
+    test_code: str | None = Field(
+        default=None, description="Raw test code to execute"
+    )
+
+
+class TestRunSummary(BaseModel):
+    """Summary of test run results."""
+
+    passed: int = 0
+    failed: int = 0
+    errors: int = 0
+    skipped: int = 0
+    total: int = 0
+
+
+class TestRunStatus(BaseModel):
+    """Status of a test run."""
+
+    status: str  # pending, running, passed, failed, error
+    started_at: str | None = None
+    finished_at: str | None = None
+    output: str = ""
+    returncode: int | None = None
+    summary: TestRunSummary | None = None
+
+
 # Story 7.2: Session analysis models
 class DetectedVariable(BaseModel):
     """Variable detected in session (token, ID, etc.)."""
