@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ErrorLens Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            min-height: 100vh;
+        }
+
+        header {
+            background: linear-gradient(135deg, #4FC3F7 0%, #29B6F6 100%);
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        header nav a {
+            color: white;
+            text-decoration: none;
+            margin-left: 24px;
+            opacity: 0.9;
+        }
+
+        header nav a:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 600;
+            color: #4FC3F7;
+        }
+
+        .sessions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .sessions-header h2 {
+            font-size: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #4FC3F7;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #29B6F6;
+        }
+
+        .btn-danger {
+            background: #F44336;
+            color: white;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .sessions-list {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .session-item {
+            padding: 16px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .session-item:hover {
+            background: #f9f9f9;
+        }
+
+        .session-item:last-child {
+            border-bottom: none;
+        }
+
+        .session-severity {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .severity-low { background: #4CAF50; }
+        .severity-medium { background: #FF9800; }
+        .severity-high { background: #FF5722; }
+        .severity-critical { background: #D32F2F; }
+        .severity-none { background: #9E9E9E; }
+
+        .session-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .session-url {
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .session-meta {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .session-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 8px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            max-width: 800px;
+            max-height: 90vh;
+            width: 90%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 18px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .analysis-section {
+            margin-bottom: 20px;
+        }
+
+        .analysis-section h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .analysis-section p {
+            line-height: 1.6;
+        }
+
+        .severity-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+            text-transform: uppercase;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>ErrorLens</h1>
+        <nav>
+            <a href="/">Главная</a>
+            <a href="/docs" target="_blank">API Docs</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Всего сессий</h3>
+                <div class="value" id="totalSessions">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Критических</h3>
+                <div class="value" id="criticalCount">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Сегодня</h3>
+                <div class="value" id="todayCount">-</div>
+            </div>
+        </div>
+
+        <div class="sessions-header">
+            <h2>Записанные сессии</h2>
+            <button class="btn btn-primary" onclick="loadSessions()">Обновить</button>
+        </div>
+
+        <div class="sessions-list" id="sessionsList">
+            <div class="loading">Загрузка...</div>
+        </div>
+
+        <div class="pagination" id="pagination"></div>
+    </main>
+
+    <!-- Session Detail Modal -->
+    <div class="modal-overlay" id="modalOverlay" style="display: none;" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2 id="modalTitle">Детали сессии</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Content loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="exportSession('markdown')">Экспорт MD</button>
+                <button class="btn" onclick="exportSession('postman')">Экспорт Postman</button>
+                <button class="btn btn-danger" onclick="deleteCurrentSession()">Удалить</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.port === '3000' ? '/api' : 'http://localhost:8000';
+        let currentPage = 0;
+        const pageSize = 20;
+        let currentSessionId = null;
+
+        async function loadSessions() {
+            const list = document.getElementById('sessionsList');
+            list.innerHTML = '<div class="loading">Загрузка...</div>';
+
+            try {
+                const response = await fetch(`${API_URL}/sessions?limit=${pageSize}&offset=${currentPage * pageSize}`);
+                const data = await response.json();
+
+                document.getElementById('totalSessions').textContent = data.total;
+
+                if (data.items.length === 0) {
+                    list.innerHTML = `
+                        <div class="empty-state">
+                            <h3>Нет записанных сессий</h3>
+                            <p>Установите букмарклет и начните запись на любом сайте</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                list.innerHTML = data.items.map(session => `
+                    <div class="session-item" onclick="openSession('${session.id}')">
+                        <div class="session-severity severity-${session.has_analysis ? 'medium' : 'none'}"></div>
+                        <div class="session-info">
+                            <div class="session-url">${escapeHtml(session.url)}</div>
+                            <div class="session-meta">
+                                ${new Date(session.created_at).toLocaleString('ru-RU')} ·
+                                ${session.events_count} событий ·
+                                ${session.recording_duration_ms}ms
+                            </div>
+                        </div>
+                        <div class="session-actions">
+                            <button class="btn btn-small" onclick="event.stopPropagation(); deleteSession('${session.id}')">Удалить</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Update pagination
+                const totalPages = Math.ceil(data.total / pageSize);
+                updatePagination(totalPages);
+
+            } catch (error) {
+                console.error('Failed to load sessions:', error);
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <h3>Ошибка загрузки</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function updatePagination(totalPages) {
+            const pagination = document.getElementById('pagination');
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            if (currentPage > 0) {
+                html += `<button class="btn btn-small" onclick="goToPage(${currentPage - 1})">←</button>`;
+            }
+            html += `<span style="padding: 6px 12px;">${currentPage + 1} / ${totalPages}</span>`;
+            if (currentPage < totalPages - 1) {
+                html += `<button class="btn btn-small" onclick="goToPage(${currentPage + 1})">→</button>`;
+            }
+            pagination.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            loadSessions();
+        }
+
+        async function openSession(id) {
+            currentSessionId = id;
+            const modal = document.getElementById('modalOverlay');
+            const body = document.getElementById('modalBody');
+
+            modal.style.display = 'flex';
+            body.innerHTML = '<div class="loading">Загрузка...</div>';
+
+            try {
+                const response = await fetch(`${API_URL}/sessions/${id}`);
+                const session = await response.json();
+
+                const severityColors = {
+                    low: '#4CAF50',
+                    medium: '#FF9800',
+                    high: '#FF5722',
+                    critical: '#D32F2F'
+                };
+
+                const severityLabels = {
+                    low: 'Низкий',
+                    medium: 'Средний',
+                    high: 'Высокий',
+                    critical: 'Критичный'
+                };
+
+                let html = `
+                    <div class="analysis-section">
+                        <h3>URL</h3>
+                        <p>${escapeHtml(session.url)}</p>
+                    </div>
+                    <div class="analysis-section">
+                        <h3>Дата записи</h3>
+                        <p>${new Date(session.created_at).toLocaleString('ru-RU')}</p>
+                    </div>
+                `;
+
+                if (session.analysis) {
+                    const a = session.analysis;
+                    html += `
+                        <div class="analysis-section">
+                            <h3>Критичность</h3>
+                            <span class="severity-badge" style="background: ${severityColors[a.severity] || '#999'}">
+                                ${severityLabels[a.severity] || a.severity}
+                            </span>
+                        </div>
+                        <div class="analysis-section">
+                            <h3>Итог</h3>
+                            <p>${escapeHtml(a.summary)}</p>
+                        </div>
+                        <div class="analysis-section">
+                            <h3>Вероятная причина</h3>
+                            <p>${escapeHtml(a.probable_cause)}</p>
+                        </div>
+                        <div class="analysis-section">
+                            <h3>Рекомендация</h3>
+                            <p>${escapeHtml(a.suggested_fix)}</p>
+                        </div>
+                    `;
+                    if (a.details) {
+                        html += `
+                            <div class="analysis-section">
+                                <h3>Подробности</h3>
+                                <pre style="background: #f5f5f5; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 12px;">${escapeHtml(a.details)}</pre>
+                            </div>
+                        `;
+                    }
+                } else {
+                    html += `
+                        <div class="analysis-section">
+                            <h3>Анализ</h3>
+                            <p style="color: #666;">Анализ не выполнен (нет данных об ошибках)</p>
+                        </div>
+                    `;
+                }
+
+                html += `
+                    <div class="analysis-section">
+                        <h3>Статистика</h3>
+                        <p>
+                            Console logs: ${session.console_logs?.length || 0}<br>
+                            Network errors: ${session.network_errors?.length || 0}<br>
+                            JS exceptions: ${session.js_exceptions?.length || 0}<br>
+                            Recorded requests: ${session.recorded_requests?.length || 0}
+                        </p>
+                    </div>
+                `;
+
+                body.innerHTML = html;
+
+            } catch (error) {
+                body.innerHTML = `<div class="empty-state"><h3>Ошибка</h3><p>${error.message}</p></div>`;
+            }
+        }
+
+        function closeModal(event) {
+            if (!event || event.target === document.getElementById('modalOverlay')) {
+                document.getElementById('modalOverlay').style.display = 'none';
+                currentSessionId = null;
+            }
+        }
+
+        async function deleteSession(id) {
+            if (!confirm('Удалить эту сессию?')) return;
+
+            try {
+                await fetch(`${API_URL}/sessions/${id}`, { method: 'DELETE' });
+                loadSessions();
+            } catch (error) {
+                alert('Ошибка удаления: ' + error.message);
+            }
+        }
+
+        async function deleteCurrentSession() {
+            if (currentSessionId) {
+                await deleteSession(currentSessionId);
+                closeModal();
+            }
+        }
+
+        async function exportSession(format) {
+            if (!currentSessionId) return;
+            window.open(`${API_URL}/sessions/${currentSessionId}/export/${format}`, '_blank');
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initial load
+        loadSessions();
+    </script>
+</body>
+</html>
