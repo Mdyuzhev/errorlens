@@ -642,35 +642,35 @@
             const style = document.createElement('style');
             style.id = 'errorlens-style';
             style.textContent = `
-                @keyframes pulse {
+                @keyframes errorlens-pulse {
                     0%, 100% { opacity: 1; }
                     50% { opacity: 0.7; }
                 }
-                @keyframes pulse-scale {
+                @keyframes errorlens-pulse-scale {
                     0%, 100% { transform: scale(1); opacity: 1; }
                     50% { transform: scale(1.1); opacity: 0.8; }
                 }
-                .errorlens-bar {
+                .errorlens-pill {
                     position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    height: 40px;
+                    top: 12px;
+                    right: 12px;
+                    height: 36px;
+                    padding: 0 8px;
+                    border-radius: 18px;
                     display: flex;
                     align-items: center;
-                    justify-content: center;
-                    gap: 16px;
+                    gap: 8px;
                     z-index: 2147483647;
                     font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
                     transition: background-color 0.3s ease;
                 }
-                .errorlens-bar.idle { background: #4FC3F7; }
-                .errorlens-bar.recording { background: #F44336; animation: pulse 1.5s infinite; }
-                .errorlens-bar.done { background: #4CAF50; }
+                .errorlens-pill.idle { background: #4FC3F7; }
+                .errorlens-pill.recording { background: #F44336; animation: errorlens-pulse 1.5s infinite; }
+                .errorlens-pill.done { background: #4CAF50; }
                 .errorlens-btn {
-                    width: 28px;
-                    height: 28px;
+                    width: 24px;
+                    height: 24px;
                     border: none;
                     border-radius: 50%;
                     cursor: pointer;
@@ -679,22 +679,28 @@
                     justify-content: center;
                     background: rgba(255,255,255,0.9);
                     color: #333;
-                    font-size: 14px;
+                    font-size: 12px;
                     transition: background 0.2s;
+                    padding: 0;
                 }
                 .errorlens-btn:hover { background: #fff; }
                 .errorlens-counter {
                     color: white;
-                    font-size: 13px;
+                    font-size: 12px;
                     font-weight: 600;
-                    min-width: 24px;
+                    min-width: 16px;
                     text-align: center;
                 }
                 .errorlens-link {
                     color: white;
-                    font-size: 13px;
-                    text-decoration: underline;
+                    font-size: 12px;
                     cursor: pointer;
+                    padding: 2px 6px;
+                    border-radius: 10px;
+                    background: rgba(255,255,255,0.2);
+                }
+                .errorlens-link:hover {
+                    background: rgba(255,255,255,0.3);
                 }
             `;
             document.head.appendChild(style);
@@ -709,20 +715,20 @@
         console.log('[ErrorLens] Widget created');
     }
 
-    // New top bar widget (Story 8.4)
+    // New compact pill widget (Story 8.5)
     function createTopBarWidget() {
-        const bar = document.createElement('div');
-        bar.id = 'errorlens-bar';
-        bar.className = 'errorlens-bar idle';
+        const pill = document.createElement('div');
+        pill.id = 'errorlens-bar';
+        pill.className = 'errorlens-pill idle';
 
         // Record/Stop button
         const recordBtn = document.createElement('button');
         recordBtn.id = 'errorlens-record-btn';
         recordBtn.className = 'errorlens-btn';
         recordBtn.innerHTML = '&#9679;'; // Circle (record)
-        recordBtn.title = 'Start recording';
+        recordBtn.title = 'Начать запись';
         recordBtn.addEventListener('click', handleRecordClick);
-        bar.appendChild(recordBtn);
+        pill.appendChild(recordBtn);
 
         // Event counter (hidden until recording)
         const counter = document.createElement('div');
@@ -730,28 +736,25 @@
         counter.className = 'errorlens-counter';
         counter.style.display = 'none';
         counter.textContent = '0';
-        bar.appendChild(counter);
+        pill.appendChild(counter);
 
         // Result link (hidden until done)
         const resultLink = document.createElement('span');
         resultLink.id = 'errorlens-result-link';
         resultLink.className = 'errorlens-link';
         resultLink.style.display = 'none';
-        resultLink.textContent = 'View Results';
-        bar.appendChild(resultLink);
+        resultLink.textContent = 'Результаты';
+        pill.appendChild(resultLink);
 
         // Close button
         const closeBtn = document.createElement('button');
         closeBtn.className = 'errorlens-btn';
         closeBtn.innerHTML = '&#10005;'; // X
-        closeBtn.title = 'Close ErrorLens';
+        closeBtn.title = 'Закрыть ErrorLens';
         closeBtn.addEventListener('click', removeWidget);
-        bar.appendChild(closeBtn);
+        pill.appendChild(closeBtn);
 
-        document.body.appendChild(bar);
-
-        // Push page content down
-        document.body.style.marginTop = '40px';
+        document.body.appendChild(pill);
     }
 
     // Handle record button click in new UI
@@ -765,61 +768,61 @@
         }
     }
 
-    // Update bar to recording state
+    // Update pill to recording state
     function updateBarToRecording() {
-        const bar = document.getElementById('errorlens-bar');
+        const pill = document.getElementById('errorlens-bar');
         const recordBtn = document.getElementById('errorlens-record-btn');
         const counter = document.getElementById('errorlens-counter');
 
-        if (bar) {
-            bar.className = 'errorlens-bar recording';
+        if (pill) {
+            pill.className = 'errorlens-pill recording';
         }
         if (recordBtn) {
             recordBtn.innerHTML = '&#9632;'; // Square (stop)
-            recordBtn.title = 'Stop recording';
+            recordBtn.title = 'Остановить запись';
         }
         if (counter) {
             counter.style.display = 'block';
         }
     }
 
-    // Update bar to done state
+    // Update pill to done state
     function updateBarToDone(result) {
-        const bar = document.getElementById('errorlens-bar');
+        const pill = document.getElementById('errorlens-bar');
         const recordBtn = document.getElementById('errorlens-record-btn');
         const counter = document.getElementById('errorlens-counter');
         const resultLink = document.getElementById('errorlens-result-link');
 
-        if (bar) {
-            bar.className = 'errorlens-bar done';
+        if (pill) {
+            pill.className = 'errorlens-pill done';
         }
         if (recordBtn) {
             recordBtn.innerHTML = '&#9679;'; // Circle (ready for new recording)
-            recordBtn.title = 'Start new recording';
+            recordBtn.title = 'Новая запись';
         }
         if (counter) {
             counter.style.display = 'none';
         }
         if (resultLink) {
             resultLink.style.display = 'block';
-            resultLink.textContent = 'View Results';
+            resultLink.textContent = 'Результаты';
             resultLink.onclick = () => showResult(result);
         }
     }
 
-    // Update bar to idle state
+    // Update pill to idle state
     function updateBarToIdle() {
-        const bar = document.getElementById('errorlens-bar');
+        const pill = document.getElementById('errorlens-bar');
         const recordBtn = document.getElementById('errorlens-record-btn');
         const counter = document.getElementById('errorlens-counter');
         const resultLink = document.getElementById('errorlens-result-link');
 
-        if (bar) {
-            bar.className = 'errorlens-bar idle';
+        if (pill) {
+            pill.className = 'errorlens-pill idle';
         }
         if (recordBtn) {
             recordBtn.innerHTML = '&#9679;';
-            recordBtn.title = 'Start recording';
+            recordBtn.title = 'Начать запись';
         }
         if (counter) {
             counter.style.display = 'none';
@@ -832,14 +835,13 @@
 
     // Remove widget and cleanup
     function removeWidget() {
-        const bar = document.getElementById('errorlens-bar');
+        const pill = document.getElementById('errorlens-bar');
         const widget = document.getElementById('errorlens-widget');
         const modal = document.getElementById('errorlens-modal');
         const menu = document.getElementById('errorlens-mode-menu');
 
-        if (bar) {
-            bar.remove();
-            document.body.style.marginTop = '';
+        if (pill) {
+            pill.remove();
         }
         if (widget) widget.remove();
         if (modal) modal.remove();
