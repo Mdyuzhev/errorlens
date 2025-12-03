@@ -1,0 +1,44 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+
+jobs:
+  deploy:
+    name: Deploy to Railway
+    runs-on: ubuntu-latest
+    # Only run if CI passes
+    needs: []
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        run: railway up --service errorlens-api
+        working-directory: backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+# =============================================================================
+# SETUP INSTRUCTIONS:
+# =============================================================================
+# 1. Create a Railway account at https://railway.app
+# 2. Create a new project and service named "errorlens-api"
+# 3. In Railway dashboard, get your project token:
+#    - Go to Project Settings > Tokens
+#    - Create a new token
+# 4. Add the token as GitHub secret:
+#    - Go to repo Settings > Secrets and variables > Actions
+#    - Add new secret: RAILWAY_TOKEN = <your-token>
+# 5. In Railway, set environment variables:
+#    - LLM_PROVIDER=gemini
+#    - GEMINI_API_KEY=<your-key>
+#    - GROQ_API_KEY=<your-key> (optional)
+# =============================================================================
