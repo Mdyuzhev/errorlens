@@ -4,7 +4,7 @@ import json
 import logging
 
 from app.config import settings
-from app.models import AnalyzeRequest, AnalyzeResponse
+from app.models_pydantic import AnalyzeRequest, AnalyzeResponse
 from app.providers.base import LLMProvider
 from app.providers.gemini import GeminiProvider
 from app.providers.groq import GroqProvider

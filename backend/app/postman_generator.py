@@ -4,7 +4,7 @@ import json
 import re
 from urllib.parse import urlparse, parse_qs
 
-from app.models import (
+from app.models_pydantic import (
     ExportPostmanRequest,
     ExportPostmanResponse,
     PostmanBody,
