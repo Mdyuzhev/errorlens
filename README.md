@@ -56,7 +56,31 @@ uvicorn app.main:app --reload
 # Букмарклет — просто JS файл, сборка не нужна
 ```
 
-### Docker
+### Docker (рекомендуемый способ)
+
+Полный стек с landing page и API через nginx:
+
+```bash
+# 1. Клонируйте репозиторий
+git clone https://github.com/Mdyuzhev/errorlens.git
+cd errorlens
+
+# 2. Создайте .env файл (или экспортируйте переменные)
+export GROQ_API_KEY=your_groq_key
+# или
+export GEMINI_API_KEY=your_gemini_key
+
+# 3. Запустите
+docker-compose up --build
+
+# 4. Готово!
+# - Landing page: http://localhost:3000
+# - API напрямую: http://localhost:8000
+# - API через nginx: http://localhost:3000/api/
+# - Swagger docs: http://localhost:8000/docs
+```
+
+Только backend:
 
 ```bash
 cd backend
