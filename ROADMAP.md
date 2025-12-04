@@ -412,3 +412,52 @@
 - [ ] Авторизация пользователей (OAuth / API keys)
 - [ ] Защита эндпоинтов
 - [ ] Rate limiting per user
+
+---
+
+## Remaining Tasks (по приоритету)
+
+| ID | Задача | Приоритет | Статус |
+|----|--------|-----------|--------|
+| 10.x | Cloud deployment | High | BLOCKED (нужна auth) |
+| 7.5.4 | Playwright API tests | Medium | TODO |
+| 7.4.3 | Превью кода в dashboard | Medium | TODO |
+| 8.6.6 | Webhook интеграции | Medium | Заглушки есть |
+| 6.1.3 | Демо-видео/GIF | Low | TODO |
+| 8.2.4 | Alembic migrations | Low | TODO |
+| 8.3.4 | Drag-n-drop bookmarklet | Low | TODO |
+
+---
+
+## Planned Epics
+
+### Epic 10: Authentication (BLOCKER для Cloud)
+- JWT авторизация
+- Admin login
+- Защита API endpoints
+- Rate limiting per user
+
+### Epic 11: Analytics Dashboard
+- Статистика сессий
+- Графики severity distribution
+- Timeline по дням
+
+### Epic 12: Smart Tickets (частично готово)
+- Автогенерация шагов воспроизведения ✅
+- Timeline событий ✅
+- Детали проблемного запроса ✅
+- Интеграции Jira/Slack/Telegram (заглушки)
+
+### Epic 13: Test Case Generator
+- Структурированные тест-кейсы
+- Экспорт в TestRail, Markdown
+
+### Epic 14: UI Test Recorder
+- Запись кликов и ввода
+- Cypress/Playwright export
+- Smart селекторы
+
+### Epic 15: Integrated Test Runners
+- Запуск тестов в контейнере
+- Python, Java, Cypress runners
+- Live output в dashboard

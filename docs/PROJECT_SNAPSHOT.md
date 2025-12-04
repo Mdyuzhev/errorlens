@@ -20,11 +20,18 @@ errorlens/
 │   │   ├── database.py              # SQLAlchemy async session
 │   │   ├── main.py                  # FastAPI entrypoint
 │   │   ├── models_pydantic.py       # Pydantic API models
-│   │   ├── postman_generator.py     # Postman Collection export
-│   │   ├── pytest_generator.py      # pytest test file export
 │   │   ├── session_analyzer.py      # Variable detection, grouping
 │   │   ├── test_runner.py           # Async pytest execution
-│   │   ├── ticket_generator.py      # Jira/GitHub ticket generation
+│   │   ├── ticket_generator.py      # Smart ticket generation
+│   │   ├── generators/              # Test code generators
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py              # BaseGenerator ABC
+│   │   │   ├── pytest.py            # pytest + requests
+│   │   │   ├── restassured.py       # REST Assured (Java)
+│   │   │   ├── k6.py                # k6 load tests
+│   │   │   ├── postman.py           # Postman Collection
+│   │   │   ├── cypress.py           # Cypress API tests
+│   │   │   └── llm_comments.py      # LLM-generated comments
 │   │   ├── middleware/
 │   │   │   ├── __init__.py
 │   │   │   ├── auth.py              # Admin key authentication
@@ -70,8 +77,10 @@ errorlens/
 | POST | `/analyze` | AI-powered error analysis |
 | POST | `/export/postman` | Generate Postman Collection |
 | POST | `/export/pytest` | Generate pytest file |
+| POST | `/export/restassured` | Generate REST Assured (Java) |
+| POST | `/export/k6` | Generate k6 load test script |
 | POST | `/analyze/session` | Analyze session for test generation |
-| POST | `/tickets/generate` | Generate Jira/GitHub ticket |
+| POST | `/tickets/generate` | Generate smart Jira/GitHub ticket |
 | POST | `/tests/run` | Start pytest execution |
 | GET | `/tests/{id}/status` | Get test run status |
 | POST | `/sessions` | Create session with auto-analysis |
@@ -133,7 +142,10 @@ SQLite with async SQLAlchemy (aiosqlite).
 | Export to Markdown | ✅ |
 | Export to Postman | ✅ |
 | Export to pytest | ✅ |
-| Ticket generator (Jira/GitHub/MD) | ✅ |
+| Export to REST Assured (Java) | ✅ |
+| Export to k6 load tests | ✅ |
+| Smart ticket generator (auto-steps, timeline) | ✅ |
+| Integration stubs (Jira/Slack/Telegram) | ✅ |
 | pytest runner with live output | ✅ |
 | Delete session | ✅ |
 
@@ -168,6 +180,20 @@ nginx routes:
 - `/dashboard/` → dashboard
 - `/bookmarklet/` → JS files
 - `/api/` → backend proxy
+
+---
+
+---
+
+## 9. Statistics
+
+| Metric | Value |
+|--------|-------|
+| Python files | ~25 |
+| Total backend LOC | ~3000 |
+| Tests | 54+ |
+| Endpoints | 15+ |
+| Generators | 5 (pytest, REST Assured, k6, Postman, Cypress) |
 
 ---
 
