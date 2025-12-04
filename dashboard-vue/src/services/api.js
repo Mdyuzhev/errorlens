@@ -1,6 +1,8 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || '/api'
+// In production (Railway), FastAPI serves directly without /api prefix
+// In development with nginx, /api is proxied to backend
+const API_URL = import.meta.env.VITE_API_URL || ''
 
 const api = axios.create({
   baseURL: API_URL,
