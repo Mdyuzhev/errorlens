@@ -1,4 +1,4 @@
-"""Tests for code generators (pytest, REST Assured, Postman).
+"""Tests for code generators (pytest, REST Assured, Postman, Cypress).
 
 These tests verify that generators produce valid, runnable code
 from sample session data.
@@ -14,7 +14,7 @@ class TestPytestGenerator:
 
     def test_generates_valid_python(self):
         """Generated code should be valid Python syntax (main test class part)."""
-        from app.pytest_generator import generate_pytest_file
+        from app.generators import generate_pytest_file
 
         exchanges = get_sample_exchanges()
         code = generate_pytest_file(exchanges, test_name="test_sample")
@@ -31,7 +31,7 @@ class TestPytestGenerator:
 
     def test_includes_base_url(self):
         """Generated code should include base URL from first request."""
-        from app.pytest_generator import generate_pytest_file
+        from app.generators import generate_pytest_file
 
         exchanges = get_sample_exchanges()
         code = generate_pytest_file(exchanges)
@@ -40,7 +40,7 @@ class TestPytestGenerator:
 
     def test_includes_all_test_methods(self):
         """Should generate test method for each request."""
-        from app.pytest_generator import generate_pytest_file
+        from app.generators import generate_pytest_file
 
         exchanges = get_sample_exchanges()
         code = generate_pytest_file(exchanges)
@@ -52,7 +52,7 @@ class TestPytestGenerator:
 
     def test_handles_auth_flow(self):
         """Should extract and use auth token between tests."""
-        from app.pytest_generator import generate_pytest_file
+        from app.generators import generate_pytest_file
 
         exchanges = get_sample_exchanges()
         code = generate_pytest_file(exchanges)
@@ -62,7 +62,7 @@ class TestPytestGenerator:
 
     def test_handles_cyrillic_body(self):
         """Should preserve Cyrillic characters in request body."""
-        from app.pytest_generator import generate_pytest_file
+        from app.generators import generate_pytest_file
 
         exchanges = get_sample_exchanges()
         code = generate_pytest_file(exchanges)
@@ -71,7 +71,7 @@ class TestPytestGenerator:
 
     def test_empty_requests_returns_placeholder(self):
         """Empty request list should return valid placeholder test."""
-        from app.pytest_generator import generate_pytest_file
+        from app.generators import generate_pytest_file
 
         code = generate_pytest_file([])
 
@@ -84,7 +84,7 @@ class TestRestAssuredGenerator:
 
     def test_generates_valid_java_structure(self):
         """Generated code should have valid Java class structure."""
-        from app.restassured_generator import generate_restassured_file
+        from app.generators import generate_restassured_file
 
         exchanges = get_sample_exchanges()
         code = generate_restassured_file(exchanges, class_name="TestApi")
@@ -95,7 +95,7 @@ class TestRestAssuredGenerator:
 
     def test_includes_test_method_order(self):
         """Should include @Order annotations for sequential execution."""
-        from app.restassured_generator import generate_restassured_file
+        from app.generators import generate_restassured_file
 
         exchanges = get_sample_exchanges()
         code = generate_restassured_file(exchanges)
@@ -106,7 +106,7 @@ class TestRestAssuredGenerator:
 
     def test_extracts_auth_token(self):
         """Should extract auth token from login response."""
-        from app.restassured_generator import generate_restassured_file
+        from app.generators import generate_restassured_file
 
         exchanges = get_sample_exchanges()
         code = generate_restassured_file(exchanges)
@@ -116,7 +116,7 @@ class TestRestAssuredGenerator:
 
     def test_uses_auth_token_in_subsequent_requests(self):
         """Subsequent requests should use Bearer token."""
-        from app.restassured_generator import generate_restassured_file
+        from app.generators import generate_restassured_file
 
         exchanges = get_sample_exchanges()
         code = generate_restassured_file(exchanges)
@@ -126,7 +126,7 @@ class TestRestAssuredGenerator:
 
     def test_includes_status_code_assertions(self):
         """Should assert expected status codes."""
-        from app.restassured_generator import generate_restassured_file
+        from app.generators import generate_restassured_file
 
         exchanges = get_sample_exchanges()
         code = generate_restassured_file(exchanges)
@@ -136,7 +136,7 @@ class TestRestAssuredGenerator:
 
     def test_handles_cyrillic_body(self):
         """Should preserve Cyrillic characters in request body."""
-        from app.restassured_generator import generate_restassured_file
+        from app.generators import generate_restassured_file
 
         exchanges = get_sample_exchanges()
         code = generate_restassured_file(exchanges)
@@ -146,7 +146,7 @@ class TestRestAssuredGenerator:
 
     def test_empty_requests_returns_disabled_test(self):
         """Empty request list should return disabled placeholder test."""
-        from app.restassured_generator import generate_restassured_file
+        from app.generators import generate_restassured_file
 
         code = generate_restassured_file([])
 
@@ -155,7 +155,7 @@ class TestRestAssuredGenerator:
 
     def test_generates_valid_pom_xml(self):
         """Should generate valid Maven pom.xml."""
-        from app.restassured_generator import generate_pom_xml
+        from app.generators import generate_pom_xml
 
         pom = generate_pom_xml()
 
@@ -170,7 +170,7 @@ class TestPostmanGenerator:
 
     def test_generates_valid_collection(self):
         """Should generate valid Postman Collection v2.1."""
-        from app.postman_generator import generate_postman_collection
+        from app.generators import generate_postman_collection
         from app.models_pydantic import ExportPostmanRequest
 
         exchanges = get_sample_exchanges()
@@ -186,7 +186,7 @@ class TestPostmanGenerator:
 
     def test_includes_all_requests(self):
         """Should include all recorded requests as items."""
-        from app.postman_generator import generate_postman_collection
+        from app.generators import generate_postman_collection
         from app.models_pydantic import ExportPostmanRequest
 
         exchanges = get_sample_exchanges()
@@ -198,7 +198,7 @@ class TestPostmanGenerator:
 
     def test_extracts_base_url_variable(self):
         """Should extract base URL as collection variable."""
-        from app.postman_generator import generate_postman_collection
+        from app.generators import generate_postman_collection
         from app.models_pydantic import ExportPostmanRequest
 
         exchanges = get_sample_exchanges()
@@ -219,9 +219,9 @@ class TestGeneratorsIntegration:
 
     def test_all_generators_handle_same_input(self):
         """All generators should handle the same sample data without errors."""
-        from app.pytest_generator import generate_pytest_file
-        from app.restassured_generator import generate_restassured_file
-        from app.postman_generator import generate_postman_collection
+        from app.generators import generate_pytest_file
+        from app.generators import generate_restassured_file
+        from app.generators import generate_postman_collection
         from app.models_pydantic import ExportPostmanRequest
 
         exchanges = get_sample_exchanges()
@@ -239,8 +239,8 @@ class TestGeneratorsIntegration:
 
     def test_generators_preserve_request_order(self):
         """All generators should preserve the order of requests."""
-        from app.pytest_generator import generate_pytest_file
-        from app.restassured_generator import generate_restassured_file
+        from app.generators import generate_pytest_file
+        from app.generators import generate_restassured_file
 
         exchanges = get_sample_exchanges()
 
@@ -255,3 +255,71 @@ class TestGeneratorsIntegration:
         java_login_pos = java_code.find("auth/login")
         java_products_pos = java_code.find("products")
         assert java_login_pos < java_products_pos
+
+
+class TestCypressGenerator:
+    """Tests for Cypress code generator."""
+
+    def test_generates_valid_js_structure(self):
+        """Generated code should have valid Cypress structure."""
+        from app.generators import generate_cypress_file
+
+        exchanges = get_sample_exchanges()
+        code = generate_cypress_file(exchanges, spec_name="api_test")
+
+        assert "describe(" in code
+        assert "cy.request(" in code
+        assert "it(" in code
+
+    def test_includes_base_url(self):
+        """Should include base URL from first request."""
+        from app.generators import generate_cypress_file
+
+        exchanges = get_sample_exchanges()
+        code = generate_cypress_file(exchanges)
+
+        assert "api.wh-lab.ru" in code
+
+    def test_extracts_auth_token(self):
+        """Should extract auth token from login response."""
+        from app.generators import generate_cypress_file
+
+        exchanges = get_sample_exchanges()
+        code = generate_cypress_file(exchanges)
+
+        assert "authToken" in code
+
+    def test_uses_auth_token_in_subsequent_requests(self):
+        """Subsequent requests should use Bearer token."""
+        from app.generators import generate_cypress_file
+
+        exchanges = get_sample_exchanges()
+        code = generate_cypress_file(exchanges)
+
+        assert "Bearer ${authToken}" in code or "Bearer " in code
+
+    def test_includes_status_assertions(self):
+        """Should assert expected status codes."""
+        from app.generators import generate_cypress_file
+
+        exchanges = get_sample_exchanges()
+        code = generate_cypress_file(exchanges)
+
+        assert "expect(response.status)" in code
+
+    def test_empty_requests_returns_skip(self):
+        """Empty request list should return skipped test."""
+        from app.generators import generate_cypress_file
+
+        code = generate_cypress_file([])
+
+        assert "it.skip" in code or "skip" in code.lower()
+
+    def test_typescript_mode(self):
+        """Should generate TypeScript when use_typescript=True."""
+        from app.generators import generate_cypress_file
+
+        exchanges = get_sample_exchanges()
+        code = generate_cypress_file(exchanges, use_typescript=True)
+
+        assert "/// <reference types" in code or "let authToken:" in code
