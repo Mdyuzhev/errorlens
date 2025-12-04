@@ -1,7 +1,6 @@
 # ErrorLens - Project Snapshot
 
-> Architecture review document for Epic 8 (Web Application) planning.
-> Updated: 2025-12-04 (Epic 8 mostly complete)
+> Architecture review document. Last updated: 2025-12-04
 
 ---
 
@@ -9,62 +8,56 @@
 
 ```
 errorlens/
-├── .claude/                    # Claude Code settings
-│   └── settings.local.json
-├── .github/workflows/          # CI/CD pipelines
-│   ├── ci.yml                  # Linting + tests
-│   ├── deploy-backend.yml      # Railway/Vercel deploy
-│   └── deploy-landing.yml      # GitHub Pages deploy
+├── .github/workflows/
+│   ├── ci.yml
+│   ├── deploy-backend.yml
+│   └── deploy-landing.yml
 ├── backend/
 │   ├── app/
 │   │   ├── __init__.py
-│   │   ├── analyzer.py         # LLM analysis orchestration
-│   │   ├── config.py           # Pydantic Settings
-│   │   ├── database.py         # SQLAlchemy async session
-│   │   ├── main.py             # FastAPI entrypoint
-│   │   ├── models_pydantic.py  # Pydantic API models
-│   │   ├── models/             # SQLAlchemy models
-│   │   │   ├── __init__.py     # Re-exports all models
-│   │   │   └── db_models.py    # Session, SessionData, AnalysisResult
+│   │   ├── analyzer.py              # LLM analysis orchestration
+│   │   ├── config.py                # Pydantic Settings
+│   │   ├── database.py              # SQLAlchemy async session
+│   │   ├── main.py                  # FastAPI entrypoint
+│   │   ├── models_pydantic.py       # Pydantic API models
+│   │   ├── postman_generator.py     # Postman Collection export
+│   │   ├── pytest_generator.py      # pytest test file export
+│   │   ├── session_analyzer.py      # Variable detection, grouping
+│   │   ├── test_runner.py           # Async pytest execution
+│   │   ├── ticket_generator.py      # Jira/GitHub ticket generation
+│   │   ├── middleware/
+│   │   │   ├── __init__.py
+│   │   │   ├── auth.py              # Admin key authentication
+│   │   │   └── rate_limit.py        # Rate limiting (10/day for anon)
+│   │   ├── models/
+│   │   │   ├── __init__.py
+│   │   │   └── db_models.py         # Session, SessionData, AnalysisResult
 │   │   ├── routers/
-│   │   │   └── sessions.py     # CRUD API for sessions
-│   │   ├── postman_generator.py # Postman Collection export
-│   │   ├── security.py         # Rate limiting, admin auth
-│   │   ├── session_analyzer.py # Variable detection, grouping
+│   │   │   └── sessions.py          # Session CRUD endpoints
 │   │   └── providers/
 │   │       ├── __init__.py
-│   │       ├── base.py         # LLMProvider ABC
-│   │       ├── gemini.py       # Google Gemini
-│   │       └── groq.py         # Groq (Llama)
-│   ├── tests/
-│   │   ├── conftest.py
-│   │   ├── test_analyzer.py
-│   │   ├── test_api.py
-│   │   ├── test_models.py
-│   │   └── test_providers.py
+│   │       ├── base.py              # LLMProvider ABC
+│   │       ├── gemini.py            # Google Gemini
+│   │       └── groq.py              # Groq (Llama 3.3)
+│   ├── tests/                       # 54 tests
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   └── .env.example
 ├── bookmarklet/
-│   ├── README.md
-│   └── recorder.js             # Main bookmarklet (~1700 lines)
+│   └── recorder.js                  # ~1880 lines, IIFE pattern
 ├── dashboard/
-│   └── index.html              # Session list & detail view (vanilla JS)
-├── docs/
-│   ├── EXAMPLES.md
-│   └── PROJECT_SNAPSHOT.md     # This file
+│   └── index.html                   # Session list, detail, exports, runner
 ├── landing/
-│   ├── index.html              # Landing page with install instructions
-│   ├── style.css               # Landing styles
-│   └── favicon.svg             # ErrorLens icon
+│   ├── index.html
+│   ├── style.css
+│   └── favicon.svg
 ├── nginx/
-│   ├── Dockerfile              # nginx image with baked-in static files
-│   └── nginx.conf              # Reverse proxy config
-├── docker-compose.yml          # Full stack: backend + nginx
-├── pyproject.toml
-├── README.md
+│   ├── Dockerfile
+│   └── nginx.conf
+├── docker-compose.yml
 ├── ROADMAP.md
-└── CONTRIBUTING.md
+├── CONTRIBUTING.md
+└── README.md
 ```
 
 ---
@@ -73,551 +66,108 @@ errorlens/
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/health` | Health check, returns `{status: "ok", version}` |
-| `POST` | `/analyze` | AI-powered error analysis |
-| `POST` | `/export/postman` | Generate Postman Collection from recorded requests |
-| `POST` | `/analyze/session` | Analyze session for test generation (variables, groups, assertions) |
-| `POST` | `/sessions` | Create new session with auto-analysis |
-| `GET` | `/sessions` | List sessions (paginated, newest first) |
-| `GET` | `/sessions/{id}` | Get session details with analysis |
-| `DELETE` | `/sessions/{id}` | Delete session and related data |
-| `GET` | `/sessions/{id}/export/{format}` | Export session (markdown, postman) |
-
-### POST /analyze
-
-**Request:** `AnalyzeRequest`
-```json
-{
-  "url": "https://example.com",
-  "user_agent": "Mozilla/5.0...",
-  "console_logs": [...],
-  "network_errors": [...],
-  "js_exceptions": [...],
-  "screenshot": "base64...",
-  "recording_duration_ms": 5000,
-  "recorded_requests": [...],
-  "record_mode": "errors"
-}
-```
-
-**Response:** `AnalyzeResponse`
-```json
-{
-  "summary": "Main issue description",
-  "probable_cause": "Root cause",
-  "suggested_fix": "Recommended fix",
-  "severity": "low|medium|high|critical",
-  "raw_events_count": 10,
-  "details": "Additional analysis"
-}
-```
-
-### POST /export/postman
-
-**Request:** `ExportPostmanRequest`
-```json
-{
-  "recorded_requests": [...],
-  "collection_name": "My API Tests",
-  "base_url_variable": true,
-  "generate_tests": true
-}
-```
-
-**Response:** `ExportPostmanResponse`
-```json
-{
-  "collection": { /* Postman Collection v2.1 */ },
-  "requests_count": 10,
-  "variables_count": 3
-}
-```
-
-### POST /analyze/session
-
-**Request:** `SessionAnalysisRequest`
-```json
-{
-  "recorded_requests": [...]
-}
-```
-
-**Response:** `SessionAnalysisResponse`
-```json
-{
-  "variables": {
-    "authToken": {
-      "name": "authToken",
-      "source_request_id": 1,
-      "source_path": "response.body.token",
-      "value": "eyJ...",
-      "used_in": [2, 3, 4]
-    }
-  },
-  "groups": {
-    "auth": [1],
-    "user": [2, 3],
-    "create": [4]
-  },
-  "assertions": {
-    "1": [
-      {"type": "status", "expected": "200", "description": "Status code is 200"}
-    ]
-  },
-  "summary": {
-    "total_requests": 4,
-    "variables_found": 1,
-    "scenarios_detected": ["auth", "user", "create"],
-    "methods": ["GET", "POST"]
-  }
-}
-```
+| GET | `/health` | Health check |
+| POST | `/analyze` | AI-powered error analysis |
+| POST | `/export/postman` | Generate Postman Collection |
+| POST | `/export/pytest` | Generate pytest file |
+| POST | `/analyze/session` | Analyze session for test generation |
+| POST | `/tickets/generate` | Generate Jira/GitHub ticket |
+| POST | `/tests/run` | Start pytest execution |
+| GET | `/tests/{id}/status` | Get test run status |
+| POST | `/sessions` | Create session with auto-analysis |
+| GET | `/sessions` | List sessions (paginated) |
+| GET | `/sessions/{id}` | Get session details |
+| DELETE | `/sessions/{id}` | Delete session |
+| GET | `/sessions/{id}/export/{format}` | Export (markdown/postman/pytest) |
 
 ---
 
-## 3. Pydantic Models (Full Code)
+## 3. Security
 
-```python
-"""Pydantic models for API request/response schemas."""
+### Rate Limiting
+- Anonymous users: 10 requests/day to `/analyze`
+- Admin (X-Admin-Key header): unlimited
 
-from pydantic import BaseModel, Field
-
-
-class ConsoleLogEntry(BaseModel):
-    """Single console log entry captured by bookmarklet."""
-    timestamp: str = Field(..., description="ISO 8601 timestamp")
-    level: str = Field(..., description="Log level: log, warn, error, info, debug")
-    message: str = Field(..., description="Log message content")
-    stack: str | None = Field(None, description="Stack trace if available")
-
-
-class NetworkError(BaseModel):
-    """Network request failure captured by bookmarklet."""
-    timestamp: str = Field(..., description="ISO 8601 timestamp")
-    method: str = Field(..., description="HTTP method: GET, POST, etc.")
-    url: str = Field(..., description="Request URL")
-    status: int | None = Field(None, description="HTTP status code")
-    status_text: str | None = Field(None, description="HTTP status text")
-
-
-class JSException(BaseModel):
-    """JavaScript exception captured by window.onerror."""
-    timestamp: str = Field(..., description="ISO 8601 timestamp")
-    message: str = Field(..., description="Error message")
-    source: str | None = Field(None, description="Script URL where error occurred")
-    lineno: int | None = Field(None, description="Line number")
-    colno: int | None = Field(None, description="Column number")
-    stack: str | None = Field(None, description="Stack trace")
-
-
-class RecordedRequest(BaseModel):
-    """Full HTTP request captured for test generation."""
-    timestamp: str
-    method: str
-    url: str
-    headers: dict[str, str] = Field(default_factory=dict)
-    body: str | None = None
-    content_type: str | None = None
-
-
-class RecordedResponse(BaseModel):
-    """Full HTTP response captured for test generation."""
-    status: int
-    status_text: str | None = None
-    headers: dict[str, str] = Field(default_factory=dict)
-    body: str | None = None
-    duration_ms: int
-
-
-class RecordedHttpExchange(BaseModel):
-    """Complete HTTP request/response pair for test generation."""
-    id: int
-    timestamp: str
-    request: RecordedRequest
-    response: RecordedResponse
-
-
-class AnalyzeRequest(BaseModel):
-    """Request body for /analyze endpoint."""
-    url: str
-    user_agent: str
-    console_logs: list[ConsoleLogEntry] = Field(default_factory=list)
-    network_errors: list[NetworkError] = Field(default_factory=list)
-    js_exceptions: list[JSException] = Field(default_factory=list)
-    screenshot: str | None = None
-    recording_duration_ms: int
-    recorded_requests: list[RecordedHttpExchange] = Field(default_factory=list)
-    record_mode: str = "errors"
-
-
-class AnalyzeResponse(BaseModel):
-    """Response body from /analyze endpoint."""
-    summary: str
-    probable_cause: str
-    suggested_fix: str
-    severity: str
-    raw_events_count: int
-    details: str
-
-
-# Postman Collection v2.1 models
-class PostmanHeader(BaseModel):
-    key: str
-    value: str
-    type: str = "text"
-
-
-class PostmanBody(BaseModel):
-    mode: str = "raw"
-    raw: str | None = None
-    options: dict | None = None
-
-
-class PostmanUrl(BaseModel):
-    raw: str
-    protocol: str | None = None
-    host: list[str] | None = None
-    path: list[str] | None = None
-    query: list[dict] | None = None
-
-
-class PostmanRequest(BaseModel):
-    method: str
-    header: list[PostmanHeader] = Field(default_factory=list)
-    body: PostmanBody | None = None
-    url: PostmanUrl
-
-
-class PostmanEvent(BaseModel):
-    listen: str = "test"
-    script: dict
-
-
-class PostmanItem(BaseModel):
-    name: str
-    event: list[PostmanEvent] = Field(default_factory=list)
-    request: PostmanRequest
-    response: list = Field(default_factory=list)
-
-
-class PostmanVariable(BaseModel):
-    key: str
-    value: str
-    type: str = "string"
-
-
-class PostmanInfo(BaseModel):
-    name: str
-    description: str = ""
-    schema_url: str = Field(
-        default="https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-        alias="schema"
-    )
-
-
-class PostmanCollection(BaseModel):
-    info: PostmanInfo
-    item: list[PostmanItem] = Field(default_factory=list)
-    variable: list[PostmanVariable] = Field(default_factory=list)
-
-
-class ExportPostmanRequest(BaseModel):
-    recorded_requests: list[RecordedHttpExchange]
-    collection_name: str = "ErrorLens Session"
-    base_url_variable: bool = True
-    generate_tests: bool = True
-
-
-class ExportPostmanResponse(BaseModel):
-    collection: PostmanCollection
-    requests_count: int
-    variables_count: int
-
-
-# Session analysis models
-class DetectedVariable(BaseModel):
-    name: str
-    source_request_id: int
-    source_path: str
-    value: str
-    used_in: list[int] = Field(default_factory=list)
-
-
-class RequestAssertion(BaseModel):
-    type: str
-    path: str | None = None
-    expected: str
-    description: str
-
-
-class SessionAnalysisRequest(BaseModel):
-    recorded_requests: list[RecordedHttpExchange]
-
-
-class SessionAnalysisResponse(BaseModel):
-    variables: dict[str, DetectedVariable] = Field(default_factory=dict)
-    groups: dict[str, list[int]] = Field(default_factory=dict)
-    assertions: dict[int, list[RequestAssertion]] = Field(default_factory=dict)
-    summary: dict = Field(default_factory=dict)
-```
+### Payload Limits
+| Parameter | User | Admin |
+|-----------|------|-------|
+| Console logs | 100 | 1000 |
+| Network errors | 10 | 100 |
+| Recorded requests | 50 | 500 |
 
 ---
 
-## 4. Analyzer Logic Summary
+## 4. Database
 
-**File:** `backend/app/analyzer.py`
+SQLite with async SQLAlchemy (aiosqlite).
 
-### Flow:
-1. `analyze_errors(request)` - Main entry point
-2. `_get_provider()` - Select LLM provider (Gemini primary, Groq fallback)
-3. `_format_context(request)` - Build prompt with system instructions + error data
-4. `provider.analyze(context)` - Send to LLM
-5. `_parse_llm_response(raw)` - Extract JSON from LLM response
-6. Return `AnalyzeResponse`
-
-### System Prompt (Russian):
-- Role: QA engineer analyzing browser errors
-- Input: console logs, network errors, JS exceptions
-- Output: JSON with summary, probable_cause, suggested_fix, severity, details
-- Examples provided for TypeError and 500 errors
-
-### Limits:
-- Max 50 console logs
-- Max 20 JS exceptions
-- Max 30 network errors
-- Stack traces truncated to 500 chars
+### Models
+- **Session**: id, url, user_agent, created_at, recording_duration_ms, record_mode
+- **SessionData**: console_logs (JSON), network_errors (JSON), js_exceptions (JSON), recorded_requests (JSON), screenshot
+- **AnalysisResult**: summary, probable_cause, suggested_fix, severity, details
 
 ---
 
-## 5. Config Structure
+## 5. Bookmarklet Features
 
-**File:** `backend/app/config.py`
-
-```python
-class Settings(BaseSettings):
-    version: str = "0.1.0"
-    llm_provider: str = "gemini"  # "gemini" or "groq"
-    gemini_api_key: str = ""
-    groq_api_key: str = ""
-
-    class Config:
-        env_file = ".env"
-```
-
-**Environment Variables:**
-- `LLM_PROVIDER` - Primary provider selection
-- `GEMINI_API_KEY` - Google Gemini API key
-- `GROQ_API_KEY` - Groq API key (Llama models)
+| Feature | Status |
+|---------|--------|
+| Console interception (log/warn/error) | ✅ |
+| Network interception (fetch/XHR) | ✅ |
+| JS error capture (onerror) | ✅ |
+| Screenshot (html2canvas) | ✅ |
+| Recording modes (errors/all) | ✅ |
+| New pill widget (top-right) | ✅ |
+| Classic widget (optional) | ✅ |
+| Smart API URL detection | ✅ |
+| Junk URL filtering | ✅ |
 
 ---
 
-## 6. LLM Providers
+## 6. Dashboard Features
 
-| Provider | Model | API Endpoint |
-|----------|-------|--------------|
-| **Gemini** | gemini-1.5-flash | `generativelanguage.googleapis.com/v1beta` |
-| **Groq** | llama-3.3-70b-versatile | `api.groq.com/openai/v1` |
-
-### Provider Interface:
-```python
-class LLMProvider(ABC):
-    @abstractmethod
-    async def analyze(self, context: str) -> str: ...
-
-    @property
-    @abstractmethod
-    def name(self) -> str: ...
-```
-
-### Common Settings:
-- Temperature: 0.3
-- Max tokens: 2048
-- Timeout: 60 seconds
+| Feature | Status |
+|---------|--------|
+| Session list with pagination | ✅ |
+| Session detail modal | ✅ |
+| Export to Markdown | ✅ |
+| Export to Postman | ✅ |
+| Export to pytest | ✅ |
+| Ticket generator (Jira/GitHub/MD) | ✅ |
+| pytest runner with live output | ✅ |
+| Delete session | ✅ |
 
 ---
 
-## 7. Bookmarklet Functions
-
-**File:** `bookmarklet/recorder.js` (~1300 lines, IIFE pattern)
-
-### What It Captures:
-
-| Type | Method |
-|------|--------|
-| Console logs | Override `console.log/warn/error/info/debug` |
-| JS errors | `window.onerror` handler |
-| Promise rejections | `window.onunhandledrejection` handler |
-| Network errors | Intercept `fetch()` and `XMLHttpRequest` |
-| All HTTP requests | Record mode "all" for test generation |
-| Screenshots | `html2canvas` library (loaded dynamically) |
-
-### Recording Modes:
-- **"errors"** - Only 4xx/5xx network errors (default)
-- **"all"** - All HTTP exchanges for Postman export
-
-### UI Elements:
-- Floating widget (red = errors mode, blue = all mode)
-- Pulse animation during recording
-- Event counter
-- Mode selection menu
-- Results modal with copy/export buttons
-
-### Junk URL Filtering:
-```javascript
-const JUNK_URL_PATTERNS = [
-    /google-analytics\.com/i,
-    /googletagmanager\.com/i,
-    /facebook\.com\/tr/i,
-    /doubleclick\.net/i,
-    /\.(png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|css)(\?|$)/i,
-    // ... more patterns
-];
-```
-
----
-
-## 8. Data Flow
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                           BROWSER                                    │
-│  ┌──────────────┐                                                   │
-│  │  Bookmarklet │                                                   │
-│  │  (recorder.js)│                                                  │
-│  │              │                                                   │
-│  │ - Intercepts │     Click "Stop"                                  │
-│  │   console    │ ─────────────────┐                                │
-│  │ - Captures   │                  │                                │
-│  │   errors     │                  ▼                                │
-│  │ - Records    │     ┌────────────────────┐                        │
-│  │   requests   │     │  Capture Screenshot │                       │
-│  └──────────────┘     │  (html2canvas)      │                       │
-│                       └─────────┬──────────┘                        │
-│                                 │                                   │
-│                                 ▼                                   │
-│                       ┌────────────────────┐                        │
-│                       │  Build JSON Payload │                       │
-│                       │  - console_logs     │                       │
-│                       │  - network_errors   │                       │
-│                       │  - js_exceptions    │                       │
-│                       │  - recorded_requests│                       │
-│                       │  - screenshot       │                       │
-│                       └─────────┬──────────┘                        │
-└─────────────────────────────────┼───────────────────────────────────┘
-                                  │
-                    POST /analyze │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                          BACKEND (FastAPI)                          │
-│                                                                     │
-│  ┌──────────────┐     ┌───────────────┐     ┌──────────────────┐   │
-│  │   main.py    │────▶│  analyzer.py  │────▶│  LLM Provider    │   │
-│  │ /analyze     │     │ _format_ctx() │     │ (Gemini/Groq)    │   │
-│  │ endpoint     │     │ _get_provider │     │                  │   │
-│  └──────────────┘     └───────────────┘     └────────┬─────────┘   │
-│                                                       │             │
-│                                                       ▼             │
-│                                              ┌────────────────┐     │
-│                                              │  External LLM  │     │
-│                                              │  API Call      │     │
-│                                              └────────┬───────┘     │
-│                                                       │             │
-│                                                       ▼             │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │                    _parse_llm_response()                      │  │
-│  │  - Extract JSON from response                                 │  │
-│  │  - Handle markdown code blocks                                │  │
-│  │  - Fallback if parsing fails                                  │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                                  │                                  │
-│                                  ▼                                  │
-│                         AnalyzeResponse                             │
-└─────────────────────────────────┬───────────────────────────────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                           BROWSER                                    │
-│                                                                     │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │                      Results Modal                           │   │
-│  │  - Summary, Cause, Fix, Severity                            │   │
-│  │  - Copy to clipboard                                        │   │
-│  │  - Export to Markdown                                        │   │
-│  │  - Export to Postman (if record_mode="all")                 │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 9. Epic 8 Implementation Status
-
-### Database Layer (DONE)
-- [x] SQLite with async SQLAlchemy (aiosqlite)
-- [x] Models: `Session`, `SessionData`, `AnalysisResult`
-- [x] Auto-create tables on startup
-- [ ] Alembic migrations (optional)
-- [ ] PostgreSQL for production (optional)
-
-### Session Management (DONE)
-- [x] `POST /sessions` - Create session with auto-analysis
-- [x] `GET /sessions` - List sessions (paginated, newest first)
-- [x] `GET /sessions/{id}` - Session details with analysis
-- [x] `DELETE /sessions/{id}` - Delete session
-- [x] `GET /sessions/{id}/export/{format}` - Export (markdown, postman)
-
-### Security (DONE)
-- [x] Rate limiting (10 requests/day for anonymous)
-- [x] X-Admin-Key header for admin bypass
-- [x] Payload validation (max items limits)
-- [x] X-RateLimit-Remaining header
-
-### Frontend Dashboard (DONE)
-- [x] Vanilla JS dashboard (no Vue.js needed)
-- [x] Session list with pagination
-- [x] Session detail modal with analysis
-- [x] Export buttons (Markdown, Postman when applicable)
-- [x] Delete session functionality
-- [x] Responsive design
-- [ ] Session filters/search
-
-### Bookmarklet v2 (DONE)
-- [x] Compact pill widget (top-right corner)
-- [x] Color states: blue (idle), red (recording), green (done)
-- [x] Mode selection menu (errors / all requests)
-- [x] Send to `/sessions` API
-- [x] "Results" link after completion
-- [x] "Open Dashboard" button in results modal
-- [x] Classic mode preserved as option
-
-### Infrastructure (DONE)
-- [x] Docker Compose with nginx (port 3000)
-- [x] nginx reverse proxy (/api → backend:8000)
-- [x] Volume for SQLite database
-- [x] Health checks for all services
-- [ ] Production multi-stage Dockerfile
-
-### Remaining TODO
-1. **Alembic migrations** - For schema changes
-2. **Session filters** - Search by URL, date range
-3. **Drag-n-drop bookmarklet install** - Visual installer
-4. **Demo video/GIF** - For landing page
-5. **Webhook integrations** - Jira, Slack notifications
-
----
-
-## 10. Technology Stack Summary
+## 7. Technology Stack
 
 | Layer | Technology |
 |-------|------------|
 | Backend | Python 3.11+, FastAPI, Pydantic |
 | Database | SQLite + SQLAlchemy (async) |
-| LLM | Gemini 1.5 Flash, Groq Llama 3.3 |
-| Frontend | Vanilla JS (bookmarklet + dashboard) |
-| Landing | Static HTML + CSS |
+| LLM | Groq Llama 3.3 70B |
+| Frontend | Vanilla JS |
+| Container | Docker, nginx |
 | CI/CD | GitHub Actions |
-| Deploy | Railway (backend), GitHub Pages (landing) |
-| Container | Docker, docker-compose, nginx |
+
+---
+
+## 8. Docker Setup
+
+```bash
+# Start
+docker-compose up --build
+
+# Services
+# - backend: localhost:8000
+# - nginx: localhost:3000 (landing, dashboard, API proxy)
+```
+
+nginx routes:
+- `/` → landing
+- `/dashboard/` → dashboard
+- `/bookmarklet/` → JS files
+- `/api/` → backend proxy
 
 ---
 

@@ -17,9 +17,12 @@ ErrorLens — это букмарклет, который записывает �
 - **Запись в один клик** — Без установки, без настройки, просто перетащите закладку
 - **Захватывает всё** — Логи консоли, сетевые ошибки, JS-исключения
 - **AI-анализ** — Мгновенные инсайты о проблеме и способах её решения
-- **Экспорт** — Копирование в буфер или скачивание в Markdown для Jira/GitHub
-- **Повторные попытки** — Автоматический retry при ошибках сети
-- **Приватность** — Данные анализируются и удаляются, мы ничего не храним
+- **Dashboard** — Просмотр истории всех записанных сессий
+- **Генератор тикетов** — Создание Jira/GitHub issues из анализа
+- **Экспорт тестов** — Генерация pytest или Postman коллекций
+- **Запуск тестов** — Выполнение тестов прямо из dashboard
+- **Экспорт** — Копирование в буфер или скачивание в Markdown
+- **Rate Limiting** — Защита от abuse (10 запросов/день для анонимов)
 
 ## Быстрый старт
 
@@ -119,14 +122,23 @@ GEMINI_API_KEY=your_gemini_api_key
 | Метод | Путь | Описание |
 |-------|------|----------|
 | GET | `/health` | Проверка работоспособности |
-| POST | `/analyze` | Анализ ошибок |
+| POST | `/analyze` | AI-анализ ошибок |
+| POST | `/sessions` | Создание сессии |
+| GET | `/sessions` | Список сессий |
+| GET | `/sessions/{id}` | Детали сессии |
+| POST | `/export/postman` | Экспорт в Postman |
+| POST | `/export/pytest` | Экспорт в pytest |
+| POST | `/tickets/generate` | Генерация тикета |
+| POST | `/tests/run` | Запуск тестов |
 
 ## Технологии
 
-- **Frontend:** Vanilla JavaScript (букмарклет)
-- **Backend:** Python / FastAPI
-- **AI:** Groq (Llama 3.3) / Google Gemini
-- **Хостинг:** Railway + GitHub Pages
+- **Frontend:** Vanilla JavaScript (букмарклет + dashboard)
+- **Backend:** Python 3.11+ / FastAPI / Pydantic
+- **Database:** SQLite + SQLAlchemy (async)
+- **AI:** Groq Llama 3.3 70B / Google Gemini
+- **Container:** Docker + nginx
+- **CI/CD:** GitHub Actions
 
 ## Статус проекта
 
