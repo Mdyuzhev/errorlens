@@ -1,0 +1,73 @@
+/**
+ * ErrorLens Backend API
+ */
+import { detectApiBaseUrl } from './config.js';
+import { getSessionData, getState } from './state.js';
+
+/**
+ * Send session data to backend
+ */
+export async function sendSession() {
+  const apiUrl = detectApiBaseUrl();
+  const sessionData = getSessionData();
+
+  const response = await fetch(`${apiUrl}/sessions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(sessionData)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API Error ${response.status}: ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Load html2canvas library dynamically
+ */
+export function loadHtml2Canvas() {
+  return new Promise((resolve, reject) => {
+    if (window.html2canvas) {
+      resolve(window.html2canvas);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    script.onload = () => resolve(window.html2canvas);
+    script.onerror = () => reject(new Error('Failed to load html2canvas'));
+    document.head.appendChild(script);
+  });
+}
+
+/**
+ * Capture screenshot of current page
+ */
+export async function captureScreenshot() {
+  try {
+    const html2canvas = await loadHtml2Canvas();
+    const canvas = await html2canvas(document.body, {
+      logging: false,
+      useCORS: true,
+      scale: 0.5,
+      windowWidth: document.documentElement.scrollWidth,
+      windowHeight: document.documentElement.scrollHeight
+    });
+    return canvas.toDataURL('image/jpeg', 0.5);
+  } catch (e) {
+    console.warn('[ErrorLens] Screenshot failed:', e);
+    return null;
+  }
+}
+
+/**
+ * Get dashboard URL for redirect
+ */
+export function getDashboardUrl() {
+  return detectApiBaseUrl();
+}
