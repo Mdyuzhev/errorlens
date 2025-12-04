@@ -341,3 +341,18 @@ class ExportRestAssuredRequest(BaseModel):
     include_pom: bool = Field(
         default=True, description="Include pom.xml in the ZIP output"
     )
+
+
+# Story 7.5.3: k6 load test export models
+class ExportK6Request(BaseModel):
+    """Request body for k6 load test export endpoint."""
+
+    recorded_requests: list[RecordedHttpExchange] = Field(
+        ..., description="Recorded HTTP exchanges to convert"
+    )
+    vus: int = Field(
+        default=10, ge=1, le=1000, description="Number of virtual users"
+    )
+    duration: str = Field(
+        default="30s", description="Test duration (e.g., '30s', '1m', '5m')"
+    )
