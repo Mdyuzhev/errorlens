@@ -132,6 +132,18 @@ if not BOOKMARKLET_PATH:
     logger.warning("No bookmarklet found")
 
 
+@app.get("/b.js")
+async def bookmarklet_shortcut():
+    """Short URL for bookmarklet script."""
+    if BOOKMARKLET_PATH:
+        return FileResponse(
+            BOOKMARKLET_PATH / "recorder.js",
+            media_type="application/javascript",
+            headers={"Cache-Control": "no-cache"}
+        )
+    raise HTTPException(status_code=404, detail="Bookmarklet not found")
+
+
 # Root route to serve SPA - MUST be defined before catch-all routes
 # Use hash router in Vue (/#/) so all navigation is client-side
 @app.get("/")
