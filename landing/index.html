@@ -14,7 +14,10 @@
                 <h1>ErrorLens</h1>
                 <p class="tagline">AI-анализ ошибок для QA-инженеров</p>
             </div>
-            <a href="/dashboard/" class="header-dashboard-btn">Dashboard</a>
+            <div class="header-buttons">
+                <a href="/dashboard/" class="header-dashboard-btn">Dashboard</a>
+                <button onclick="logout()" class="header-logout-btn" id="logoutBtn" style="display:none;">Выйти</button>
+            </div>
         </div>
     </header>
 
@@ -90,6 +93,22 @@
 
     <script>
         const BOOKMARKLET_CODE = `javascript:(function(){if(window.__errorLensLoaded){alert('ErrorLens уже загружен!');return;}var s=document.createElement('script');s.src='http://localhost:3000/bookmarklet/recorder.js';s.onload=function(){window.__errorLensLoaded=true;};s.onerror=function(){alert('Ошибка загрузки ErrorLens');};document.head.appendChild(s);})();`;
+
+        // Auth helpers
+        function isLoggedIn() {
+            return !!localStorage.getItem('access_token');
+        }
+
+        function logout() {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            document.getElementById('logoutBtn').style.display = 'none';
+        }
+
+        // Show logout button if logged in
+        if (isLoggedIn()) {
+            document.getElementById('logoutBtn').style.display = 'inline-block';
+        }
 
         function copyBookmarklet() {
             navigator.clipboard.writeText(BOOKMARKLET_CODE).then(function() {

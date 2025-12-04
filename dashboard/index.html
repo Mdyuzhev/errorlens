@@ -46,6 +46,24 @@
             text-decoration: underline;
         }
 
+        .logout-btn {
+            margin-left: 16px;
+            background: transparent;
+            border: 2px solid #f87171;
+            color: #f87171;
+            padding: 6px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            background: #f87171;
+            color: white;
+        }
+
         main {
             max-width: 1200px;
             margin: 0 auto;
@@ -303,7 +321,7 @@
         <nav>
             <a href="/">Главная</a>
             <a href="/docs" target="_blank">API Docs</a>
-            <button onclick="logout()" style="margin-left: 16px; background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer;">Выйти</button>
+            <button onclick="logout()" class="logout-btn">Выйти</button>
         </nav>
     </header>
 
@@ -370,6 +388,14 @@
                 <button class="btn" id="pytestExportBtn" onclick="exportSession('pytest')" style="display: none;">🐍 pytest</button>
                 <button class="btn" id="restassuredExportBtn" onclick="exportSession('restassured')" style="display: none; background: #b07219; color: white;">☕ Java</button>
                 <button class="btn" id="k6ExportBtn" onclick="exportSession('k6')" style="display: none; background: #7d64ff; color: white;">⚡ k6</button>
+                <div class="dropdown" id="testitDropdown" style="display: none; position: relative;">
+                    <button class="btn" onclick="toggleTestItDropdown()" style="background: #00acc1; color: white;">🧪 TestIt ▾</button>
+                    <div id="testit-dropdown-menu" class="dropdown-menu" style="display:none; position: absolute; bottom: 100%; left: 0; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 1000; min-width: 140px; margin-bottom: 4px;">
+                        <a href="#" onclick="exportTestIt('json'); return false;" style="display: block; padding: 8px 12px; color: #333; text-decoration: none;">📥 JSON</a>
+                        <a href="#" onclick="exportTestIt('xml'); return false;" style="display: block; padding: 8px 12px; color: #333; text-decoration: none;">📥 XML</a>
+                        <a href="#" onclick="showTestCasePreview(); return false;" style="display: block; padding: 8px 12px; color: #333; text-decoration: none;">👁️ Превью</a>
+                    </div>
+                </div>
                 <button class="btn" id="ticketBtn" onclick="openTicketModal()" style="display: none; background: #FF9800; color: white;">🎫 Тикет</button>
                 <button class="btn" id="runnerBtn" onclick="openRunnerModal()" style="display: none; background: #4CAF50; color: white;">▶️ Тесты</button>
                 <button class="btn btn-danger" onclick="deleteCurrentSession()">🗑️ Удалить</button>
@@ -428,6 +454,24 @@
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test Case Preview Modal -->
+    <div class="modal-overlay" id="testcaseModalOverlay" style="display: none;" onclick="closeTestCaseModal(event)">
+        <div class="modal" style="max-width: 800px;" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>🧪 Превью тест-кейса</h2>
+                <button class="modal-close" onclick="closeTestCaseModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="testcasePreviewContent" style="max-height: 60vh; overflow-y: auto; background: #f9f9f9; padding: 20px; border-radius: 8px; font-family: system-ui, -apple-system, sans-serif;">
+                Загрузка...
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="exportTestIt('json')" style="background: #00acc1; color: white;">📥 Скачать JSON</button>
+                <button class="btn" onclick="exportTestIt('xml')" style="background: #607d8b; color: white;">📥 Скачать XML</button>
+                <button class="btn" onclick="closeTestCaseModal()">Закрыть</button>
             </div>
         </div>
     </div>
@@ -990,6 +1034,7 @@
                 const pytestBtn = document.getElementById('pytestExportBtn');
                 const restassuredBtn = document.getElementById('restassuredExportBtn');
                 const k6Btn = document.getElementById('k6ExportBtn');
+                const testitDropdown = document.getElementById('testitDropdown');
                 const ticketBtn = document.getElementById('ticketBtn');
                 const runnerBtn = document.getElementById('runnerBtn');
 
@@ -998,6 +1043,7 @@
                 if (pytestBtn) pytestBtn.style.display = hasAnyData ? 'inline-block' : 'none';
                 if (restassuredBtn) restassuredBtn.style.display = hasAnyData ? 'inline-block' : 'none';
                 if (k6Btn) k6Btn.style.display = hasAnyData ? 'inline-block' : 'none';
+                if (testitDropdown) testitDropdown.style.display = hasRecordedRequests ? 'inline-block' : 'none';
                 if (runnerBtn) runnerBtn.style.display = hasAnyData ? 'inline-block' : 'none';
 
                 // Ticket always available if has analysis
@@ -1055,6 +1101,80 @@
             } catch (error) {
                 alert('Export error: ' + error.message);
             }
+        }
+
+        // TestIt export functions
+        function toggleTestItDropdown() {
+            const dropdown = document.getElementById('testit-dropdown-menu');
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Close dropdown on outside click
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#testitDropdown')) {
+                const dropdown = document.getElementById('testit-dropdown-menu');
+                if (dropdown) dropdown.style.display = 'none';
+            }
+        });
+
+        async function exportTestIt(subformat) {
+            if (!currentSessionId) return;
+            try {
+                const response = await authFetch(`${API_URL}/sessions/${currentSessionId}/export/testit?subformat=${subformat}`);
+                if (!response.ok) throw new Error('Export failed');
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const contentDisposition = response.headers.get('Content-Disposition');
+                const filename = contentDisposition ? contentDisposition.split('filename=')[1]?.replace(/"/g, '') : `testcase.${subformat}`;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+                // Close dropdown
+                document.getElementById('testit-dropdown-menu').style.display = 'none';
+            } catch (error) {
+                alert('TestIt export error: ' + error.message);
+            }
+        }
+
+        async function showTestCasePreview() {
+            if (!currentSessionId) return;
+            document.getElementById('testit-dropdown-menu').style.display = 'none';
+            document.getElementById('testcaseModalOverlay').style.display = 'flex';
+            document.getElementById('testcasePreviewContent').innerHTML = 'Загрузка...';
+
+            try {
+                const response = await authFetch(`${API_URL}/sessions/${currentSessionId}/export/testit?subformat=markdown`);
+                if (!response.ok) throw new Error('Failed to generate test case');
+                const markdown = await response.text();
+                document.getElementById('testcasePreviewContent').innerHTML = markdownToHtml(markdown);
+            } catch (error) {
+                document.getElementById('testcasePreviewContent').innerHTML = `<p style="color: red;">Ошибка: ${error.message}</p>`;
+            }
+        }
+
+        function closeTestCaseModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('testcaseModalOverlay').style.display = 'none';
+        }
+
+        // Simple markdown to HTML converter
+        function markdownToHtml(md) {
+            return md
+                .replace(/^### (.*$)/gim, '<h3 style="margin: 16px 0 8px;">$1</h3>')
+                .replace(/^## (.*$)/gim, '<h2 style="margin: 20px 0 10px; color: #333;">$1</h2>')
+                .replace(/^# (.*$)/gim, '<h1 style="margin: 24px 0 12px; color: #00acc1;">$1</h1>')
+                .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+                .replace(/`([^`]+)`/gim, '<code style="background: #e0e0e0; padding: 2px 6px; border-radius: 4px; font-size: 13px;">$1</code>')
+                .replace(/^\|(.+)\|$/gim, function(match, content) {
+                    const cells = content.split('|').map(c => c.trim());
+                    return '<tr>' + cells.map(c => `<td style="border: 1px solid #ddd; padding: 8px;">${c}</td>`).join('') + '</tr>';
+                })
+                .replace(/(<tr>.*<\/tr>)/gim, '<table style="width: 100%; border-collapse: collapse; margin: 12px 0;">$1</table>')
+                .replace(/---/gim, '<hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">')
+                .replace(/\n/gim, '<br>');
         }
 
         function escapeHtml(text) {

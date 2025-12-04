@@ -21,6 +21,7 @@ from app.models_pydantic import (
     ExportPytestRequest,
     ExportRestAssuredRequest,
     ExportK6Request,
+    ExportTestItRequest,
     GenerateTicketRequest,
     GenerateTicketResponse,
     RecordedHttpExchange,
@@ -37,6 +38,7 @@ from app.generators import (
     generate_restassured_file,
     generate_pom_xml,
     generate_k6_file,
+    generate_testit_testcase,
 )
 from app.ticket_generator import generate_smart_ticket
 from app.test_runner import run_pytest, run_restassured, get_test_run, create_test_run
@@ -590,4 +592,62 @@ async def export_k6(
 
     except Exception as e:
         logger.exception(f"k6 export failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Export failed: {e}")
+
+
+@app.post("/export/testit")
+async def export_testit(
+    request: ExportTestItRequest,
+    format: str = "json",
+    _: User = Depends(require_auth),
+):
+    """
+    Generate TestIt test case from recorded requests.
+
+    Args:
+        format: json, xml, or markdown
+    """
+    if not request.recorded_requests:
+        raise HTTPException(
+            status_code=400,
+            detail="No recorded requests to export.",
+        )
+
+    logger.info(f"Generating TestIt test case from {len(request.recorded_requests)} requests")
+
+    try:
+        session_data = {
+            "id": "export",
+            "url": request.recorded_requests[0].request.url if request.recorded_requests else "",
+            "recorded_requests": [r.model_dump() for r in request.recorded_requests],
+            "has_errors": any(
+                r.response.status >= 400
+                for r in request.recorded_requests
+                if r.response
+            ),
+        }
+
+        analysis = request.analysis.model_dump() if request.analysis else None
+
+        content = generate_testit_testcase(session_data, analysis, format)
+
+        # Determine content type and filename
+        if format == "xml":
+            media_type = "application/xml"
+            filename = "testcase.xml"
+        elif format == "markdown":
+            media_type = "text/markdown"
+            filename = "testcase.md"
+        else:
+            media_type = "application/json"
+            filename = "testcase.json"
+
+        return Response(
+            content=content,
+            media_type=media_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    except Exception as e:
+        logger.exception(f"TestIt export failed: {e}")
         raise HTTPException(status_code=500, detail=f"Export failed: {e}")

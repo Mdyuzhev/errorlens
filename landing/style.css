@@ -60,6 +60,30 @@ header {
     color: var(--bg);
 }
 
+.header-buttons {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.header-logout-btn {
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    color: #f87171;
+    border: 2px solid #f87171;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.header-logout-btn:hover {
+    background: #f87171;
+    color: var(--bg);
+}
+
 header h1 {
     font-size: 3rem;
     font-weight: 700;
