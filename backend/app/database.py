@@ -7,17 +7,18 @@ from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
-# Database URL: SQLite for dev, PostgreSQL for prod
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "sqlite+aiosqlite:///./data/errorlens.db"
-)
+# Database URL: PostgreSQL for prod (Railway), SQLite for dev
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Handle PostgreSQL URL format from Heroku/Railway
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
-elif DATABASE_URL.startswith("postgresql://") and "asyncpg" not in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+if DATABASE_URL:
+    # Railway/Heroku PostgreSQL - convert to async driver
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif DATABASE_URL.startswith("postgresql://") and "asyncpg" not in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+else:
+    # Local dev - SQLite
+    DATABASE_URL = "sqlite+aiosqlite:///./data/errorlens.db"
 
 # Create async engine
 engine = create_async_engine(

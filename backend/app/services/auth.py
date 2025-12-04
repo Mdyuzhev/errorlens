@@ -127,3 +127,11 @@ async def init_admin_user(db: AsyncSession) -> None:
         admin_password = settings.admin_password
         await create_user(db, "admin", admin_password, is_admin=True)
         print("[AUTH] Admin user created. Username: admin")
+
+    # Create demo user for testing
+    result = await db.execute(select(User).where(User.username == "demo"))
+    demo = result.scalar_one_or_none()
+
+    if not demo:
+        await create_user(db, "demo", "ErrorLenseTest", is_admin=True)
+        print("[AUTH] Demo user created. Username: demo / Password: ErrorLenseTest")
