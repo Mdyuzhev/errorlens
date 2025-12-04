@@ -1,4 +1,20 @@
 # ErrorLens Full Stack Dockerfile for Railway
+# Multi-stage build: Vue frontend + Python backend
+
+# Stage 1: Build Vue dashboard
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /build
+
+# Copy package files and install dependencies
+COPY dashboard-vue/package*.json ./
+RUN npm ci
+
+# Copy source and build
+COPY dashboard-vue/ ./
+RUN npm run build
+
+# Stage 2: Python backend with frontend assets
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -21,8 +37,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY backend/app/ ./app/
 
-# Copy Vue dashboard dist for static serving
-COPY dashboard-vue/dist/ ./dashboard-vue/dist/
+# Copy built Vue dashboard from frontend stage
+COPY --from=frontend-builder /build/dist/ ./dashboard-vue/dist/
 
 # Expose port
 EXPOSE 8000
