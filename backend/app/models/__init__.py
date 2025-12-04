@@ -18,6 +18,7 @@ from app.models_pydantic import (
 
 # Export SQLAlchemy models
 from app.models.db_models import AnalysisResult, Session, SessionData
+from app.models.user import User
 
 __all__ = [
     # Pydantic models
@@ -37,4 +38,5 @@ __all__ = [
     "Session",
     "SessionData",
     "AnalysisResult",
+    "User",
 ]

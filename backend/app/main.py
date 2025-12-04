@@ -8,8 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.analyzer import analyze_errors
 from app.config import settings
-from app.database import init_db
+from app.database import async_session_maker, init_db
+from app.middleware.jwt_auth import require_auth
 from app.middleware.rate_limit import rate_limit_middleware
+from app.models.user import User
 from app.models_pydantic import (
     AnalyzeRequest,
     AnalyzeResponse,
@@ -38,7 +40,8 @@ from app.generators import (
 )
 from app.ticket_generator import generate_smart_ticket
 from app.test_runner import run_pytest, run_restassured, get_test_run, create_test_run
-from app.routers import sessions
+from app.routers import auth, sessions
+from app.services.auth import init_admin_user
 from app.session_analyzer import analyze_session
 
 logging.basicConfig(level=logging.INFO)
@@ -52,6 +55,11 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing database...")
     await init_db()
     logger.info("Database initialized")
+
+    # Create admin user if not exists
+    async with async_session_maker() as db:
+        await init_admin_user(db)
+
     yield
     # Shutdown: cleanup if needed
     logger.info("Shutting down...")
@@ -74,6 +82,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth.router)
 app.include_router(sessions.router)
 
 
@@ -89,6 +98,7 @@ async def analyze(
     http_request: Request,
     response: Response,
     remaining: int = Depends(rate_limit_middleware),
+    _: User = Depends(require_auth),
 ) -> AnalyzeResponse:
     """
     Analyze captured browser errors using AI.
@@ -140,7 +150,10 @@ async def analyze(
 
 
 @app.post("/export/postman", response_model=ExportPostmanResponse)
-async def export_postman(request: ExportPostmanRequest) -> ExportPostmanResponse:
+async def export_postman(
+    request: ExportPostmanRequest,
+    _: User = Depends(require_auth),
+) -> ExportPostmanResponse:
     """
     Generate Postman Collection from recorded HTTP exchanges.
 
@@ -165,7 +178,10 @@ async def export_postman(request: ExportPostmanRequest) -> ExportPostmanResponse
 
 
 @app.post("/export/pytest")
-async def export_pytest(request: ExportPytestRequest) -> Response:
+async def export_pytest(
+    request: ExportPytestRequest,
+    _: User = Depends(require_auth),
+) -> Response:
     """
     Generate pytest file from recorded HTTP exchanges.
 
@@ -221,7 +237,10 @@ async def export_pytest(request: ExportPytestRequest) -> Response:
 
 
 @app.post("/analyze/session", response_model=SessionAnalysisResponse)
-async def analyze_session_endpoint(request: SessionAnalysisRequest) -> SessionAnalysisResponse:
+async def analyze_session_endpoint(
+    request: SessionAnalysisRequest,
+    _: User = Depends(require_auth),
+) -> SessionAnalysisResponse:
     """
     Analyze recorded session for test generation.
 
@@ -281,6 +300,7 @@ async def analyze_session_endpoint(request: SessionAnalysisRequest) -> SessionAn
 async def create_ticket(
     request: GenerateTicketRequest,
     db=Depends(sessions.get_db),
+    _: User = Depends(require_auth),
 ) -> GenerateTicketResponse:
     """
     Generate bug ticket from session analysis.
@@ -338,6 +358,7 @@ async def create_ticket(
 async def start_test_run(
     request: RunTestRequest,
     db=Depends(sessions.get_db),
+    _: User = Depends(require_auth),
 ) -> dict:
     """
     Start pytest execution.
@@ -396,6 +417,7 @@ async def start_test_run(
 async def start_restassured_test_run(
     request: RunTestRequest,
     db=Depends(sessions.get_db),
+    _: User = Depends(require_auth),
 ) -> dict:
     """
     Start REST Assured (Java/Maven) test execution.
@@ -446,7 +468,10 @@ async def start_restassured_test_run(
 
 
 @app.get("/tests/{test_id}/status")
-async def get_test_status(test_id: str) -> dict:
+async def get_test_status(
+    test_id: str,
+    _: User = Depends(require_auth),
+) -> dict:
     """Get test run status and output."""
     result = get_test_run(test_id)
     if not result:
@@ -455,7 +480,10 @@ async def get_test_status(test_id: str) -> dict:
 
 
 @app.post("/export/restassured")
-async def export_restassured(request: ExportRestAssuredRequest):
+async def export_restassured(
+    request: ExportRestAssuredRequest,
+    _: User = Depends(require_auth),
+):
     """
     Generate REST Assured test file (Java).
 
@@ -528,7 +556,10 @@ mvn test
 
 
 @app.post("/export/k6")
-async def export_k6(request: ExportK6Request):
+async def export_k6(
+    request: ExportK6Request,
+    _: User = Depends(require_auth),
+):
     """
     Generate k6 load test script.
 

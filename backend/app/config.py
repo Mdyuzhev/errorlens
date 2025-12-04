@@ -16,8 +16,12 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     groq_api_key: str = ""
 
-    # Auth
+    # Auth (legacy X-Admin-Key)
     admin_key: str = "change_me"
+
+    # JWT Authentication
+    jwt_secret_key: str = "your-secret-key-change-in-production-min-32-chars"
+    admin_password: str = "admin123"
 
     # Rate limits (for regular users)
     rate_limit_per_day: int = 10
