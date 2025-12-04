@@ -132,7 +132,7 @@ if not BOOKMARKLET_PATH:
     logger.warning("No bookmarklet found")
 
 
-@app.get("/b.js")
+@app.get("/go_to_test.js")
 async def bookmarklet_shortcut():
     """Short URL for bookmarklet script."""
     if BOOKMARKLET_PATH:
