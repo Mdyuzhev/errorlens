@@ -43,6 +43,9 @@ RUN mkdir -p /app/data
 # Copy built Vue dashboard from frontend stage
 COPY --from=frontend-builder /build/dist/ ./dashboard-vue/dist/
 
+# Copy bookmarklet scripts
+COPY bookmarklet/ ./bookmarklet/
+
 # Expose port
 EXPOSE 8000
 

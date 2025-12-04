@@ -116,6 +116,21 @@ for p in [
 if not DASHBOARD_PATH:
     logger.warning("No dashboard found, serving API only")
 
+# Serve bookmarklet script
+BOOKMARKLET_PATH = None
+for p in [
+    Path("/app/bookmarklet"),  # Railway Docker container
+    Path(__file__).parent.parent.parent / "bookmarklet",  # Local dev
+]:
+    if p.exists() and (p / "recorder.js").exists():
+        BOOKMARKLET_PATH = p
+        app.mount("/bookmarklet", StaticFiles(directory=str(p)), name="bookmarklet")
+        logger.info(f"Serving bookmarklet from {p}")
+        break
+
+if not BOOKMARKLET_PATH:
+    logger.warning("No bookmarklet found")
+
 
 # Root route to serve SPA - MUST be defined before catch-all routes
 # Use hash router in Vue (/#/) so all navigation is client-side
