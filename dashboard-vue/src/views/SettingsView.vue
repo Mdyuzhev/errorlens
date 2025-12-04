@@ -31,24 +31,77 @@
         </div>
       </div>
 
-      <!-- Bookmarklet -->
-      <div class="settings-card">
-        <h2>Bookmarklet</h2>
-        <p class="hint">Drag the button below to your bookmarks bar:</p>
-        <a
-          :href="bookmarkletCode"
-          class="bookmarklet-btn"
-          @click.prevent
-          draggable="true"
-        >
-          ErrorLens
-        </a>
-        <p class="hint" style="margin-top: 12px;">
-          Or copy the code manually:
-        </p>
-        <button class="btn btn-secondary" @click="copyBookmarklet">
-          Copy Bookmarklet Code
-        </button>
+      <!-- Bookmarklet with Onboarding -->
+      <div class="settings-card bookmarklet-card" :class="{ 'onboarding-active': showOnboarding }">
+        <div class="card-header">
+          <h2>Bookmarklet</h2>
+          <button
+            v-if="!showOnboarding"
+            class="help-btn"
+            @click="startOnboarding"
+            title="Show tutorial"
+          >
+            ?
+          </button>
+        </div>
+
+        <!-- Onboarding overlay -->
+        <div v-if="showOnboarding" class="onboarding-overlay">
+          <div class="onboarding-step" :class="{ active: onboardingStep === 1 }">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <h3>Перетащите в закладки</h3>
+              <p>Перетащите фиолетовую кнопку "ErrorLens" на панель закладок браузера</p>
+            </div>
+          </div>
+          <div class="onboarding-step" :class="{ active: onboardingStep === 2 }">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <h3>Откройте любой сайт</h3>
+              <p>Перейдите на сайт, который хотите протестировать на ошибки</p>
+            </div>
+          </div>
+          <div class="onboarding-step" :class="{ active: onboardingStep === 3 }">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <h3>Нажмите букмарклет</h3>
+              <p>Кликните на закладку ErrorLens чтобы начать запись ошибок и запросов</p>
+            </div>
+          </div>
+          <div class="onboarding-controls">
+            <button v-if="onboardingStep > 1" class="btn btn-ghost" @click="onboardingStep--">
+              Назад
+            </button>
+            <button v-if="onboardingStep < 3" class="btn btn-primary" @click="onboardingStep++">
+              Далее
+            </button>
+            <button v-else class="btn btn-primary" @click="finishOnboarding">
+              Понятно!
+            </button>
+          </div>
+        </div>
+
+        <!-- Normal content -->
+        <div v-else>
+          <p class="hint">Перетащите кнопку ниже на панель закладок:</p>
+          <a
+            :href="bookmarkletCode"
+            class="bookmarklet-btn"
+            @click.prevent
+            draggable="true"
+          >
+            ErrorLens
+          </a>
+          <p class="hint" style="margin-top: 16px;">
+            Или скопируйте короткий код загрузчика:
+          </p>
+          <div class="code-display">
+            <code>{{ shortBookmarkletCode }}</code>
+            <button class="copy-btn" @click="copyBookmarklet" :class="{ copied: justCopied }">
+              {{ justCopied ? '✓' : 'Копировать' }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- About -->
@@ -84,6 +137,12 @@ const apiUrl = import.meta.env.VITE_API_URL || '/api'
 const apiStatus = ref('Checking...')
 
 const bookmarkletCode = ref('')
+const shortBookmarkletCode = ref('')
+const justCopied = ref(false)
+
+// Onboarding state
+const showOnboarding = ref(false)
+const onboardingStep = ref(1)
 
 onMounted(async () => {
   // Check API status
@@ -97,11 +156,32 @@ onMounted(async () => {
   // Generate bookmarklet code
   const baseUrl = window.location.origin
   bookmarkletCode.value = `javascript:(function(){var s=document.createElement('script');s.src='${baseUrl}/bookmarklet/recorder.js';document.body.appendChild(s);})();`
+
+  // Short version for display
+  shortBookmarkletCode.value = `javascript:fetch('${baseUrl}/go_to_test.js').then(r=>r.text()).then(eval)`
+
+  // Show onboarding for first-time users
+  if (!localStorage.getItem('errorlens_settings_onboarding_done')) {
+    showOnboarding.value = true
+  }
 })
 
+function startOnboarding() {
+  onboardingStep.value = 1
+  showOnboarding.value = true
+}
+
+function finishOnboarding() {
+  showOnboarding.value = false
+  localStorage.setItem('errorlens_settings_onboarding_done', 'true')
+}
+
 function copyBookmarklet() {
-  navigator.clipboard.writeText(bookmarkletCode.value)
-  alert('Bookmarklet code copied!')
+  navigator.clipboard.writeText(shortBookmarkletCode.value)
+  justCopied.value = true
+  setTimeout(() => {
+    justCopied.value = false
+  }, 2000)
 }
 </script>
 
@@ -127,6 +207,38 @@ function copyBookmarklet() {
   margin: 0 0 20px 0;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--bg-secondary);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--bg-secondary);
+}
+
+.card-header h2 {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.help-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.help-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
 }
 
 .setting-item {
@@ -170,7 +282,7 @@ function copyBookmarklet() {
 .bookmarklet-btn {
   display: inline-block;
   padding: 12px 24px;
-  background: linear-gradient(135deg, var(--accent) 0%, #9333ea 100%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border-radius: 8px;
   font-weight: 600;
@@ -181,10 +293,155 @@ function copyBookmarklet() {
 
 .bookmarklet-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .bookmarklet-btn:active {
   cursor: grabbing;
+}
+
+/* Code display */
+.code-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 8px;
+}
+
+.code-display code {
+  flex: 1;
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.copy-btn {
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 60px;
+}
+
+.copy-btn:hover {
+  transform: scale(1.05);
+}
+
+.copy-btn.copied {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+}
+
+/* Onboarding styles */
+.bookmarklet-card.onboarding-active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.bookmarklet-card.onboarding-active .card-header {
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+}
+
+.onboarding-overlay {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.onboarding-step {
+  display: flex;
+  gap: 15px;
+  padding: 15px;
+  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  opacity: 0.6;
+  transition: all 0.3s;
+}
+
+.onboarding-step.active {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.02);
+}
+
+.step-number {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.onboarding-step.active .step-number {
+  background: white;
+  color: #764ba2;
+}
+
+.step-content h3 {
+  margin: 0 0 5px 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.step-content p {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.9;
+  line-height: 1.4;
+}
+
+.onboarding-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.btn-primary {
+  background: white;
+  color: #764ba2;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 </style>

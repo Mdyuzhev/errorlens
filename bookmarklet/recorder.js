@@ -819,12 +819,13 @@
                 .errorlens-counter {
                     background: rgba(255,255,255,0.25);
                     color: white;
-                    font-size: 12px;
+                    font-size: 11px;
                     font-weight: 700;
-                    padding: 3px 8px;
+                    padding: 4px 10px;
                     border-radius: 12px;
                     min-width: 20px;
                     text-align: center;
+                    white-space: nowrap;
                 }
                 .errorlens-close {
                     width: 24px;
@@ -1349,8 +1350,16 @@
     function updateEventCounter() {
         const counter = document.getElementById('errorlens-counter');
         if (counter) {
-            const total = state.consoleLogs.length + state.jsExceptions.length + state.networkErrors.length;
-            counter.textContent = total.toString();
+            const errors = state.consoleLogs.length + state.jsExceptions.length + state.networkErrors.length;
+            const requests = state.recordedRequests ? state.recordedRequests.length : 0;
+            // Show format: errors / requests (if recording all)
+            if (state.recordMode === 'all' && requests > 0) {
+                counter.textContent = `${errors} / ${requests}`;
+                counter.title = `${errors} ошибок, ${requests} запросов`;
+            } else {
+                counter.textContent = errors.toString();
+                counter.title = `${errors} ошибок`;
+            }
         }
     }
 
@@ -1376,28 +1385,63 @@
             position: fixed;
             bottom: 90px;
             right: 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.5);
             z-index: 1000000;
             font-family: Arial, sans-serif;
             overflow: hidden;
+            padding: 8px;
+            animation: fadeInUp 0.2s ease;
         `;
+
+        // Add animation
+        const styleEl = document.createElement('style');
+        styleEl.textContent = `
+            @keyframes fadeInUp {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+        `;
+        menu.appendChild(styleEl);
+
+        // Menu title
+        const title = document.createElement('div');
+        title.style.cssText = `
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 8px 12px 12px;
+            text-align: center;
+            opacity: 0.9;
+        `;
+        title.textContent = 'Выберите режим записи';
+        menu.appendChild(title);
 
         // Option 1: Record errors only
         const errorsOption = document.createElement('div');
         errorsOption.style.cssText = `
-            padding: 12px 20px;
+            padding: 14px 18px;
             cursor: pointer;
-            border-bottom: 1px solid #eee;
-            transition: background 0.2s;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            transition: all 0.2s;
         `;
         errorsOption.innerHTML = `
-            <div style="font-weight: bold; color: #ff4444;">Только ошибки</div>
-            <div style="font-size: 12px; color: #666;">Записывать 4xx/5xx ошибки</div>
+            <div style="font-weight: 600; color: white; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">⚠️</span> Только ошибки
+            </div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 4px; margin-left: 26px;">Записывать 4xx/5xx ошибки</div>
         `;
-        errorsOption.addEventListener('mouseenter', () => errorsOption.style.background = '#f5f5f5');
-        errorsOption.addEventListener('mouseleave', () => errorsOption.style.background = 'white');
+        errorsOption.addEventListener('mouseenter', () => {
+            errorsOption.style.background = 'rgba(255, 255, 255, 0.25)';
+            errorsOption.style.transform = 'scale(1.02)';
+        });
+        errorsOption.addEventListener('mouseleave', () => {
+            errorsOption.style.background = 'rgba(255, 255, 255, 0.15)';
+            errorsOption.style.transform = 'scale(1)';
+        });
         errorsOption.addEventListener('click', () => {
             menu.remove();
             startRecording('errors');
@@ -1406,16 +1450,26 @@
         // Option 2: Record all requests
         const allOption = document.createElement('div');
         allOption.style.cssText = `
-            padding: 12px 20px;
+            padding: 14px 18px;
             cursor: pointer;
-            transition: background 0.2s;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            transition: all 0.2s;
         `;
         allOption.innerHTML = `
-            <div style="font-weight: bold; color: #2196F3;">Все запросы</div>
-            <div style="font-size: 12px; color: #666;">Для генерации тестов</div>
+            <div style="font-weight: 600; color: white; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">📡</span> Все запросы
+            </div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 4px; margin-left: 26px;">Для генерации тестов</div>
         `;
-        allOption.addEventListener('mouseenter', () => allOption.style.background = '#f5f5f5');
-        allOption.addEventListener('mouseleave', () => allOption.style.background = 'white');
+        allOption.addEventListener('mouseenter', () => {
+            allOption.style.background = 'rgba(255, 255, 255, 0.25)';
+            allOption.style.transform = 'scale(1.02)';
+        });
+        allOption.addEventListener('mouseleave', () => {
+            allOption.style.background = 'rgba(255, 255, 255, 0.15)';
+            allOption.style.transform = 'scale(1)';
+        });
         allOption.addEventListener('click', () => {
             menu.remove();
             startRecording('all');
@@ -1658,7 +1712,7 @@
         });
     }
 
-    // Show modal with message
+    // Show modal with message - gradient style
     function showModal(title, message, isLoading) {
         // Remove existing modal if any
         const existingModal = document.getElementById('errorlens-modal');
@@ -1675,40 +1729,61 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 1000000;
-            font-family: Arial, sans-serif;
+            z-index: 2147483647;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            animation: errorlens-fade-in 0.2s ease;
         `;
 
         // Create modal content
         const modal = document.createElement('div');
         modal.style.cssText = `
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            max-width: 500px;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 32px;
+            border-radius: 20px;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(102, 126, 234, 0.4);
+            text-align: center;
         `;
+
+        // Icon
+        const icon = document.createElement('div');
+        icon.style.cssText = `
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 28px;
+        `;
+        icon.textContent = isLoading ? '⏳' : '✓';
+        if (isLoading) icon.style.animation = 'errorlens-bounce 1s infinite';
+        modal.appendChild(icon);
 
         const titleEl = document.createElement('h2');
         titleEl.textContent = title;
         titleEl.style.cssText = `
-            margin-top: 0;
-            color: #333;
+            margin: 0 0 12px 0;
+            color: white;
+            font-size: 20px;
+            font-weight: 700;
         `;
         modal.appendChild(titleEl);
 
         const messageEl = document.createElement('div');
         messageEl.textContent = message;
         messageEl.style.cssText = `
-            color: #666;
-            margin: 20px 0;
-            line-height: 1.5;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 24px;
+            line-height: 1.6;
+            font-size: 14px;
         `;
         modal.appendChild(messageEl);
 
@@ -1716,14 +1791,19 @@
             const closeBtn = document.createElement('button');
             closeBtn.textContent = 'Закрыть';
             closeBtn.style.cssText = `
-                background: #ff4444;
-                color: white;
+                background: white;
+                color: #667eea;
                 border: none;
-                padding: 10px 20px;
-                border-radius: 5px;
+                padding: 12px 32px;
+                border-radius: 25px;
                 cursor: pointer;
                 font-size: 14px;
+                font-weight: 600;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                transition: all 0.2s ease;
             `;
+            closeBtn.addEventListener('mouseenter', () => closeBtn.style.transform = 'scale(1.05)');
+            closeBtn.addEventListener('mouseleave', () => closeBtn.style.transform = 'scale(1)');
             closeBtn.addEventListener('click', () => overlay.remove());
             modal.appendChild(closeBtn);
         }
@@ -1766,33 +1846,47 @@
             font-family: Arial, sans-serif;
         `;
 
-        // Create modal content
+        // Create modal content with gradient style
         const modal = document.createElement('div');
         modal.style.cssText = `
-            background: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 30px;
-            border-radius: 10px;
+            border-radius: 20px;
             max-width: 600px;
             max-height: 80vh;
             overflow-y: auto;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.5);
+            color: white;
         `;
 
-        // Title
+        // Header with icon and title
+        const header = document.createElement('div');
+        header.style.cssText = 'display: flex; align-items: center; gap: 12px; margin-bottom: 20px;';
+
+        const iconSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        iconSvg.setAttribute('viewBox', '0 0 24 24');
+        iconSvg.setAttribute('width', '32');
+        iconSvg.setAttribute('height', '32');
+        iconSvg.innerHTML = '<path fill="white" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>';
+        header.appendChild(iconSvg);
+
         const title = document.createElement('h2');
         title.textContent = 'Анализ ErrorLens';
         title.style.cssText = `
-            margin-top: 0;
-            color: #333;
+            margin: 0;
+            color: white;
+            font-size: 22px;
+            font-weight: 600;
         `;
-        modal.appendChild(title);
+        header.appendChild(title);
+        modal.appendChild(header);
 
         // Severity badge with Russian labels
         const severityColors = {
-            low: '#4CAF50',
-            medium: '#FF9800',
-            high: '#FF5722',
-            critical: '#D32F2F'
+            low: 'rgba(76, 175, 80, 0.9)',
+            medium: 'rgba(255, 152, 0, 0.9)',
+            high: 'rgba(255, 87, 34, 0.9)',
+            critical: 'rgba(211, 47, 47, 0.9)'
         };
         const severityLabels = {
             low: 'НИЗКИЙ',
@@ -1804,13 +1898,15 @@
         severity.textContent = severityLabels[result.severity] || result.severity.toUpperCase();
         severity.style.cssText = `
             display: inline-block;
-            padding: 5px 15px;
-            border-radius: 20px;
-            background: ${severityColors[result.severity] || '#999'};
+            padding: 8px 18px;
+            border-radius: 25px;
+            background: ${severityColors[result.severity] || 'rgba(255,255,255,0.2)'};
             color: white;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: bold;
             margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         `;
         modal.appendChild(severity);
 
@@ -1819,7 +1915,10 @@
         summary.innerHTML = `<strong>Итог:</strong><br>${result.summary}`;
         summary.style.cssText = `
             margin: 15px 0;
-            color: #333;
+            padding: 15px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 12px;
+            color: white;
             line-height: 1.6;
         `;
         modal.appendChild(summary);
@@ -1829,7 +1928,10 @@
         cause.innerHTML = `<strong>Вероятная причина:</strong><br>${result.probable_cause}`;
         cause.style.cssText = `
             margin: 15px 0;
-            color: #333;
+            padding: 15px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 12px;
+            color: white;
             line-height: 1.6;
         `;
         modal.appendChild(cause);
@@ -1839,7 +1941,10 @@
         fix.innerHTML = `<strong>Рекомендация:</strong><br>${result.suggested_fix}`;
         fix.style.cssText = `
             margin: 15px 0;
-            color: #333;
+            padding: 15px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 12px;
+            color: white;
             line-height: 1.6;
         `;
         modal.appendChild(fix);
@@ -1847,13 +1952,19 @@
         // Details (collapsible)
         if (result.details) {
             const detailsTitle = document.createElement('div');
-            detailsTitle.textContent = 'Подробнее';
+            detailsTitle.textContent = '▶ Подробнее';
             detailsTitle.style.cssText = `
                 margin: 20px 0 10px 0;
-                color: #ff4444;
+                color: rgba(255,255,255,0.9);
                 cursor: pointer;
                 font-weight: bold;
+                padding: 10px 15px;
+                background: rgba(255,255,255,0.1);
+                border-radius: 8px;
+                transition: background 0.2s;
             `;
+            detailsTitle.addEventListener('mouseenter', () => detailsTitle.style.background = 'rgba(255,255,255,0.2)');
+            detailsTitle.addEventListener('mouseleave', () => detailsTitle.style.background = 'rgba(255,255,255,0.1)');
 
             const detailsContent = document.createElement('div');
             detailsContent.textContent = result.details;
@@ -1861,20 +1972,21 @@
                 display: none;
                 margin: 10px 0;
                 padding: 15px;
-                background: #f5f5f5;
-                border-radius: 5px;
-                color: #666;
+                background: rgba(0,0,0,0.2);
+                border-radius: 8px;
+                color: rgba(255,255,255,0.9);
                 line-height: 1.6;
                 white-space: pre-wrap;
+                font-size: 13px;
             `;
 
             detailsTitle.addEventListener('click', () => {
                 if (detailsContent.style.display === 'none') {
                     detailsContent.style.display = 'block';
-                    detailsTitle.textContent = 'Скрыть подробности';
+                    detailsTitle.textContent = '▼ Скрыть подробности';
                 } else {
                     detailsContent.style.display = 'none';
-                    detailsTitle.textContent = 'Подробнее';
+                    detailsTitle.textContent = '▶ Подробнее';
                 }
             });
 
@@ -1884,40 +1996,50 @@
 
         // Button container
         const btnContainer = document.createElement('div');
-        btnContainer.style.cssText = 'display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;';
+        btnContainer.style.cssText = 'display: flex; gap: 10px; margin-top: 25px; flex-wrap: wrap;';
+
+        // Common button style helper
+        const createStyledBtn = (text, bgColor) => {
+            const btn = document.createElement('button');
+            btn.textContent = text;
+            btn.style.cssText = `
+                background: ${bgColor}; color: white; border: none; padding: 12px 20px;
+                border-radius: 25px; cursor: pointer; font-size: 14px; font-weight: 500;
+                transition: all 0.2s; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            `;
+            btn.addEventListener('mouseenter', () => {
+                btn.style.transform = 'translateY(-2px)';
+                btn.style.boxShadow = '0 4px 15px rgba(0,0,0,0.3)';
+            });
+            btn.addEventListener('mouseleave', () => {
+                btn.style.transform = 'translateY(0)';
+                btn.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+            });
+            return btn;
+        };
 
         // Copy button
-        const copyBtn = document.createElement('button');
-        copyBtn.textContent = 'Скопировать';
-        copyBtn.style.cssText = `
-            background: #2196F3; color: white; border: none; padding: 10px 20px;
-            border-radius: 5px; cursor: pointer; font-size: 14px;
-        `;
+        const copyBtn = createStyledBtn('Скопировать', 'rgba(255,255,255,0.25)');
         copyBtn.addEventListener('click', () => {
             const text = `Итог: ${result.summary}\n\nВероятная причина: ${result.probable_cause}\n\nРекомендация: ${result.suggested_fix}\n\nКритичность: ${severityLabels[result.severity] || result.severity}`;
             navigator.clipboard.writeText(text).then(() => {
                 copyBtn.textContent = 'Скопировано!';
-                copyBtn.style.background = '#4CAF50';
+                copyBtn.style.background = 'rgba(76, 175, 80, 0.8)';
                 setTimeout(() => {
                     copyBtn.textContent = 'Скопировать';
-                    copyBtn.style.background = '#2196F3';
+                    copyBtn.style.background = 'rgba(255,255,255,0.25)';
                 }, 2000);
             }).catch(err => {
                 console.error('[ErrorLens] Copy failed:', err);
                 copyBtn.textContent = 'Ошибка';
-                copyBtn.style.background = '#f44336';
+                copyBtn.style.background = 'rgba(244, 67, 54, 0.8)';
             });
         });
         btnContainer.appendChild(copyBtn);
 
         // Export Postman button (only in 'all' mode with recorded requests)
         if (state.recordMode === 'all' && state.recordedRequests.length > 0) {
-            const postmanBtn = document.createElement('button');
-            postmanBtn.textContent = 'Экспорт в Postman';
-            postmanBtn.style.cssText = `
-                background: #FF6C37; color: white; border: none; padding: 10px 20px;
-                border-radius: 5px; cursor: pointer; font-size: 14px;
-            `;
+            const postmanBtn = createStyledBtn('Postman', 'rgba(255, 108, 55, 0.8)');
             postmanBtn.addEventListener('click', async () => {
                 postmanBtn.textContent = 'Генерация...';
                 postmanBtn.disabled = true;
@@ -1948,19 +2070,19 @@
                     URL.revokeObjectURL(url);
 
                     postmanBtn.textContent = 'Скачано!';
-                    postmanBtn.style.background = '#4CAF50';
+                    postmanBtn.style.background = 'rgba(76, 175, 80, 0.8)';
                     setTimeout(() => {
-                        postmanBtn.textContent = 'Экспорт в Postman';
-                        postmanBtn.style.background = '#FF6C37';
+                        postmanBtn.textContent = 'Postman';
+                        postmanBtn.style.background = 'rgba(255, 108, 55, 0.8)';
                         postmanBtn.disabled = false;
                     }, 2000);
                 } catch (error) {
                     console.error('[ErrorLens] Postman export failed:', error);
                     postmanBtn.textContent = 'Ошибка';
-                    postmanBtn.style.background = '#f44336';
+                    postmanBtn.style.background = 'rgba(244, 67, 54, 0.8)';
                     setTimeout(() => {
-                        postmanBtn.textContent = 'Экспорт в Postman';
-                        postmanBtn.style.background = '#FF6C37';
+                        postmanBtn.textContent = 'Postman';
+                        postmanBtn.style.background = 'rgba(255, 108, 55, 0.8)';
                         postmanBtn.disabled = false;
                     }, 2000);
                 }
@@ -1968,12 +2090,7 @@
             btnContainer.appendChild(postmanBtn);
 
             // Export pytest button
-            const pytestBtn = document.createElement('button');
-            pytestBtn.textContent = 'Экспорт в pytest';
-            pytestBtn.style.cssText = `
-                background: #009688; color: white; border: none; padding: 10px 20px;
-                border-radius: 5px; cursor: pointer; font-size: 14px;
-            `;
+            const pytestBtn = createStyledBtn('pytest', 'rgba(0, 150, 136, 0.8)');
             pytestBtn.addEventListener('click', async () => {
                 pytestBtn.textContent = 'Генерация...';
                 pytestBtn.disabled = true;
@@ -2002,19 +2119,19 @@
                     URL.revokeObjectURL(url);
 
                     pytestBtn.textContent = 'Скачано!';
-                    pytestBtn.style.background = '#4CAF50';
+                    pytestBtn.style.background = 'rgba(76, 175, 80, 0.8)';
                     setTimeout(() => {
-                        pytestBtn.textContent = 'Экспорт в pytest';
-                        pytestBtn.style.background = '#009688';
+                        pytestBtn.textContent = 'pytest';
+                        pytestBtn.style.background = 'rgba(0, 150, 136, 0.8)';
                         pytestBtn.disabled = false;
                     }, 2000);
                 } catch (error) {
                     console.error('[ErrorLens] pytest export failed:', error);
                     pytestBtn.textContent = 'Ошибка';
-                    pytestBtn.style.background = '#f44336';
+                    pytestBtn.style.background = 'rgba(244, 67, 54, 0.8)';
                     setTimeout(() => {
-                        pytestBtn.textContent = 'Экспорт в pytest';
-                        pytestBtn.style.background = '#009688';
+                        pytestBtn.textContent = 'pytest';
+                        pytestBtn.style.background = 'rgba(0, 150, 136, 0.8)';
                         pytestBtn.disabled = false;
                     }, 2000);
                 }
@@ -2023,12 +2140,7 @@
         }
 
         // Export Markdown button
-        const exportBtn = document.createElement('button');
-        exportBtn.textContent = 'Экспорт в Markdown';
-        exportBtn.style.cssText = `
-            background: #9C27B0; color: white; border: none; padding: 10px 20px;
-            border-radius: 5px; cursor: pointer; font-size: 14px;
-        `;
+        const exportBtn = createStyledBtn('Markdown', 'rgba(156, 39, 176, 0.8)');
         exportBtn.addEventListener('click', () => {
             const markdown = `## Анализ ошибки ErrorLens
 
@@ -2056,33 +2168,23 @@ ${result.details ? `### Подробности\n\`\`\`\n${result.details}\n\`\`\
             URL.revokeObjectURL(url);
 
             exportBtn.textContent = 'Скачано!';
-            exportBtn.style.background = '#4CAF50';
+            exportBtn.style.background = 'rgba(76, 175, 80, 0.8)';
             setTimeout(() => {
-                exportBtn.textContent = 'Экспорт в Markdown';
-                exportBtn.style.background = '#9C27B0';
+                exportBtn.textContent = 'Markdown';
+                exportBtn.style.background = 'rgba(156, 39, 176, 0.8)';
             }, 2000);
         });
         btnContainer.appendChild(exportBtn);
 
         // Dashboard link
-        const dashboardBtn = document.createElement('button');
-        dashboardBtn.textContent = 'Открыть Dashboard';
-        dashboardBtn.style.cssText = `
-            background: #4FC3F7; color: white; border: none; padding: 10px 20px;
-            border-radius: 5px; cursor: pointer; font-size: 14px;
-        `;
+        const dashboardBtn = createStyledBtn('Dashboard', 'rgba(79, 195, 247, 0.8)');
         dashboardBtn.addEventListener('click', () => {
             window.open(CONFIG.DASHBOARD_URL, '_blank');
         });
         btnContainer.appendChild(dashboardBtn);
 
         // Close button
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = 'Закрыть';
-        closeBtn.style.cssText = `
-            background: #ff4444; color: white; border: none; padding: 10px 20px;
-            border-radius: 5px; cursor: pointer; font-size: 14px;
-        `;
+        const closeBtn = createStyledBtn('Закрыть', 'rgba(255, 68, 68, 0.8)');
         closeBtn.addEventListener('click', () => overlay.remove());
         btnContainer.appendChild(closeBtn);
 
