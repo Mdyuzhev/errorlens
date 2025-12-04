@@ -119,7 +119,7 @@
         </div>
         <div class="setting-item">
           <label>Stack</label>
-          <span class="value">Vue 3 + FastAPI + SQLite</span>
+          <span class="value">Vue 3 + FastAPI + PostgreSQL</span>
         </div>
       </div>
     </div>
