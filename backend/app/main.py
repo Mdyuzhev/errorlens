@@ -34,7 +34,7 @@ from app.generators import (
     generate_restassured_file,
     generate_pom_xml,
 )
-from app.ticket_generator import generate_ticket
+from app.ticket_generator import generate_smart_ticket
 from app.test_runner import run_pytest, get_test_run, create_test_run
 from app.routers import sessions
 from app.session_analyzer import analyze_session
@@ -312,10 +312,14 @@ async def create_ticket(
         "details": session.analysis.details,
     }
 
-    ticket = generate_ticket(
+    # Use smart ticket generator with full session data
+    ticket = generate_smart_ticket(
         analysis=analysis_dict,
         url=session.url,
         user_agent=session.user_agent,
+        recorded_requests=session.recorded_requests or [],
+        console_logs=session.console_logs or [],
+        js_exceptions=session.js_exceptions or [],
         additional_info=request.additional_info,
         format=request.format,
     )
