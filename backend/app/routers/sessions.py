@@ -321,7 +321,7 @@ async def export_session(
             headers={"Content-Disposition": f"attachment; filename=errorlens-{session_id[:8]}.md"}
         )
     elif format == "postman":
-        from app.postman_generator import generate_postman_collection
+        from app.generators import generate_postman_collection
         from app.models_pydantic import ExportPostmanRequest, RecordedRequest
 
         if not session.data or not session.data.recorded_requests:
@@ -344,7 +344,7 @@ async def export_session(
             headers={"Content-Disposition": f"attachment; filename=errorlens-{session_id[:8]}.postman_collection.json"}
         )
     elif format == "pytest":
-        from app.pytest_generator import generate_pytest_file
+        from app.generators import generate_pytest_file
         from app.models_pydantic import RecordedHttpExchange
 
         if not session.data or not session.data.recorded_requests:
@@ -366,7 +366,7 @@ async def export_session(
             headers={"Content-Disposition": f"attachment; filename=test_session_{session_id[:8]}.py"}
         )
     elif format == "restassured":
-        from app.restassured_generator import generate_restassured_file, generate_pom_xml
+        from app.generators import generate_restassured_file, generate_pom_xml
         from app.models_pydantic import RecordedHttpExchange
         import zipfile
         import io

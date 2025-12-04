@@ -27,9 +27,13 @@ from app.models_pydantic import (
     SessionAnalysisResponse,
     TestRunStatus,
 )
-from app.postman_generator import generate_postman_collection
-from app.pytest_generator import generate_pytest_file, generate_pytest_file_async
-from app.restassured_generator import generate_restassured_file, generate_pom_xml
+from app.generators import (
+    generate_postman_collection,
+    generate_pytest_file,
+    generate_pytest_file_async,
+    generate_restassured_file,
+    generate_pom_xml,
+)
 from app.ticket_generator import generate_ticket
 from app.test_runner import run_pytest, get_test_run, create_test_run
 from app.routers import sessions
