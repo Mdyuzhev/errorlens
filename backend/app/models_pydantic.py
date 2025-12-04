@@ -323,3 +323,21 @@ class SessionAnalysisResponse(BaseModel):
         default_factory=dict, description="Assertions per request ID"
     )
     summary: dict = Field(default_factory=dict, description="Analysis summary")
+
+
+# Story 7.5.2: REST Assured export models
+class ExportRestAssuredRequest(BaseModel):
+    """Request body for REST Assured export endpoint."""
+
+    recorded_requests: list[RecordedHttpExchange] = Field(
+        ..., description="Recorded HTTP exchanges to convert"
+    )
+    class_name: str = Field(
+        default="SessionTest", description="Java class name for the test file"
+    )
+    package_name: str = Field(
+        default="com.errorlens.tests", description="Java package name"
+    )
+    include_pom: bool = Field(
+        default=True, description="Include pom.xml in the ZIP output"
+    )

@@ -17,6 +17,7 @@ from app.models_pydantic import (
     ExportPostmanRequest,
     ExportPostmanResponse,
     ExportPytestRequest,
+    ExportRestAssuredRequest,
     GenerateTicketRequest,
     GenerateTicketResponse,
     RecordedHttpExchange,
@@ -28,6 +29,7 @@ from app.models_pydantic import (
 )
 from app.postman_generator import generate_postman_collection
 from app.pytest_generator import generate_pytest_file, generate_pytest_file_async
+from app.restassured_generator import generate_restassured_file, generate_pom_xml
 from app.ticket_generator import generate_ticket
 from app.test_runner import run_pytest, get_test_run, create_test_run
 from app.routers import sessions
@@ -384,3 +386,76 @@ async def get_test_status(test_id: str) -> dict:
     if not result:
         raise HTTPException(status_code=404, detail="Test run not found")
     return result
+
+
+@app.post("/export/restassured")
+async def export_restassured(request: ExportRestAssuredRequest):
+    """
+    Generate REST Assured test file (Java).
+
+    Returns a ZIP with Java test file and Maven pom.xml if include_pom=True,
+    otherwise returns just the Java file.
+    """
+    import io
+    import zipfile
+
+    if not request.recorded_requests:
+        raise HTTPException(
+            status_code=400,
+            detail="No recorded requests to export.",
+        )
+
+    logger.info(f"Generating REST Assured tests from {len(request.recorded_requests)} requests")
+
+    try:
+        java_code = generate_restassured_file(
+            recorded_requests=request.recorded_requests,
+            class_name=request.class_name,
+            package_name=request.package_name
+        )
+
+        if request.include_pom:
+            # Return ZIP with Java file + pom.xml
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+                # Create package directory structure
+                package_path = request.package_name.replace('.', '/')
+                zf.writestr(
+                    f"src/test/java/{package_path}/{request.class_name}.java",
+                    java_code
+                )
+                zf.writestr("pom.xml", generate_pom_xml())
+                zf.writestr("README.md", f"""# ErrorLens Generated Tests
+
+## Run tests
+
+```bash
+mvn test
+```
+
+## Requirements
+
+- Java 17+
+- Maven 3.6+
+""")
+
+            zip_buffer.seek(0)
+            return Response(
+                content=zip_buffer.getvalue(),
+                media_type="application/zip",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{request.class_name}.zip"'
+                }
+            )
+        else:
+            return Response(
+                content=java_code,
+                media_type="text/x-java",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{request.class_name}.java"'
+                }
+            )
+
+    except Exception as e:
+        logger.exception(f"REST Assured export failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Export failed: {e}")

@@ -365,6 +365,39 @@ async def export_session(
             media_type="text/x-python",
             headers={"Content-Disposition": f"attachment; filename=test_session_{session_id[:8]}.py"}
         )
+    elif format == "restassured":
+        from app.restassured_generator import generate_restassured_file, generate_pom_xml
+        from app.models_pydantic import RecordedHttpExchange
+        import zipfile
+        import io
+
+        if not session.data or not session.data.recorded_requests:
+            raise HTTPException(status_code=400, detail="No recorded requests to export")
+
+        # Convert dicts to RecordedHttpExchange objects
+        exchanges = [
+            RecordedHttpExchange(**req) for req in session.data.recorded_requests
+        ]
+
+        class_name = f"Session{session_id[:8].replace('-', '').upper()}Test"
+        java_code = generate_restassured_file(exchanges, class_name=class_name)
+
+        # Return ZIP
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            package_path = "com/errorlens/tests"
+            zf.writestr(f"src/test/java/{package_path}/{class_name}.java", java_code)
+            zf.writestr("pom.xml", generate_pom_xml())
+            zf.writestr("README.md", "# Run: mvn test")
+
+        zip_buffer.seek(0)
+        return Response(
+            content=zip_buffer.getvalue(),
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="{class_name}.zip"'
+            }
+        )
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported format: {format}")
 
