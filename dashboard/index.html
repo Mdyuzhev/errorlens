@@ -373,10 +373,24 @@
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer" style="flex-wrap: wrap; gap: 8px;">
                 <button class="btn btn-primary" id="generateTicketBtn" onclick="generateTicket()">Сгенерировать</button>
                 <button class="btn" id="copyTicketBtn" onclick="copyTicket()" style="display: none; background: #4CAF50; color: white;">Скопировать</button>
-                <button class="btn" onclick="closeTicketModal()">Закрыть</button>
+
+                <!-- Integration stubs (coming soon) -->
+                <div id="integrationButtons" style="display: none; border-left: 1px solid #ddd; padding-left: 12px; margin-left: 4px;">
+                    <button class="btn btn-integration" onclick="showComingSoon('Jira')" title="Отправить в Jira (скоро)">
+                        <span style="font-size: 16px;">📋</span> Jira
+                    </button>
+                    <button class="btn btn-integration" onclick="showComingSoon('Slack')" title="Отправить в Slack (скоро)">
+                        <span style="font-size: 16px;">💬</span> Slack
+                    </button>
+                    <button class="btn btn-integration" onclick="showComingSoon('Telegram')" title="Отправить в Telegram (скоро)">
+                        <span style="font-size: 16px;">✈️</span> Telegram
+                    </button>
+                </div>
+
+                <button class="btn" onclick="closeTicketModal()" style="margin-left: auto;">Закрыть</button>
             </div>
         </div>
     </div>
@@ -426,6 +440,38 @@
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.7; }
+        }
+
+        /* Integration buttons */
+        .btn-integration {
+            background: #f0f0f0;
+            color: #666;
+            border: 1px dashed #ccc;
+            opacity: 0.7;
+            transition: all 0.2s;
+        }
+        .btn-integration:hover {
+            opacity: 1;
+            background: #e8e8e8;
+        }
+
+        /* Coming soon toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 2000;
+            animation: fadeInUp 0.3s ease;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
     </style>
 
@@ -675,6 +721,7 @@
             document.getElementById('ticketResult').style.display = 'none';
             document.getElementById('ticketAdditionalInfo').value = '';
             document.getElementById('copyTicketBtn').style.display = 'none';
+            document.getElementById('integrationButtons').style.display = 'none';
         }
 
         function closeTicketModal(event) {
@@ -714,6 +761,7 @@
                     ticket.description || ticket.body || ticket.content || '';
                 document.getElementById('ticketResult').style.display = 'block';
                 document.getElementById('copyTicketBtn').style.display = 'inline-block';
+                document.getElementById('integrationButtons').style.display = 'flex';
 
             } catch (error) {
                 alert('Ошибка генерации: ' + error.message);
@@ -742,6 +790,21 @@
                 document.body.removeChild(textarea);
                 alert('Скопировано в буфер обмена!');
             });
+        }
+
+        function showComingSoon(service) {
+            // Remove existing toast if any
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) existingToast.remove();
+
+            // Create toast
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<strong>${service}</strong> интеграция скоро! Пока скопируйте тикет вручную.`;
+            document.body.appendChild(toast);
+
+            // Remove after 3 seconds
+            setTimeout(() => toast.remove(), 3000);
         }
 
         // Test Runner functions
