@@ -3,8 +3,12 @@
 import logging
 from contextlib import asynccontextmanager
 
+from pathlib import Path
+
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 
 from app.analyzer import analyze_errors
 from app.config import settings
@@ -91,6 +95,24 @@ app.include_router(testcases.router)
 app.include_router(tasks.router)
 app.include_router(articles.router)
 app.include_router(testruns.router)
+
+# Static dashboard serving for Railway
+# Try Vue dist first, then legacy HTML dashboard
+dashboard_vue_dist = Path(__file__).parent.parent.parent / "dashboard-vue" / "dist"
+dashboard_legacy = Path(__file__).parent.parent.parent / "dashboard"
+
+if dashboard_vue_dist.exists():
+    app.mount("/dashboard", StaticFiles(directory=str(dashboard_vue_dist), html=True), name="dashboard")
+    logger.info(f"Serving Vue dashboard from {dashboard_vue_dist}")
+elif dashboard_legacy.exists():
+    app.mount("/dashboard", StaticFiles(directory=str(dashboard_legacy), html=True), name="dashboard")
+    logger.info(f"Serving legacy dashboard from {dashboard_legacy}")
+
+
+@app.get("/", include_in_schema=False)
+async def root_redirect():
+    """Redirect root to dashboard."""
+    return RedirectResponse(url="/dashboard/")
 
 
 @app.get("/health")
