@@ -37,6 +37,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY backend/app/ ./app/
 
+# Create data directory for SQLite (if no PostgreSQL configured)
+RUN mkdir -p /app/data
+
 # Copy built Vue dashboard from frontend stage
 COPY --from=frontend-builder /build/dist/ ./dashboard-vue/dist/
 
