@@ -58,9 +58,17 @@
     // Allow runtime override via window.__ERRORLENS_CONFIG__
     const userConfig = window.__ERRORLENS_CONFIG__ || {};
 
-    // Auto-detect: if we're on localhost, use local backend; otherwise use prod
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const autoBackendUrl = isLocalhost ? LOCAL_URL : PROD_URL;
+    // Auto-detect environment:
+    // 1. Check if the SCRIPT was loaded from localhost (dev mode)
+    // 2. Check if the PAGE is on localhost
+    const currentScript = document.currentScript || document.querySelector('script[src*="recorder.js"]');
+    const scriptSrc = currentScript ? currentScript.src : '';
+    const isScriptFromLocalhost = scriptSrc.includes('localhost') || scriptSrc.includes('127.0.0.1');
+    const isPageOnLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+    // Use local backend if either script or page is on localhost
+    const isLocalDev = isScriptFromLocalhost || isPageOnLocalhost;
+    const autoBackendUrl = isLocalDev ? LOCAL_URL : PROD_URL;
 
     const CONFIG = {
         BACKEND_URL: userConfig.BACKEND_URL || autoBackendUrl,
@@ -774,7 +782,8 @@
                     z-index: 2147483647;
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                     animation: errorlens-fade-in 0.3s ease;
-                    transition: all 0.3s ease;
+                    transition: background 0.3s ease, box-shadow 0.3s ease;
+                    user-select: none;
                 }
                 .errorlens-widget.recording {
                     background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
@@ -1057,8 +1066,129 @@
 
         document.body.appendChild(widget);
 
+        // Enable drag-and-drop
+        makeWidgetDraggable(widget);
+
         // Show onboarding if first time
         showOnboarding();
+    }
+
+    // Make widget draggable
+    function makeWidgetDraggable(widget) {
+        let isDragging = false;
+        let hasMoved = false;
+        let startX, startY;
+        let initialRight, initialTop;
+
+        widget.addEventListener('mousedown', startDrag);
+        widget.addEventListener('touchstart', startDrag, { passive: false });
+
+        function startDrag(e) {
+            // Don't drag if clicking on a button
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                return;
+            }
+
+            // Prevent text selection
+            e.preventDefault();
+
+            isDragging = true;
+            hasMoved = false;
+            widget.style.cursor = 'grabbing';
+
+            // Get initial position
+            const rect = widget.getBoundingClientRect();
+            initialRight = window.innerWidth - rect.right;
+            initialTop = rect.top;
+
+            // Get start coordinates
+            if (e.type === 'touchstart') {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            } else {
+                startX = e.clientX;
+                startY = e.clientY;
+            }
+
+            // Add move and end listeners
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDrag);
+            document.addEventListener('touchmove', drag, { passive: false });
+            document.addEventListener('touchend', stopDrag);
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+
+            let currentX, currentY;
+            if (e.type === 'touchmove') {
+                currentX = e.touches[0].clientX;
+                currentY = e.touches[0].clientY;
+            } else {
+                currentX = e.clientX;
+                currentY = e.clientY;
+            }
+
+            // Calculate new position
+            const deltaX = currentX - startX;
+            const deltaY = currentY - startY;
+
+            // Check if actually moved (threshold of 3px)
+            if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+                hasMoved = true;
+            }
+
+            let newRight = initialRight - deltaX;
+            let newTop = initialTop + deltaY;
+
+            // Constrain to viewport
+            const rect = widget.getBoundingClientRect();
+            const maxRight = window.innerWidth - rect.width - 10;
+            const maxTop = window.innerHeight - rect.height - 10;
+
+            newRight = Math.max(10, Math.min(newRight, maxRight));
+            newTop = Math.max(10, Math.min(newTop, maxTop));
+
+            // Apply position
+            widget.style.right = newRight + 'px';
+            widget.style.top = newTop + 'px';
+        }
+
+        function stopDrag() {
+            isDragging = false;
+            widget.style.cursor = 'grab';
+
+            // Save position to localStorage only if moved
+            if (hasMoved) {
+                const rect = widget.getBoundingClientRect();
+                localStorage.setItem('errorlens_widget_pos', JSON.stringify({
+                    right: window.innerWidth - rect.right,
+                    top: rect.top
+                }));
+            }
+
+            // Remove listeners
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', stopDrag);
+            document.removeEventListener('touchmove', drag);
+            document.removeEventListener('touchend', stopDrag);
+        }
+
+        // Restore saved position
+        const savedPos = localStorage.getItem('errorlens_widget_pos');
+        if (savedPos) {
+            try {
+                const pos = JSON.parse(savedPos);
+                widget.style.right = pos.right + 'px';
+                widget.style.top = pos.top + 'px';
+            } catch (e) {
+                // Ignore invalid saved position
+            }
+        }
+
+        // Set initial cursor
+        widget.style.cursor = 'grab';
     }
 
     // Show onboarding tooltip for first-time users
@@ -1135,31 +1265,61 @@
         menu.id = 'errorlens-mode-menu';
         menu.style.cssText = `
             position: fixed;
-            top: 52px;
-            right: 12px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            top: 70px;
+            right: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.5);
             z-index: 2147483647;
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             overflow: hidden;
-            min-width: 180px;
+            min-width: 280px;
+            padding: 16px;
+            animation: errorlens-fade-in 0.2s ease;
         `;
+
+        // Menu title
+        const title = document.createElement('div');
+        title.style.cssText = `
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            padding: 0 4px 12px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            margin-bottom: 12px;
+        `;
+        title.textContent = 'Выберите режим записи';
+        menu.appendChild(title);
 
         // Option 1: Record errors only
         const errorsOption = document.createElement('div');
         errorsOption.style.cssText = `
-            padding: 12px 16px;
+            padding: 14px 16px;
             cursor: pointer;
-            border-bottom: 1px solid #eee;
-            transition: background 0.2s;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            transition: all 0.2s;
         `;
         errorsOption.innerHTML = `
-            <div style="font-weight: 600; color: #F44336; font-size: 13px;">Только ошибки</div>
-            <div style="font-size: 11px; color: #666; margin-top: 2px;">4xx/5xx, console.error</div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                <span style="font-size: 20px;">⚠️</span>
+                <span style="font-weight: 600; color: white; font-size: 14px;">Только ошибки</span>
+            </div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.85); margin-left: 30px; line-height: 1.4;">
+                Записывает ошибки консоли и сети (4xx/5xx).<br>
+                <span style="opacity: 0.7;">Подходит для отладки багов</span>
+            </div>
         `;
-        errorsOption.addEventListener('mouseenter', () => errorsOption.style.background = '#f5f5f5');
-        errorsOption.addEventListener('mouseleave', () => errorsOption.style.background = 'white');
+        errorsOption.addEventListener('mouseenter', () => {
+            errorsOption.style.background = 'rgba(255, 255, 255, 0.25)';
+            errorsOption.style.transform = 'scale(1.02)';
+        });
+        errorsOption.addEventListener('mouseleave', () => {
+            errorsOption.style.background = 'rgba(255, 255, 255, 0.15)';
+            errorsOption.style.transform = 'scale(1)';
+        });
         errorsOption.addEventListener('click', () => {
             menu.remove();
             startRecording('errors');
@@ -1169,16 +1329,30 @@
         // Option 2: Record all requests
         const allOption = document.createElement('div');
         allOption.style.cssText = `
-            padding: 12px 16px;
+            padding: 14px 16px;
             cursor: pointer;
-            transition: background 0.2s;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            transition: all 0.2s;
         `;
         allOption.innerHTML = `
-            <div style="font-weight: 600; color: #2196F3; font-size: 13px;">Все запросы</div>
-            <div style="font-size: 11px; color: #666; margin-top: 2px;">Для Postman/тестов</div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                <span style="font-size: 20px;">📡</span>
+                <span style="font-weight: 600; color: white; font-size: 14px;">Все запросы</span>
+            </div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.85); margin-left: 30px; line-height: 1.4;">
+                Записывает все HTTP запросы целиком.<br>
+                <span style="opacity: 0.7;">Для генерации Postman/pytest тестов</span>
+            </div>
         `;
-        allOption.addEventListener('mouseenter', () => allOption.style.background = '#f5f5f5');
-        allOption.addEventListener('mouseleave', () => allOption.style.background = 'white');
+        allOption.addEventListener('mouseenter', () => {
+            allOption.style.background = 'rgba(255, 255, 255, 0.25)';
+            allOption.style.transform = 'scale(1.02)';
+        });
+        allOption.addEventListener('mouseleave', () => {
+            allOption.style.background = 'rgba(255, 255, 255, 0.15)';
+            allOption.style.transform = 'scale(1)';
+        });
         allOption.addEventListener('click', () => {
             menu.remove();
             startRecording('all');
