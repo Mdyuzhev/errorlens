@@ -3,6 +3,7 @@
 from app.models_pydantic import RecordedHttpExchange
 from urllib.parse import urlparse
 import json
+import re
 
 
 def generate_restassured_file(
@@ -20,6 +21,9 @@ def generate_restassured_file(
     parsed = urlparse(first_url)
     base_url = f"{parsed.scheme}://{parsed.netloc}"
 
+    # Detect if we have auth flow (login endpoint that returns token)
+    has_auth_flow = _detect_auth_flow(recorded_requests)
+
     lines = [
         f"package {package_name};",
         "",
@@ -29,19 +33,35 @@ def generate_restassured_file(
         "import org.junit.jupiter.api.*;",
         "import static io.restassured.RestAssured.*;",
         "import static org.hamcrest.Matchers.*;",
+        "import static org.junit.jupiter.api.Assertions.*;",
         "",
         "/**",
         " * Auto-generated REST Assured tests from ErrorLens session.",
         f" * Base URL: {base_url}",
+        " *",
+        " * Tests run in order using @TestMethodOrder annotation.",
+        " * Authentication token is shared between tests.",
         " */",
+        "@TestMethodOrder(MethodOrderer.OrderAnnotation.class)",
         f"public class {class_name} {{",
         "",
+    ]
+
+    # Add shared token field if auth flow detected
+    if has_auth_flow:
+        lines.extend([
+            "    // Shared auth token extracted from login response",
+            "    private static String authToken;",
+            "",
+        ])
+
+    lines.extend([
         "    @BeforeAll",
         "    public static void setup() {",
         f'        RestAssured.baseURI = "{base_url}";',
         "    }",
         "",
-    ]
+    ])
 
     for i, exchange in enumerate(recorded_requests):
         req = exchange.request
@@ -49,16 +69,28 @@ def generate_restassured_file(
 
         method_name = _generate_method_name(req.method, req.url, i)
         path = urlparse(req.url).path or "/"
+        is_auth_endpoint = _is_auth_endpoint(req.url)
 
+        lines.append(f"    @Order({i + 1})")
         lines.append("    @Test")
         lines.append(f'    @DisplayName("{req.method} {path}")')
         lines.append(f"    public void test{i+1:02d}_{method_name}() {{")
 
-        # Build request chain
-        lines.append("        given()")
+        # Check if this request needs auth token (not the login itself)
+        needs_auth = has_auth_flow and not is_auth_endpoint and _has_auth_header(req.headers)
 
-        # Headers
-        safe_headers = _filter_headers(req.headers)
+        # For auth endpoints, we need to capture the response
+        if is_auth_endpoint and has_auth_flow:
+            lines.append("        Response response = given()")
+        else:
+            lines.append("        given()")
+
+        # Add auth token header if needed
+        if needs_auth:
+            lines.append('            .header("Authorization", "Bearer " + authToken)')
+
+        # Headers (excluding auth-related ones that we handle separately)
+        safe_headers = _filter_headers(req.headers, exclude_auth=needs_auth)
         for key, value in safe_headers.items():
             escaped_value = value.replace('"', '\\"')
             lines.append(f'            .header("{key}", "{escaped_value}")')
@@ -81,24 +113,38 @@ def generate_restassured_file(
 
         # Method and path
         lines.append("        .when()")
-        lines.append(f'            .{req.method.lower()}("{path}")')
 
-        # Assertions
-        lines.append("        .then()")
-        lines.append(f"            .statusCode({resp.status})")
+        # For auth endpoint, use extract() to get response
+        if is_auth_endpoint and has_auth_flow:
+            lines.append(f'            .{req.method.lower()}("{path}")')
+            lines.append("        .then()")
+            lines.append(f"            .statusCode({resp.status})")
+            lines.append("            .extract().response();")
+            lines.append("")
+            lines.append("        // Extract auth token from response")
+            lines.append("        authToken = response.jsonPath().getString(\"token\");")
+            lines.append("        if (authToken == null) {")
+            lines.append("            authToken = response.jsonPath().getString(\"access_token\");")
+            lines.append("        }")
+            lines.append('        assertNotNull(authToken, "Auth token not found in login response");')
+        else:
+            lines.append(f'            .{req.method.lower()}("{path}")')
+            lines.append("        .then()")
+            lines.append(f"            .statusCode({resp.status})")
 
-        # Response body assertions
-        if resp.body:
-            try:
-                resp_body = json.loads(resp.body)
-                if isinstance(resp_body, dict):
-                    # Add assertions for top-level keys
-                    for key in list(resp_body.keys())[:3]:
-                        lines.append(f'            .body("{key}", notNullValue())')
-            except (json.JSONDecodeError, TypeError):
-                pass
+            # Response body assertions
+            if resp.body:
+                try:
+                    resp_body = json.loads(resp.body)
+                    if isinstance(resp_body, dict):
+                        # Add assertions for top-level keys
+                        for key in list(resp_body.keys())[:3]:
+                            lines.append(f'            .body("{key}", notNullValue())')
+                except (json.JSONDecodeError, TypeError):
+                    pass
 
-        lines.append("            .log().ifError();")
+            lines.append("            .log().ifError();")
+
         lines.append("    }")
         lines.append("")
 
@@ -118,13 +164,45 @@ def _generate_method_name(method: str, url: str, index: int) -> str:
     return f"{method.lower()}Request"
 
 
-def _filter_headers(headers: dict) -> dict:
+def _filter_headers(headers: dict, exclude_auth: bool = False) -> dict:
     """Remove sensitive and standard headers."""
     skip = {
-        'authorization', 'cookie', 'x-api-key', 'x-auth-token', 'x-admin-key',
-        'host', 'connection', 'accept-encoding', 'content-length', 'user-agent'
+        'host', 'connection', 'accept-encoding', 'content-length', 'user-agent',
+        'cookie', 'x-admin-key'
     }
+    # If we're handling auth separately, also skip auth headers
+    if exclude_auth:
+        skip.update({'authorization', 'x-api-key', 'x-auth-token'})
+
     return {k: v for k, v in headers.items() if k.lower() not in skip}
+
+
+def _detect_auth_flow(recorded_requests: list[RecordedHttpExchange]) -> bool:
+    """Detect if session has authentication flow (login -> token -> use token)."""
+    has_login = False
+    has_auth_header = False
+
+    for exchange in recorded_requests:
+        req = exchange.request
+        if _is_auth_endpoint(req.url):
+            has_login = True
+        if _has_auth_header(req.headers):
+            has_auth_header = True
+
+    return has_login and has_auth_header
+
+
+def _is_auth_endpoint(url: str) -> bool:
+    """Check if URL is an authentication endpoint."""
+    path = urlparse(url).path.lower()
+    auth_patterns = ['/login', '/auth', '/signin', '/token', '/oauth']
+    return any(pattern in path for pattern in auth_patterns)
+
+
+def _has_auth_header(headers: dict) -> bool:
+    """Check if request has authorization header."""
+    auth_headers = {'authorization', 'x-api-key', 'x-auth-token'}
+    return any(h.lower() in auth_headers for h in headers.keys())
 
 
 def _empty_test_template(class_name: str, package_name: str) -> str:
