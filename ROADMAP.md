@@ -184,7 +184,7 @@
 | ID | Задача | Статус |
 |----|--------|--------|
 | 6.2.1 | README с quick start | ✅ |
-| 6.2.2 | CONTRIBUTING.md | ⬜ |
+| 6.2.2 | CONTRIBUTING.md | ✅ |
 | 6.2.3 | API документация (автогенерация FastAPI) | ✅ |
 | 6.2.4 | Примеры использования | ✅ |
 
@@ -365,8 +365,41 @@
 
 ---
 
+## Backlog (Future)
+
+| Task | Описание | Приоритет |
+|------|----------|-----------|
+| 6.1.3 | Демо-видео/GIF для landing | Low |
+| 7.4.3 | Превью сгенерированного кода | Medium |
+| 7.5.2-4 | REST Assured, k6, Playwright exports | Medium |
+| 8.2.4 | Alembic migrations | Low |
+| 8.3.4 | Drag-n-drop установка bookmarklet | Low |
+| 8.6.6 | Webhook интеграции (Jira, Slack) | Medium |
+| 10.x | Cloud deployment (Railway/Yandex) | High |
+
+---
+
+## Сводка
+
+| Epic | Статус | Прогресс |
+|------|--------|----------|
+| Epic 1: Инфраструктура | ✅ DONE | 9/9 (100%) |
+| Epic 2: Bookmarklet | ✅ DONE | 16/16 (100%) |
+| Epic 3: Backend API | ✅ DONE | 12/12 (100%) |
+| Epic 4: LLM Интеграция | ✅ DONE | 8/8 (100%) |
+| Epic 5: Результаты и UI | ✅ DONE | 7/7 (100%) |
+| Epic 6: Landing и документация | ✅ DONE | 8/8 (100%) |
+| Epic 7: Test Generator | 🔄 IN PROGRESS | 17/22 (77%) |
+| Epic 8: Web Application | ✅ DONE | 28/30 (93%) |
+| Epic 9: Docker Setup | ✅ DONE | 5/5 (100%) |
+
+**Общий прогресс: 110/117 задач (94%)**
+
+---
+
 ## Заметки
 
-- Начинаем с Gemini как основного провайдера (щедрый бесплатный tier)
-- Скриншот опционален в MVP, можно добавить во второй фазе
-- Без базы данных, без аутентификации — максимально stateless
+- Основной LLM провайдер: Groq Llama 3.3 70B
+- Fallback: Gemini 1.5 Flash
+- База данных: SQLite (async SQLAlchemy)
+- Dashboard: Vanilla JS (без фреймворков)
