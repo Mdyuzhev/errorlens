@@ -27,7 +27,7 @@ from app.models_pydantic import (
     TestRunStatus,
 )
 from app.postman_generator import generate_postman_collection
-from app.pytest_generator import generate_pytest_file
+from app.pytest_generator import generate_pytest_file, generate_pytest_file_async
 from app.ticket_generator import generate_ticket
 from app.test_runner import run_pytest, get_test_run, create_test_run
 from app.routers import sessions
@@ -163,6 +163,12 @@ async def export_pytest(request: ExportPytestRequest) -> Response:
 
     Converts recorded requests/responses into a runnable pytest file
     with assertions based on recorded responses.
+
+    Features:
+    - Auto-detects auth endpoints and extracts tokens
+    - Shares tokens between tests via class variable
+    - LLM-generated comments explaining business logic (optional)
+    - Beautiful test summary with pass/fail statistics
     """
     if not request.recorded_requests:
         raise HTTPException(
@@ -170,14 +176,28 @@ async def export_pytest(request: ExportPytestRequest) -> Response:
             detail="No recorded requests to export.",
         )
 
-    logger.info(f"Generating pytest file from {len(request.recorded_requests)} requests")
+    logger.info(
+        f"Generating pytest file from {len(request.recorded_requests)} requests "
+        f"(use_llm={request.use_llm})"
+    )
 
     try:
-        content = generate_pytest_file(
-            recorded_requests=request.recorded_requests,
-            test_name=request.test_name,
-            base_url_variable=request.base_url_variable,
-        )
+        if request.use_llm:
+            # Use async version with LLM comments
+            content = await generate_pytest_file_async(
+                recorded_requests=request.recorded_requests,
+                test_name=request.test_name,
+                base_url_variable=request.base_url_variable,
+                use_llm=True,
+            )
+        else:
+            # Sync version without LLM
+            content = generate_pytest_file(
+                recorded_requests=request.recorded_requests,
+                test_name=request.test_name,
+                base_url_variable=request.base_url_variable,
+            )
+
         logger.info(f"Generated pytest file with {len(request.recorded_requests)} tests")
 
         return Response(

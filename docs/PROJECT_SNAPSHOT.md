@@ -1,7 +1,7 @@
 # ErrorLens - Project Snapshot
 
 > Architecture review document for Epic 8 (Web Application) planning.
-> Updated: 2025-12-03 (Epic 9 complete)
+> Updated: 2025-12-04 (Epic 8 mostly complete)
 
 ---
 
@@ -20,10 +20,17 @@ errorlens/
 │   │   ├── __init__.py
 │   │   ├── analyzer.py         # LLM analysis orchestration
 │   │   ├── config.py           # Pydantic Settings
+│   │   ├── database.py         # SQLAlchemy async session
 │   │   ├── main.py             # FastAPI entrypoint
-│   │   ├── models.py           # All Pydantic models
+│   │   ├── models_pydantic.py  # Pydantic API models
+│   │   ├── models/             # SQLAlchemy models
+│   │   │   ├── __init__.py     # Re-exports all models
+│   │   │   └── db_models.py    # Session, SessionData, AnalysisResult
+│   │   ├── routers/
+│   │   │   └── sessions.py     # CRUD API for sessions
 │   │   ├── postman_generator.py # Postman Collection export
-│   │   ├── session_analyzer.py  # Variable detection, grouping
+│   │   ├── security.py         # Rate limiting, admin auth
+│   │   ├── session_analyzer.py # Variable detection, grouping
 │   │   └── providers/
 │   │       ├── __init__.py
 │   │       ├── base.py         # LLMProvider ABC
@@ -40,12 +47,16 @@ errorlens/
 │   └── .env.example
 ├── bookmarklet/
 │   ├── README.md
-│   └── recorder.js             # Main bookmarklet (~1300 lines)
+│   └── recorder.js             # Main bookmarklet (~1700 lines)
+├── dashboard/
+│   └── index.html              # Session list & detail view (vanilla JS)
 ├── docs/
 │   ├── EXAMPLES.md
 │   └── PROJECT_SNAPSHOT.md     # This file
 ├── landing/
-│   └── index.html              # GitHub Pages landing
+│   ├── index.html              # Landing page with install instructions
+│   ├── style.css               # Landing styles
+│   └── favicon.svg             # ErrorLens icon
 ├── nginx/
 │   ├── Dockerfile              # nginx image with baked-in static files
 │   └── nginx.conf              # Reverse proxy config
@@ -66,6 +77,11 @@ errorlens/
 | `POST` | `/analyze` | AI-powered error analysis |
 | `POST` | `/export/postman` | Generate Postman Collection from recorded requests |
 | `POST` | `/analyze/session` | Analyze session for test generation (variables, groups, assertions) |
+| `POST` | `/sessions` | Create new session with auto-analysis |
+| `GET` | `/sessions` | List sessions (paginated, newest first) |
+| `GET` | `/sessions/{id}` | Get session details with analysis |
+| `DELETE` | `/sessions/{id}` | Delete session and related data |
+| `GET` | `/sessions/{id}/export/{format}` | Export session (markdown, postman) |
 
 ### POST /analyze
 
@@ -534,52 +550,59 @@ const JUNK_URL_PATTERNS = [
 
 ---
 
-## 9. What's Missing for Web App (Epic 8)
+## 9. Epic 8 Implementation Status
 
-### Database Layer
-- [ ] SQLite for dev, PostgreSQL for prod
-- [ ] Models: `Session`, `AnalysisResult`, `User` (optional)
-- [ ] Alembic migrations
-- [ ] SQLAlchemy or Tortoise ORM
+### Database Layer (DONE)
+- [x] SQLite with async SQLAlchemy (aiosqlite)
+- [x] Models: `Session`, `SessionData`, `AnalysisResult`
+- [x] Auto-create tables on startup
+- [ ] Alembic migrations (optional)
+- [ ] PostgreSQL for production (optional)
 
-### Session Management
-- [ ] `POST /sessions` - Create session from bookmarklet
-- [ ] `GET /sessions` - List all sessions (paginated)
-- [ ] `GET /sessions/{id}` - Session details
-- [ ] `DELETE /sessions/{id}` - Delete session
-- [ ] `GET /sessions/{id}/export` - Export formats
+### Session Management (DONE)
+- [x] `POST /sessions` - Create session with auto-analysis
+- [x] `GET /sessions` - List sessions (paginated, newest first)
+- [x] `GET /sessions/{id}` - Session details with analysis
+- [x] `DELETE /sessions/{id}` - Delete session
+- [x] `GET /sessions/{id}/export/{format}` - Export (markdown, postman)
 
-### Authentication (Optional)
-- [ ] Anonymous sessions with UUID
-- [ ] Optional user registration
-- [ ] Session ownership
+### Security (DONE)
+- [x] Rate limiting (10 requests/day for anonymous)
+- [x] X-Admin-Key header for admin bypass
+- [x] Payload validation (max items limits)
+- [x] X-RateLimit-Remaining header
 
-### Frontend Dashboard
-- [ ] Vue.js or React SPA
-- [ ] Session list with filters
-- [ ] Session detail view
-- [ ] Bookmarklet installation page
-- [ ] Settings page
+### Frontend Dashboard (DONE)
+- [x] Vanilla JS dashboard (no Vue.js needed)
+- [x] Session list with pagination
+- [x] Session detail modal with analysis
+- [x] Export buttons (Markdown, Postman when applicable)
+- [x] Delete session functionality
+- [x] Responsive design
+- [ ] Session filters/search
 
-### Bookmarklet v2
-- [ ] Silent mode (no popup)
-- [ ] Send to `/sessions` instead of `/analyze`
-- [ ] Success notification with dashboard link
-- [ ] Offline queue
+### Bookmarklet v2 (DONE)
+- [x] Compact pill widget (top-right corner)
+- [x] Color states: blue (idle), red (recording), green (done)
+- [x] Mode selection menu (errors / all requests)
+- [x] Send to `/sessions` API
+- [x] "Results" link after completion
+- [x] "Open Dashboard" button in results modal
+- [x] Classic mode preserved as option
 
-### Infrastructure
-- [x] Docker Compose with nginx for landing (port 3000)
-- [x] nginx Dockerfile with baked-in static files
-- [x] Backend Dockerfile with health checks
-- [ ] Volume mounts for database (Epic 8)
-- [ ] Production Dockerfile (multi-stage)
+### Infrastructure (DONE)
+- [x] Docker Compose with nginx (port 3000)
+- [x] nginx reverse proxy (/api → backend:8000)
+- [x] Volume for SQLite database
+- [x] Health checks for all services
+- [ ] Production multi-stage Dockerfile
 
-### Current Limitations
-1. **Stateless** - No data persistence between requests
-2. **No session history** - Analysis results are shown once and lost
-3. **Single-user** - No concept of ownership
-4. **No replay** - Can't re-run analysis on saved data
-5. **No batch export** - One Postman collection at a time
+### Remaining TODO
+1. **Alembic migrations** - For schema changes
+2. **Session filters** - Search by URL, date range
+3. **Drag-n-drop bookmarklet install** - Visual installer
+4. **Demo video/GIF** - For landing page
+5. **Webhook integrations** - Jira, Slack notifications
 
 ---
 
@@ -588,12 +611,13 @@ const JUNK_URL_PATTERNS = [
 | Layer | Technology |
 |-------|------------|
 | Backend | Python 3.11+, FastAPI, Pydantic |
+| Database | SQLite + SQLAlchemy (async) |
 | LLM | Gemini 1.5 Flash, Groq Llama 3.3 |
-| Frontend | Vanilla JS (bookmarklet) |
-| Landing | Static HTML |
+| Frontend | Vanilla JS (bookmarklet + dashboard) |
+| Landing | Static HTML + CSS |
 | CI/CD | GitHub Actions |
 | Deploy | Railway (backend), GitHub Pages (landing) |
-| Container | Docker, docker-compose |
+| Container | Docker, docker-compose, nginx |
 
 ---
 
