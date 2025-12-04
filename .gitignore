@@ -38,3 +38,7 @@ Thumbs.db
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Node.js
+node_modules/
+package-lock.json

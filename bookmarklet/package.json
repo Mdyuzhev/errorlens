@@ -1,0 +1,12 @@
+{
+  "name": "errorlens-bookmarklet",
+  "version": "2.0.0",
+  "description": "ErrorLens bookmarklet for recording browser sessions",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.19.0"
+  }
+}
