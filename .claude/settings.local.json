@@ -1,88 +1,78 @@
 {
   "permissions": {
     "allow": [
-      "Bash",
-      "Read", 
-      "Write",
-      "Edit",
-      "Glob",
-      "Grep",
-      "WebFetch",
-      "WebSearch",
-      "Task",
-      "TodoWrite",
-      "NotebookEdit"
+      "Bash", "Read", "Write", "Edit", "Glob", "Grep",
+      "WebFetch", "WebSearch", "Task", "TodoWrite", "NotebookEdit"
     ]
   },
   "preferences": {
     "language": "russian",
     "communication_style": "friendly_professional",
+    "naming": {
+      "claude_opus": "шеф",
+      "claude_code": "коллега",
+      "reference": "Следствие ведут Колобки"
+    },
     "humor": {
       "enabled": true,
       "style": "добрый сарказм, айтишные шутки",
       "when": "в начале задачи, при успехе, при ошибках"
     },
     "formatting": {
-      "emoji": false,
+      "emoji": true,
       "tables": true,
+      "tree_diagrams": true,
       "code_comments": "на английском",
       "commits": "[Story X.Y] description in English"
     }
   },
-  "quick_start": {
-    "description": "Читай документы ПО СИТУАЦИИ, не все подряд!",
-    "always_read": [
-      "ROADMAP.md"
-    ],
-    "by_task_type": {
-      "backend": [
-        "AGENT_INSTRUCTIONS.md",
-        "backend/app/models.py"
-      ],
-      "frontend": [
-        "AGENT_INSTRUCTIONS.md", 
-        "bookmarklet/README.md"
-      ],
-      "any_task": [
-        "AGENT_INSTRUCTIONS.md"
-      ]
-    }
-  },
   "memory": {
-    "project": "ErrorLens - bookmarklet для QA, анализ ошибок через AI",
-    "stack": "Python/FastAPI backend, Vanilla JS bookmarklet, Gemini/Groq LLM",
-    "hosting": "Railway/Vercel (backend), GitHub Pages (landing)",
-    "repo": "https://github.com/Mdyuzhev/errorlens"
+    "project": "ErrorLens - AI-powered QA platform с bookmarklet записью сессий",
+    "stack": {
+      "backend": "Python/FastAPI + PostgreSQL + Alembic + SQLAlchemy",
+      "frontend": "Vue 3 + Vite dashboard",
+      "bookmarklet": "Vanilla JS IIFE (2438 LOC → рефакторинг на модули)",
+      "llm": "Groq (primary) + Gemini (fallback)",
+      "integrations": "TestIt, YouGile"
+    },
+    "hosting": {
+      "production": "Railway (errorlens-production.up.railway.app)",
+      "database": "Railway PostgreSQL addon",
+      "repo": "github.com/Mdyuzhev/errorlens (private)"
+    },
+    "auth": {
+      "demo_user": "demo / ErrorLenseTest",
+      "admin_user": "admin / (configured)"
+    }
   },
   "git_workflow": {
-    "main": "Прямой push (solo dev)",
-    "process": "code → commit → push → close issue"
+    "branches": "feature/* → main via PR",
+    "current": "feature/wave-3 (multi-tenancy + refactoring)",
+    "process": "code → commit → push → PR → merge"
   },
   "task_workflows": {
-    "story": {
-      "naming": "[Story X.Y] Description",
-      "after_complete": "gh issue close N --comment 'Completed'"
-    },
-    "epic": {
-      "label": "epic",
-      "contains": "checklist of stories"
-    }
+    "tracker": "YouGile",
+    "api_key": "vPt2EZk7Obi7F1ZJxDbmQupKZbUR2mFIV2L9-Gz4S8E+rFwEp5Hyf2vmD7KIgHY-",
+    "story_naming": "[Wave X.Y] Description",
+    "agent_instructions": "/mnt/user-data/outputs/AGENT_*.md"
   },
   "critical_rules": [
-    "Bookmarklet = vanilla JS, no dependencies, IIFE pattern",
-    "Backend = FastAPI + Pydantic, async everywhere", 
-    "LLM = Gemini primary, Groq fallback",
-    "No database, stateless design",
-    "CORS allow all (bookmarklet runs on any domain)"
+    "Bookmarklet = vanilla JS, IIFE pattern, будет модуляризован",
+    "Backend = FastAPI + async + Repository pattern",
+    "Database = PostgreSQL (prod) / SQLite (dev) + Alembic migrations",
+    "LLM = Groq primary (fast), Gemini fallback",
+    "CORS allow all (bookmarklet runs on any domain)",
+    "Multi-tenancy = Projects → Folders → Sessions"
   ],
-  "tools": {
-    "github": {
-      "repo": "Mdyuzhev/errorlens",
-      "cli": "gh"
-    },
-    "backend": {
-      "run": "cd backend && uvicorn app.main:app --reload",
-      "test": "cd backend && pytest"
-    }
+  "current_wave": {
+    "wave": "3.2",
+    "focus": "Code Refactoring",
+    "status": "in_progress",
+    "tasks": [
+      "recorder.js → 12 modules",
+      "Repository layer",
+      "Services refactor",
+      "main.py split"
+    ]
   }
 }
