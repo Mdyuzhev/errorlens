@@ -84,6 +84,82 @@
         return JUNK_URL_PATTERNS.some(pattern => pattern.test(url));
     }
 
+    // Smart API URL detection
+    // Many SPAs store API URL in global variables or meta tags
+    function detectApiBaseUrl() {
+        // Common global variable names for API URL
+        const apiVarNames = [
+            '__API_URL__',
+            'API_URL',
+            'API_BASE_URL',
+            'apiUrl',
+            'apiBaseUrl',
+            'REACT_APP_API_URL',
+            'VUE_APP_API_URL',
+            'NEXT_PUBLIC_API_URL',
+            '__NUXT__'
+        ];
+
+        // Check window variables
+        for (const varName of apiVarNames) {
+            if (window[varName] && typeof window[varName] === 'string') {
+                console.log(`[ErrorLens] Detected API URL from window.${varName}: ${window[varName]}`);
+                return window[varName];
+            }
+        }
+
+        // Check for Nuxt.js config
+        if (window.__NUXT__ && window.__NUXT__.config && window.__NUXT__.config.public) {
+            const nuxtApi = window.__NUXT__.config.public.apiBase || window.__NUXT__.config.public.apiUrl;
+            if (nuxtApi) {
+                console.log(`[ErrorLens] Detected API URL from Nuxt config: ${nuxtApi}`);
+                return nuxtApi;
+            }
+        }
+
+        // Check meta tags
+        const metaNames = ['api-url', 'api-base-url', 'apiUrl'];
+        for (const name of metaNames) {
+            const meta = document.querySelector(`meta[name="${name}"]`);
+            if (meta && meta.content) {
+                console.log(`[ErrorLens] Detected API URL from meta tag: ${meta.content}`);
+                return meta.content;
+            }
+        }
+
+        // Check for common API patterns in existing requests
+        // Will be populated during recording
+        return null;
+    }
+
+    // Normalize URL to use detected API base if applicable
+    function normalizeApiUrl(url, detectedApiBase) {
+        if (!detectedApiBase) return url;
+
+        try {
+            const urlObj = new URL(url);
+            const apiObj = new URL(detectedApiBase);
+
+            // If request goes to same origin but API is on different host
+            // Check if this looks like an API request (has /api/ or common API patterns)
+            const isApiRequest = /\/(api|auth|v\d+|graphql)\//i.test(urlObj.pathname);
+
+            if (isApiRequest && urlObj.origin === window.location.origin && apiObj.origin !== window.location.origin) {
+                // Rewrite URL to use actual API host
+                const newUrl = apiObj.origin + urlObj.pathname + urlObj.search;
+                console.log(`[ErrorLens] Normalized API URL: ${url} -> ${newUrl}`);
+                return newUrl;
+            }
+        } catch (e) {
+            // URL parsing failed, return original
+        }
+
+        return url;
+    }
+
+    // Detect API base URL on load
+    const detectedApiBase = detectApiBaseUrl();
+
     // State
     const state = {
         isRecording: false,
@@ -95,6 +171,7 @@
         recordedRequests: [], // Story 7.1: All HTTP exchanges for test generation
         requestIdCounter: 0,
         screenshot: null,
+        detectedApiBase: detectedApiBase, // Smart API URL detection
         originalConsole: {
             log: console.log,
             warn: console.warn,
@@ -284,10 +361,12 @@
         window.fetch = async function(input, init) {
             const startTime = Date.now();
             const method = (init && init.method) || 'GET';
-            const url = typeof input === 'string' ? input : input.url;
+            const originalUrl = typeof input === 'string' ? input : input.url;
+            // Normalize URL to use real API host if detected
+            const url = normalizeApiUrl(originalUrl, state.detectedApiBase);
 
             // Skip junk URLs in record-all mode
-            if (state.recordMode === 'all' && isJunkUrl(url)) {
+            if (state.recordMode === 'all' && isJunkUrl(originalUrl)) {
                 return state.originalFetch.apply(window, arguments);
             }
 
@@ -407,9 +486,12 @@
     // XMLHttpRequest interception
     function interceptXHR() {
         XMLHttpRequest.prototype.open = function(method, url) {
+            // Normalize URL to use real API host if detected
+            const normalizedUrl = normalizeApiUrl(url, state.detectedApiBase);
             this._errorlens = {
                 method: method,
-                url: url,
+                url: normalizedUrl,
+                originalUrl: url,
                 startTime: null,
                 requestHeaders: {}
             };
@@ -437,8 +519,8 @@
             xhr.addEventListener('load', function() {
                 if (!state.isRecording || !xhr._errorlens) return;
 
-                // Skip junk URLs in record-all mode
-                if (state.recordMode === 'all' && isJunkUrl(xhr._errorlens.url)) return;
+                // Skip junk URLs in record-all mode (use original URL for filtering)
+                if (state.recordMode === 'all' && isJunkUrl(xhr._errorlens.originalUrl || xhr._errorlens.url)) return;
 
                 const timestamp = getTimestamp();
                 const duration = Date.now() - xhr._errorlens.startTime;
@@ -1153,7 +1235,9 @@
             recording_duration_ms: duration,
             // Story 7.1: Extended recording data
             recorded_requests: state.recordedRequests,
-            record_mode: state.recordMode
+            record_mode: state.recordMode,
+            // Smart API detection
+            detected_api_base: state.detectedApiBase
         };
 
         console.log('[ErrorLens] Sending to backend:', payload);

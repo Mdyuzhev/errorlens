@@ -219,6 +219,9 @@ class ExportPytestRequest(BaseModel):
     base_url_variable: bool = Field(
         default=True, description="Extract base URL as variable"
     )
+    use_llm: bool = Field(
+        default=True, description="Use LLM to generate intelligent comments"
+    )
 
 
 # Story 8.6.1: Ticket generator models
