@@ -1,5 +1,7 @@
 """Pydantic models for API request/response schemas."""
 
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -355,4 +357,16 @@ class ExportK6Request(BaseModel):
     )
     duration: str = Field(
         default="30s", description="Test duration (e.g., '30s', '1m', '5m')"
+    )
+
+
+# Story 13: TestIt test case export models
+class ExportTestItRequest(BaseModel):
+    """Request body for TestIt test case export endpoint."""
+
+    recorded_requests: list[RecordedHttpExchange] = Field(
+        ..., description="Recorded HTTP exchanges to convert to test case"
+    )
+    analysis: Optional[AnalyzeResponse] = Field(
+        default=None, description="Optional AI analysis for priority/description"
     )
