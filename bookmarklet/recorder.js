@@ -51,14 +51,26 @@
     // Mark as loaded
     window.__errorLensLoaded = true;
 
-    // Configuration
+    // Configuration - auto-detect production or use overrides
+    const PROD_URL = 'https://errorlens-production.up.railway.app';
+    const LOCAL_URL = 'http://localhost:8000';
+
+    // Allow runtime override via window.__ERRORLENS_CONFIG__
+    const userConfig = window.__ERRORLENS_CONFIG__ || {};
+
+    // Auto-detect: if we're on localhost, use local backend; otherwise use prod
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const autoBackendUrl = isLocalhost ? LOCAL_URL : PROD_URL;
+
     const CONFIG = {
-        BACKEND_URL: 'http://localhost:8000',
-        WIDGET_STYLE: 'new', // 'new' (pill) or 'classic' (floating button)
-        WIDGET_SIZE: 60,     // For classic mode only
-        USE_SESSIONS_API: true, // Use new /sessions endpoint (saves to DB)
-        DASHBOARD_URL: 'http://localhost:3000/dashboard/' // Dashboard location
+        BACKEND_URL: userConfig.BACKEND_URL || autoBackendUrl,
+        WIDGET_STYLE: userConfig.WIDGET_STYLE || 'new', // 'new' (pill) or 'classic' (floating button)
+        WIDGET_SIZE: userConfig.WIDGET_SIZE || 60,     // For classic mode only
+        USE_SESSIONS_API: userConfig.USE_SESSIONS_API !== false, // Use new /sessions endpoint (saves to DB)
+        DASHBOARD_URL: userConfig.DASHBOARD_URL || (userConfig.BACKEND_URL || autoBackendUrl) + '/#/' // Dashboard at root with hash router
     };
+
+    console.log('[ErrorLens] Config:', { backend: CONFIG.BACKEND_URL, dashboard: CONFIG.DASHBOARD_URL });
 
     // URL patterns to filter out (analytics, ads, static assets)
     const JUNK_URL_PATTERNS = [
