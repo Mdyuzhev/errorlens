@@ -13,7 +13,9 @@ from sqlalchemy.orm import selectinload
 
 from app.analyzer import analyze_errors
 from app.database import get_db
+from app.middleware.jwt_auth import require_auth
 from app.models.db_models import AnalysisResult, Session, SessionData
+from app.models.user import User
 from app.models_pydantic import AnalyzeRequest, ConsoleLogEntry, JSException, NetworkError
 
 logger = logging.getLogger(__name__)
@@ -173,6 +175,7 @@ async def list_sessions(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_auth),
 ) -> SessionListResponse:
     """
     List all sessions with pagination.
@@ -235,6 +238,7 @@ async def list_sessions(
 async def get_session(
     session_id: str,
     db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_auth),
 ) -> SessionDetailResponse:
     """
     Get detailed session information including data and analysis.
@@ -282,6 +286,7 @@ async def get_session(
 async def delete_session(
     session_id: str,
     db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_auth),
 ) -> dict:
     """
     Delete a session and all related data.
@@ -305,6 +310,7 @@ async def export_session(
     session_id: str,
     format: str,
     db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_auth),
 ) -> Response:
     """
     Export session in specified format.

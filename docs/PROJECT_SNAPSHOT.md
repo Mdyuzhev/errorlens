@@ -1,6 +1,6 @@
 # ErrorLens - Project Snapshot
 
-> Architecture review document. Last updated: 2025-12-04
+> Architecture review document. Last updated: 2025-12-04 (JWT Auth added)
 
 ---
 
@@ -34,13 +34,19 @@ errorlens/
 │   │   │   └── llm_comments.py      # LLM-generated comments
 │   │   ├── middleware/
 │   │   │   ├── __init__.py
-│   │   │   ├── auth.py              # Admin key authentication
+│   │   │   ├── auth.py              # Admin key authentication (legacy)
+│   │   │   ├── jwt_auth.py          # JWT authentication middleware
 │   │   │   └── rate_limit.py        # Rate limiting (10/day for anon)
 │   │   ├── models/
 │   │   │   ├── __init__.py
-│   │   │   └── db_models.py         # Session, SessionData, AnalysisResult
+│   │   │   ├── db_models.py         # Session, SessionData, AnalysisResult
+│   │   │   └── user.py              # User model (bcrypt password)
 │   │   ├── routers/
+│   │   │   ├── auth.py              # Authentication endpoints
 │   │   │   └── sessions.py          # Session CRUD endpoints
+│   │   ├── services/
+│   │   │   ├── __init__.py
+│   │   │   └── auth.py              # JWT token service
 │   │   └── providers/
 │   │       ├── __init__.py
 │   │       ├── base.py              # LLMProvider ABC
@@ -53,7 +59,8 @@ errorlens/
 ├── bookmarklet/
 │   └── recorder.js                  # ~1880 lines, IIFE pattern
 ├── dashboard/
-│   └── index.html                   # Session list, detail, exports, runner
+│   ├── index.html                   # Session list, detail, exports, runner
+│   └── login.html                   # Login page
 ├── landing/
 │   ├── index.html
 │   ├── style.css
@@ -71,9 +78,21 @@ errorlens/
 
 ## 2. API Endpoints
 
+### Public Endpoints (no auth required)
+
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Health check |
+| POST | `/auth/login` | Get JWT tokens (access + refresh) |
+| POST | `/auth/refresh` | Refresh access token |
+| POST | `/auth/logout` | Logout (client discards tokens) |
+| POST | `/sessions` | Create session with auto-analysis |
+
+### Protected Endpoints (require Bearer token)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/auth/me` | Get current user info |
 | POST | `/analyze` | AI-powered error analysis |
 | POST | `/export/postman` | Generate Postman Collection |
 | POST | `/export/pytest` | Generate pytest file |
@@ -84,15 +103,26 @@ errorlens/
 | POST | `/tests/run` | Start pytest execution |
 | POST | `/tests/run/restassured` | Start REST Assured (Maven) execution |
 | GET | `/tests/{id}/status` | Get test run status |
-| POST | `/sessions` | Create session with auto-analysis |
 | GET | `/sessions` | List sessions (paginated, has_errors/has_requests flags) |
 | GET | `/sessions/{id}` | Get session details |
 | DELETE | `/sessions/{id}` | Delete session |
-| GET | `/sessions/{id}/export/{format}` | Export (markdown/postman/pytest) |
+| GET | `/sessions/{id}/export/{format}` | Export (markdown/postman/pytest)
 
 ---
 
 ## 3. Security
+
+### JWT Authentication
+- Access token: 30 min expiry
+- Refresh token: 7 days expiry
+- Algorithm: HS256
+- Auto-created admin user on startup
+
+### Environment Variables
+```bash
+JWT_SECRET_KEY=your-super-secret-key-min-32-chars  # REQUIRED for production
+ADMIN_PASSWORD=your-secure-password                 # Default: admin123
+```
 
 ### Rate Limiting
 - Anonymous users: 10 requests/day to `/analyze`
@@ -112,6 +142,7 @@ errorlens/
 SQLite with async SQLAlchemy (aiosqlite).
 
 ### Models
+- **User**: id, username, hashed_password (bcrypt), is_active, is_admin, created_at, last_login
 - **Session**: id, url, user_agent, created_at, recording_duration_ms, record_mode
 - **SessionData**: console_logs (JSON), network_errors (JSON), js_exceptions (JSON), recorded_requests (JSON), screenshot
 - **AnalysisResult**: summary, probable_cause, suggested_fix, severity, details
@@ -138,6 +169,9 @@ SQLite with async SQLAlchemy (aiosqlite).
 
 | Feature | Status |
 |---------|--------|
+| JWT authentication (login page) | ✅ |
+| Auto token refresh | ✅ |
+| Logout button | ✅ |
 | Session list with pagination | ✅ |
 | Session filters (All/Bug/Chain) | ✅ |
 | Quick 🐍 Test button on session list | ✅ |
@@ -196,11 +230,26 @@ nginx routes:
 
 | Metric | Value |
 |--------|-------|
-| Python files | ~25 |
-| Total backend LOC | ~3000 |
-| Tests | 54+ |
-| Endpoints | 15+ |
+| Python files | ~30 |
+| Total backend LOC | ~3500 |
+| Tests | 80+ |
+| Endpoints | 20+ |
 | Generators | 5 (pytest, REST Assured, k6, Postman, Cypress) |
+
+---
+
+## 10. Quick Start (Local)
+
+```bash
+# Clone & start
+git clone https://github.com/Mdyuzhev/errorlens.git
+cd errorlens
+docker-compose up --build
+
+# Open dashboard
+# http://localhost:3000/dashboard/
+# Login: admin / admin123
+```
 
 ---
 

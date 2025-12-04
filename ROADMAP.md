@@ -404,8 +404,9 @@
 | Epic 7: Test Generator | 🔄 IN PROGRESS | 19/22 (86%) |
 | Epic 8: Web Application | ✅ DONE | 28/30 (93%) |
 | Epic 9: Docker Setup | ✅ DONE | 5/5 (100%) |
+| Epic 10: Authentication | ✅ DONE | 6/6 (100%) |
 
-**Общий прогресс: 112/117 задач (96%)**
+**Общий прогресс: 118/123 задач (96%)**
 
 ---
 
@@ -416,14 +417,16 @@
 - База данных: SQLite (async SQLAlchemy)
 - Dashboard: Vanilla JS (без фреймворков)
 
-## BLOCKER: Cloud Deployment
+## Cloud Deployment Status
 
-**НЕ ДЕПЛОИТЬ в облако пока не реализована авторизация!**
+**Cloud deployment UNLOCKED!** JWT авторизация реализована.
 
-Текущий статус: локальная разработка. Перед деплоем нужно:
-- [ ] Авторизация пользователей (OAuth / API keys)
-- [ ] Защита эндпоинтов
-- [ ] Rate limiting per user
+Перед деплоем нужно:
+- [x] JWT авторизация (access + refresh tokens)
+- [x] Защита эндпоинтов
+- [x] Login page
+- [ ] Установить secure JWT_SECRET_KEY
+- [ ] Установить secure ADMIN_PASSWORD
 
 ---
 
@@ -431,7 +434,7 @@
 
 | ID | Задача | Приоритет | Статус |
 |----|--------|-----------|--------|
-| 10.x | Cloud deployment | High | BLOCKED (нужна auth) |
+| 10.x | Cloud deployment | High | READY |
 | 7.5.4 | Playwright API tests | Medium | TODO |
 | 7.4.3 | Превью кода в dashboard | Medium | TODO |
 | 8.6.6 | Webhook интеграции | Medium | Заглушки есть |
@@ -441,13 +444,43 @@
 
 ---
 
-## Planned Epics
+## Completed Epics
 
-### Epic 10: Authentication (BLOCKER для Cloud)
-- JWT авторизация
-- Admin login
-- Защита API endpoints
-- Rate limiting per user
+### Epic 10: Authentication ✅ DONE
+- [x] JWT авторизация (access 30min + refresh 7days)
+- [x] User model (bcrypt password hashing)
+- [x] Admin login (auto-create on startup)
+- [x] Защита API endpoints
+- [x] Login page UI
+- [x] Dashboard auth integration (authFetch + token refresh)
+
+**New files:**
+- `backend/app/models/user.py`
+- `backend/app/services/auth.py`
+- `backend/app/middleware/jwt_auth.py`
+- `backend/app/routers/auth.py`
+- `dashboard/login.html`
+
+**New endpoints:**
+- POST `/auth/login` - Get JWT tokens
+- POST `/auth/refresh` - Refresh access token
+- GET `/auth/me` - Get current user info
+- POST `/auth/logout` - Logout
+
+**Protected endpoints (require Bearer token):**
+- GET/DELETE `/sessions/*`
+- POST `/analyze`, `/analyze/session`
+- POST `/export/*`, `/tickets/generate`
+- POST `/tests/run/*`, GET `/tests/{id}/status`
+
+**Public endpoints:**
+- GET `/health`
+- POST `/auth/*`
+- POST `/sessions` (for bookmarklet)
+
+---
+
+## Planned Epics
 
 ### Epic 11: Analytics Dashboard
 - Статистика сессий
