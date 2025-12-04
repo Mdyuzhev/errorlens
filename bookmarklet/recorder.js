@@ -745,32 +745,88 @@
             style.id = 'errorlens-style';
             style.textContent = `
                 @keyframes errorlens-pulse {
-                    0%, 100% { opacity: 1; }
-                    50% { opacity: 0.7; }
+                    0%, 100% { box-shadow: 0 4px 20px rgba(244, 67, 54, 0.4); }
+                    50% { box-shadow: 0 4px 30px rgba(244, 67, 54, 0.7); }
                 }
-                @keyframes errorlens-pulse-scale {
-                    0%, 100% { transform: scale(1); opacity: 1; }
-                    50% { transform: scale(1.1); opacity: 0.8; }
+                @keyframes errorlens-fade-in {
+                    from { opacity: 0; transform: translateY(-10px); }
+                    to { opacity: 1; transform: translateY(0); }
                 }
-                .errorlens-pill {
+                @keyframes errorlens-bounce {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-5px); }
+                }
+                @keyframes errorlens-point {
+                    0%, 100% { transform: translateX(0); }
+                    50% { transform: translateX(5px); }
+                }
+                .errorlens-widget {
                     position: fixed;
-                    top: 12px;
-                    right: 12px;
-                    height: 36px;
-                    padding: 0 8px;
-                    border-radius: 18px;
+                    top: 16px;
+                    right: 16px;
                     display: flex;
                     align-items: center;
-                    gap: 8px;
+                    gap: 10px;
+                    padding: 8px 12px 8px 8px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    border-radius: 50px;
+                    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
                     z-index: 2147483647;
-                    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-                    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
-                    transition: background-color 0.3s ease;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    animation: errorlens-fade-in 0.3s ease;
+                    transition: all 0.3s ease;
                 }
-                .errorlens-pill.idle { background: #4FC3F7; }
-                .errorlens-pill.recording { background: #F44336; animation: errorlens-pulse 1.5s infinite; }
-                .errorlens-pill.done { background: #4CAF50; }
-                .errorlens-btn {
+                .errorlens-widget.recording {
+                    background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+                    animation: errorlens-pulse 1.5s infinite;
+                }
+                .errorlens-widget.done {
+                    background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+                    box-shadow: 0 4px 20px rgba(76, 175, 80, 0.4);
+                }
+                .errorlens-record-btn {
+                    width: 36px;
+                    height: 36px;
+                    border: none;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: white;
+                    color: #667eea;
+                    transition: all 0.2s ease;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                }
+                .errorlens-record-btn:hover {
+                    transform: scale(1.1);
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                }
+                .errorlens-record-btn svg {
+                    width: 18px;
+                    height: 18px;
+                }
+                .errorlens-widget.recording .errorlens-record-btn {
+                    color: #f44336;
+                }
+                .errorlens-label {
+                    color: white;
+                    font-size: 13px;
+                    font-weight: 600;
+                    letter-spacing: 0.3px;
+                    white-space: nowrap;
+                }
+                .errorlens-counter {
+                    background: rgba(255,255,255,0.25);
+                    color: white;
+                    font-size: 12px;
+                    font-weight: 700;
+                    padding: 3px 8px;
+                    border-radius: 12px;
+                    min-width: 20px;
+                    text-align: center;
+                }
+                .errorlens-close {
                     width: 24px;
                     height: 24px;
                     border: none;
@@ -779,30 +835,100 @@
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    background: rgba(255,255,255,0.9);
-                    color: #333;
-                    font-size: 12px;
-                    transition: background 0.2s;
-                    padding: 0;
-                }
-                .errorlens-btn:hover { background: #fff; }
-                .errorlens-counter {
+                    background: rgba(255,255,255,0.2);
                     color: white;
+                    font-size: 14px;
+                    transition: all 0.2s ease;
+                    margin-left: 4px;
+                }
+                .errorlens-close:hover {
+                    background: rgba(255,255,255,0.35);
+                }
+                .errorlens-results-btn {
+                    background: rgba(255,255,255,0.9);
+                    color: #388E3C;
+                    border: none;
+                    padding: 6px 12px;
+                    border-radius: 15px;
                     font-size: 12px;
                     font-weight: 600;
-                    min-width: 16px;
-                    text-align: center;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
                 }
-                .errorlens-link {
+                .errorlens-results-btn:hover {
+                    background: white;
+                    transform: scale(1.05);
+                }
+                /* Onboarding tooltip */
+                .errorlens-tooltip {
+                    position: fixed;
+                    top: 70px;
+                    right: 16px;
+                    background: white;
+                    border-radius: 12px;
+                    padding: 16px 20px;
+                    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+                    z-index: 2147483646;
+                    max-width: 280px;
+                    animation: errorlens-fade-in 0.4s ease;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                }
+                .errorlens-tooltip::before {
+                    content: '';
+                    position: absolute;
+                    top: -8px;
+                    right: 30px;
+                    width: 16px;
+                    height: 16px;
+                    background: white;
+                    transform: rotate(45deg);
+                    box-shadow: -2px -2px 5px rgba(0,0,0,0.05);
+                }
+                .errorlens-tooltip-title {
+                    font-size: 15px;
+                    font-weight: 700;
+                    color: #333;
+                    margin-bottom: 8px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .errorlens-tooltip-text {
+                    font-size: 13px;
+                    color: #666;
+                    line-height: 1.5;
+                    margin-bottom: 12px;
+                }
+                .errorlens-tooltip-arrow {
+                    display: inline-block;
+                    animation: errorlens-point 1s infinite;
+                    font-size: 16px;
+                }
+                .errorlens-tooltip-dismiss {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 20px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                .errorlens-tooltip-dismiss:hover {
+                    transform: scale(1.05);
+                    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+                }
+                .errorlens-tooltip-skip {
+                    background: none;
+                    border: none;
+                    color: #999;
                     font-size: 12px;
                     cursor: pointer;
-                    padding: 2px 6px;
-                    border-radius: 10px;
-                    background: rgba(255,255,255,0.2);
+                    margin-left: 10px;
                 }
-                .errorlens-link:hover {
-                    background: rgba(255,255,255,0.3);
+                .errorlens-tooltip-skip:hover {
+                    color: #666;
                 }
             `;
             document.head.appendChild(style);
@@ -817,20 +943,27 @@
         console.log('[ErrorLens] Widget created');
     }
 
-    // New compact pill widget (Story 8.5)
+    // New beautiful widget with gradient design
     function createTopBarWidget() {
-        const pill = document.createElement('div');
-        pill.id = 'errorlens-bar';
-        pill.className = 'errorlens-pill idle';
+        const widget = document.createElement('div');
+        widget.id = 'errorlens-bar';
+        widget.className = 'errorlens-widget';
 
-        // Record/Stop button
+        // Record/Stop button with SVG icons
         const recordBtn = document.createElement('button');
         recordBtn.id = 'errorlens-record-btn';
-        recordBtn.className = 'errorlens-btn';
-        recordBtn.innerHTML = '&#9679;'; // Circle (record)
+        recordBtn.className = 'errorlens-record-btn';
+        recordBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>`;
         recordBtn.title = 'Начать запись';
         recordBtn.addEventListener('click', handleRecordClick);
-        pill.appendChild(recordBtn);
+        widget.appendChild(recordBtn);
+
+        // Label
+        const label = document.createElement('span');
+        label.id = 'errorlens-label';
+        label.className = 'errorlens-label';
+        label.textContent = 'ErrorLens';
+        widget.appendChild(label);
 
         // Event counter (hidden until recording)
         const counter = document.createElement('div');
@@ -838,25 +971,70 @@
         counter.className = 'errorlens-counter';
         counter.style.display = 'none';
         counter.textContent = '0';
-        pill.appendChild(counter);
+        widget.appendChild(counter);
 
-        // Result link (hidden until done)
-        const resultLink = document.createElement('span');
-        resultLink.id = 'errorlens-result-link';
-        resultLink.className = 'errorlens-link';
-        resultLink.style.display = 'none';
-        resultLink.textContent = 'Результаты';
-        pill.appendChild(resultLink);
+        // Result button (hidden until done)
+        const resultBtn = document.createElement('button');
+        resultBtn.id = 'errorlens-result-link';
+        resultBtn.className = 'errorlens-results-btn';
+        resultBtn.style.display = 'none';
+        resultBtn.textContent = 'Результаты';
+        widget.appendChild(resultBtn);
 
         // Close button
         const closeBtn = document.createElement('button');
-        closeBtn.className = 'errorlens-btn';
-        closeBtn.innerHTML = '&#10005;'; // X
-        closeBtn.title = 'Закрыть ErrorLens';
+        closeBtn.className = 'errorlens-close';
+        closeBtn.innerHTML = '×';
+        closeBtn.title = 'Закрыть';
         closeBtn.addEventListener('click', removeWidget);
-        pill.appendChild(closeBtn);
+        widget.appendChild(closeBtn);
 
-        document.body.appendChild(pill);
+        document.body.appendChild(widget);
+
+        // Show onboarding if first time
+        showOnboarding();
+    }
+
+    // Show onboarding tooltip for first-time users
+    function showOnboarding() {
+        // Check if user has seen onboarding
+        const hasSeenOnboarding = localStorage.getItem('errorlens_onboarding_seen');
+        if (hasSeenOnboarding) return;
+
+        const tooltip = document.createElement('div');
+        tooltip.id = 'errorlens-tooltip';
+        tooltip.className = 'errorlens-tooltip';
+        tooltip.innerHTML = `
+            <div class="errorlens-tooltip-title">
+                <span class="errorlens-tooltip-arrow">👆</span>
+                Добро пожаловать в ErrorLens!
+            </div>
+            <div class="errorlens-tooltip-text">
+                Нажмите на кнопку записи, чтобы начать отслеживать ошибки и сетевые запросы на этой странице.
+            </div>
+            <div>
+                <button class="errorlens-tooltip-dismiss" id="errorlens-start-tour">Понятно!</button>
+                <button class="errorlens-tooltip-skip" id="errorlens-skip-tour">Больше не показывать</button>
+            </div>
+        `;
+
+        document.body.appendChild(tooltip);
+
+        document.getElementById('errorlens-start-tour').addEventListener('click', () => {
+            tooltip.remove();
+        });
+
+        document.getElementById('errorlens-skip-tour').addEventListener('click', () => {
+            localStorage.setItem('errorlens_onboarding_seen', 'true');
+            tooltip.remove();
+        });
+
+        // Auto-hide after 10 seconds
+        setTimeout(() => {
+            if (document.getElementById('errorlens-tooltip')) {
+                tooltip.remove();
+            }
+        }, 10000);
     }
 
     // Handle record button click in new UI
@@ -943,61 +1121,76 @@
         setTimeout(() => document.addEventListener('click', closeMenu), 100);
     }
 
-    // Update pill to recording state
+    // Update widget to recording state
     function updateBarToRecording() {
-        const pill = document.getElementById('errorlens-bar');
+        const widget = document.getElementById('errorlens-bar');
         const recordBtn = document.getElementById('errorlens-record-btn');
+        const label = document.getElementById('errorlens-label');
         const counter = document.getElementById('errorlens-counter');
+        const tooltip = document.getElementById('errorlens-tooltip');
 
-        if (pill) {
-            pill.className = 'errorlens-pill recording';
+        // Hide onboarding tooltip if visible
+        if (tooltip) tooltip.remove();
+
+        if (widget) {
+            widget.className = 'errorlens-widget recording';
         }
         if (recordBtn) {
-            recordBtn.innerHTML = '&#9632;'; // Square (stop)
+            recordBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>`;
             recordBtn.title = 'Остановить запись';
+        }
+        if (label) {
+            label.textContent = 'Запись...';
         }
         if (counter) {
             counter.style.display = 'block';
         }
     }
 
-    // Update pill to done state
+    // Update widget to done state
     function updateBarToDone(result) {
-        const pill = document.getElementById('errorlens-bar');
+        const widget = document.getElementById('errorlens-bar');
         const recordBtn = document.getElementById('errorlens-record-btn');
+        const label = document.getElementById('errorlens-label');
         const counter = document.getElementById('errorlens-counter');
         const resultLink = document.getElementById('errorlens-result-link');
 
-        if (pill) {
-            pill.className = 'errorlens-pill done';
+        if (widget) {
+            widget.className = 'errorlens-widget done';
         }
         if (recordBtn) {
-            recordBtn.innerHTML = '&#9679;'; // Circle (ready for new recording)
+            recordBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>`;
             recordBtn.title = 'Новая запись';
+        }
+        if (label) {
+            label.textContent = 'Готово!';
         }
         if (counter) {
             counter.style.display = 'none';
         }
         if (resultLink) {
             resultLink.style.display = 'block';
-            resultLink.textContent = 'Результаты';
             resultLink.onclick = () => showResult(result);
         }
     }
 
-    // Update pill to idle state
+    // Update widget to idle state
     function updateBarToIdle() {
-        const pill = document.getElementById('errorlens-bar');
+        const widget = document.getElementById('errorlens-bar');
         const recordBtn = document.getElementById('errorlens-record-btn');
+        const label = document.getElementById('errorlens-label');
         const counter = document.getElementById('errorlens-counter');
         const resultLink = document.getElementById('errorlens-result-link');
 
-        if (pill) {
-            pill.className = 'errorlens-pill idle';
+        if (widget) {
+            widget.className = 'errorlens-widget';
         }
         if (recordBtn) {
-            recordBtn.innerHTML = '&#9679;';
+            recordBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>`;
             recordBtn.title = 'Начать запись';
+        }
+        if (label) {
+            label.textContent = 'ErrorLens';
         }
         if (counter) {
             counter.style.display = 'none';
@@ -1010,17 +1203,17 @@
 
     // Remove widget and cleanup
     function removeWidget() {
-        const pill = document.getElementById('errorlens-bar');
+        const bar = document.getElementById('errorlens-bar');
         const widget = document.getElementById('errorlens-widget');
         const modal = document.getElementById('errorlens-modal');
         const menu = document.getElementById('errorlens-mode-menu');
+        const tooltip = document.getElementById('errorlens-tooltip');
 
-        if (pill) {
-            pill.remove();
-        }
+        if (bar) bar.remove();
         if (widget) widget.remove();
         if (modal) modal.remove();
         if (menu) menu.remove();
+        if (tooltip) tooltip.remove();
 
         // Restore handlers if recording
         if (state.isRecording) {
