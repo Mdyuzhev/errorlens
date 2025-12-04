@@ -859,76 +859,131 @@
                     background: white;
                     transform: scale(1.05);
                 }
-                /* Onboarding tooltip */
+                /* Onboarding tooltip - gradient style */
                 .errorlens-tooltip {
                     position: fixed;
                     top: 70px;
                     right: 16px;
-                    background: white;
-                    border-radius: 12px;
-                    padding: 16px 20px;
-                    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    border-radius: 16px;
+                    padding: 20px 24px;
+                    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4);
                     z-index: 2147483646;
-                    max-width: 280px;
+                    max-width: 300px;
                     animation: errorlens-fade-in 0.4s ease;
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 }
                 .errorlens-tooltip::before {
                     content: '';
                     position: absolute;
-                    top: -8px;
-                    right: 30px;
-                    width: 16px;
-                    height: 16px;
-                    background: white;
+                    top: -10px;
+                    right: 24px;
+                    width: 20px;
+                    height: 20px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     transform: rotate(45deg);
-                    box-shadow: -2px -2px 5px rgba(0,0,0,0.05);
                 }
-                .errorlens-tooltip-title {
-                    font-size: 15px;
-                    font-weight: 700;
-                    color: #333;
-                    margin-bottom: 8px;
+                .errorlens-tooltip-icon {
+                    width: 48px;
+                    height: 48px;
+                    background: rgba(255,255,255,0.2);
+                    border-radius: 50%;
                     display: flex;
                     align-items: center;
-                    gap: 8px;
+                    justify-content: center;
+                    margin-bottom: 12px;
+                    font-size: 24px;
+                    animation: errorlens-bounce 2s infinite;
+                }
+                .errorlens-tooltip-title {
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: white;
+                    margin-bottom: 8px;
                 }
                 .errorlens-tooltip-text {
                     font-size: 13px;
-                    color: #666;
-                    line-height: 1.5;
-                    margin-bottom: 12px;
+                    color: rgba(255,255,255,0.9);
+                    line-height: 1.6;
+                    margin-bottom: 16px;
                 }
-                .errorlens-tooltip-arrow {
-                    display: inline-block;
-                    animation: errorlens-point 1s infinite;
-                    font-size: 16px;
+                .errorlens-tooltip-steps {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    margin-bottom: 16px;
+                }
+                .errorlens-tooltip-step {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    font-size: 12px;
+                    color: rgba(255,255,255,0.9);
+                }
+                .errorlens-tooltip-step-num {
+                    width: 22px;
+                    height: 22px;
+                    background: rgba(255,255,255,0.25);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: 700;
+                    font-size: 11px;
+                    color: white;
+                }
+                .errorlens-tooltip-buttons {
+                    display: flex;
+                    gap: 10px;
+                    align-items: center;
                 }
                 .errorlens-tooltip-dismiss {
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
+                    background: white;
+                    color: #667eea;
                     border: none;
-                    padding: 8px 16px;
-                    border-radius: 20px;
-                    font-size: 12px;
+                    padding: 10px 20px;
+                    border-radius: 25px;
+                    font-size: 13px;
                     font-weight: 600;
                     cursor: pointer;
                     transition: all 0.2s ease;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
                 }
                 .errorlens-tooltip-dismiss:hover {
                     transform: scale(1.05);
-                    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+                    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
                 }
                 .errorlens-tooltip-skip {
                     background: none;
                     border: none;
-                    color: #999;
+                    color: rgba(255,255,255,0.7);
                     font-size: 12px;
                     cursor: pointer;
-                    margin-left: 10px;
                 }
                 .errorlens-tooltip-skip:hover {
-                    color: #666;
+                    color: white;
+                }
+                /* Dashboard button */
+                .errorlens-dashboard-btn {
+                    width: 28px;
+                    height: 28px;
+                    border: none;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: rgba(255,255,255,0.2);
+                    color: white;
+                    transition: all 0.2s ease;
+                }
+                .errorlens-dashboard-btn:hover {
+                    background: rgba(255,255,255,0.35);
+                    transform: scale(1.1);
+                }
+                .errorlens-dashboard-btn svg {
+                    width: 14px;
+                    height: 14px;
                 }
             `;
             document.head.appendChild(style);
@@ -981,6 +1036,16 @@
         resultBtn.textContent = 'Результаты';
         widget.appendChild(resultBtn);
 
+        // Dashboard button (sessions)
+        const dashboardBtn = document.createElement('button');
+        dashboardBtn.className = 'errorlens-dashboard-btn';
+        dashboardBtn.title = 'Открыть сессии';
+        dashboardBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`;
+        dashboardBtn.addEventListener('click', () => {
+            window.open(CONFIG.DASHBOARD_URL, '_blank');
+        });
+        widget.appendChild(dashboardBtn);
+
         // Close button
         const closeBtn = document.createElement('button');
         closeBtn.className = 'errorlens-close';
@@ -1005,16 +1070,28 @@
         tooltip.id = 'errorlens-tooltip';
         tooltip.className = 'errorlens-tooltip';
         tooltip.innerHTML = `
-            <div class="errorlens-tooltip-title">
-                <span class="errorlens-tooltip-arrow">👆</span>
-                Добро пожаловать в ErrorLens!
-            </div>
+            <div class="errorlens-tooltip-icon">🔍</div>
+            <div class="errorlens-tooltip-title">Добро пожаловать в ErrorLens!</div>
             <div class="errorlens-tooltip-text">
-                Нажмите на кнопку записи, чтобы начать отслеживать ошибки и сетевые запросы на этой странице.
+                Инструмент для записи и анализа ошибок на веб-страницах
             </div>
-            <div>
-                <button class="errorlens-tooltip-dismiss" id="errorlens-start-tour">Понятно!</button>
-                <button class="errorlens-tooltip-skip" id="errorlens-skip-tour">Больше не показывать</button>
+            <div class="errorlens-tooltip-steps">
+                <div class="errorlens-tooltip-step">
+                    <span class="errorlens-tooltip-step-num">1</span>
+                    <span>Нажмите ● для начала записи</span>
+                </div>
+                <div class="errorlens-tooltip-step">
+                    <span class="errorlens-tooltip-step-num">2</span>
+                    <span>Выполните действия на странице</span>
+                </div>
+                <div class="errorlens-tooltip-step">
+                    <span class="errorlens-tooltip-step-num">3</span>
+                    <span>Нажмите ■ для анализа ошибок</span>
+                </div>
+            </div>
+            <div class="errorlens-tooltip-buttons">
+                <button class="errorlens-tooltip-dismiss" id="errorlens-start-tour">Начать!</button>
+                <button class="errorlens-tooltip-skip" id="errorlens-skip-tour">Не показывать</button>
             </div>
         `;
 
@@ -1029,12 +1106,12 @@
             tooltip.remove();
         });
 
-        // Auto-hide after 10 seconds
+        // Auto-hide after 15 seconds
         setTimeout(() => {
             if (document.getElementById('errorlens-tooltip')) {
                 tooltip.remove();
             }
-        }, 10000);
+        }, 15000);
     }
 
     // Handle record button click in new UI
