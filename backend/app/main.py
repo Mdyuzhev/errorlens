@@ -8,7 +8,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, FileResponse
 
 from app.analyzer import analyze_errors
 from app.config import settings
@@ -97,22 +97,37 @@ app.include_router(articles.router)
 app.include_router(testruns.router)
 
 # Static dashboard serving for Railway
-# Try Vue dist first, then legacy HTML dashboard
-dashboard_vue_dist = Path(__file__).parent.parent.parent / "dashboard-vue" / "dist"
-dashboard_legacy = Path(__file__).parent.parent.parent / "dashboard"
+# Path varies: in Docker container it's /app/dashboard-vue/dist
+# Locally it's relative to backend/app/main.py
+dashboard_paths = [
+    Path("/app/dashboard-vue/dist"),  # Railway Docker container
+    Path(__file__).parent.parent.parent / "dashboard-vue" / "dist",  # Local dev
+    Path(__file__).parent.parent.parent / "dashboard",  # Legacy fallback
+]
 
-if dashboard_vue_dist.exists():
-    app.mount("/dashboard", StaticFiles(directory=str(dashboard_vue_dist), html=True), name="dashboard")
-    logger.info(f"Serving Vue dashboard from {dashboard_vue_dist}")
-elif dashboard_legacy.exists():
-    app.mount("/dashboard", StaticFiles(directory=str(dashboard_legacy), html=True), name="dashboard")
-    logger.info(f"Serving legacy dashboard from {dashboard_legacy}")
+for dashboard_path in dashboard_paths:
+    if dashboard_path.exists() and (dashboard_path / "index.html").exists():
+        # Mount static files for assets (must be before catch-all)
+        app.mount("/assets", StaticFiles(directory=str(dashboard_path / "assets")), name="assets")
+        logger.info(f"Serving dashboard from {dashboard_path}")
 
+        # Serve index.html for SPA routes
+        @app.get("/", include_in_schema=False)
+        async def serve_spa_root():
+            return FileResponse(str(dashboard_path / "index.html"))
 
-@app.get("/", include_in_schema=False)
-async def root_redirect():
-    """Redirect root to dashboard."""
-    return RedirectResponse(url="/dashboard/")
+        @app.get("/{path:path}", include_in_schema=False)
+        async def serve_spa(path: str):
+            # Try to serve static file first
+            file_path = dashboard_path / path
+            if file_path.exists() and file_path.is_file():
+                return FileResponse(str(file_path))
+            # Otherwise serve index.html for SPA routing
+            return FileResponse(str(dashboard_path / "index.html"))
+
+        break
+else:
+    logger.warning("No dashboard found, serving API only")
 
 
 @app.get("/health")
