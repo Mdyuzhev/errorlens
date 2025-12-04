@@ -8,6 +8,9 @@ COPY landing /usr/share/nginx/html/
 COPY bookmarklet /usr/share/nginx/html/bookmarklet/
 COPY dashboard /usr/share/nginx/html/dashboard/
 
+# Copy Vue dashboard (must be built first with npm run build)
+COPY dashboard-vue/dist /usr/share/nginx/html/dashboard-vue/dist/
+
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]

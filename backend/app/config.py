@@ -21,7 +21,7 @@ class Settings(BaseSettings):
 
     # JWT Authentication
     jwt_secret_key: str = "your-secret-key-change-in-production-min-32-chars"
-    admin_password: str = "admin123"
+    admin_password: str = "change_me_in_env"
 
     # Rate limits (for regular users)
     rate_limit_per_day: int = 10
@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     max_network_errors: int = 10
     max_screenshot_kb: int = 500
     max_recorded_requests: int = 50
+
+    # TestIt Integration (configure in .env)
+    testit_url: str = ""
+    testit_token: str = ""
+    testit_project_id: str = ""
+    testit_enabled: bool = False
 
     class Config:
         env_file = ".env"
