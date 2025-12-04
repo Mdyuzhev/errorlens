@@ -18,6 +18,7 @@ from app.models_pydantic import (
     ExportPostmanResponse,
     ExportPytestRequest,
     ExportRestAssuredRequest,
+    ExportK6Request,
     GenerateTicketRequest,
     GenerateTicketResponse,
     RecordedHttpExchange,
@@ -33,6 +34,7 @@ from app.generators import (
     generate_pytest_file_async,
     generate_restassured_file,
     generate_pom_xml,
+    generate_k6_file,
 )
 from app.ticket_generator import generate_smart_ticket
 from app.test_runner import run_pytest, get_test_run, create_test_run
@@ -466,4 +468,39 @@ mvn test
 
     except Exception as e:
         logger.exception(f"REST Assured export failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Export failed: {e}")
+
+
+@app.post("/export/k6")
+async def export_k6(request: ExportK6Request):
+    """
+    Generate k6 load test script.
+
+    Returns a JavaScript file that can be run with k6.
+    """
+    if not request.recorded_requests:
+        raise HTTPException(
+            status_code=400,
+            detail="No recorded requests to export.",
+        )
+
+    logger.info(f"Generating k6 load test from {len(request.recorded_requests)} requests")
+
+    try:
+        js_code = generate_k6_file(
+            recorded_requests=request.recorded_requests,
+            vus=request.vus,
+            duration=request.duration,
+        )
+
+        return Response(
+            content=js_code,
+            media_type="text/javascript",
+            headers={
+                "Content-Disposition": 'attachment; filename="load_test.js"'
+            }
+        )
+
+    except Exception as e:
+        logger.exception(f"k6 export failed: {e}")
         raise HTTPException(status_code=500, detail=f"Export failed: {e}")

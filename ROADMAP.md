@@ -238,7 +238,7 @@
 |----|--------|--------|
 | 7.5.1 | pytest + requests | ✅ |
 | 7.5.2 | REST Assured (Java) | ✅ |
-| 7.5.3 | k6 load tests | ⬜ |
+| 7.5.3 | k6 load tests | ✅ |
 | 7.5.4 | Playwright API tests | ⬜ |
 
 ---
@@ -371,7 +371,7 @@
 |------|----------|-----------|
 | 6.1.3 | Демо-видео/GIF для landing | Low |
 | 7.4.3 | Превью сгенерированного кода | Medium |
-| 7.5.3-4 | k6, Playwright exports | Medium |
+| 7.5.4 | Playwright API tests export | Medium |
 | 8.2.4 | Alembic migrations | Low |
 | 8.3.4 | Drag-n-drop установка bookmarklet | Low |
 | 8.6.6 | Webhook интеграции (Jira, Slack) | Medium |
@@ -389,11 +389,11 @@
 | Epic 4: LLM Интеграция | ✅ DONE | 8/8 (100%) |
 | Epic 5: Результаты и UI | ✅ DONE | 7/7 (100%) |
 | Epic 6: Landing и документация | ✅ DONE | 8/8 (100%) |
-| Epic 7: Test Generator | 🔄 IN PROGRESS | 18/22 (82%) |
+| Epic 7: Test Generator | 🔄 IN PROGRESS | 19/22 (86%) |
 | Epic 8: Web Application | ✅ DONE | 28/30 (93%) |
 | Epic 9: Docker Setup | ✅ DONE | 5/5 (100%) |
 
-**Общий прогресс: 111/117 задач (95%)**
+**Общий прогресс: 112/117 задач (96%)**
 
 ---
 
@@ -403,3 +403,12 @@
 - Fallback: Gemini 1.5 Flash
 - База данных: SQLite (async SQLAlchemy)
 - Dashboard: Vanilla JS (без фреймворков)
+
+## BLOCKER: Cloud Deployment
+
+**НЕ ДЕПЛОИТЬ в облако пока не реализована авторизация!**
+
+Текущий статус: локальная разработка. Перед деплоем нужно:
+- [ ] Авторизация пользователей (OAuth / API keys)
+- [ ] Защита эндпоинтов
+- [ ] Rate limiting per user

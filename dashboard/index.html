@@ -338,6 +338,7 @@
                 <button class="btn" id="postmanExportBtn" onclick="exportSession('postman')" style="display: none;">Экспорт Postman</button>
                 <button class="btn" id="pytestExportBtn" onclick="exportSession('pytest')" style="display: none;">Экспорт pytest</button>
                 <button class="btn" id="restassuredExportBtn" onclick="exportSession('restassured')" style="display: none; background: #b07219; color: white;" title="Maven project with REST Assured tests">REST Assured</button>
+                <button class="btn" id="k6ExportBtn" onclick="exportSession('k6')" style="display: none; background: #7d64ff; color: white;" title="k6 load test script">k6 Load Test</button>
                 <button class="btn" id="ticketBtn" onclick="openTicketModal()" style="display: none; background: #FF9800;">Создать тикет</button>
                 <button class="btn" id="runnerBtn" onclick="openRunnerModal()" style="display: none; background: #4CAF50; color: white;">Запустить тесты</button>
                 <button class="btn btn-danger" onclick="deleteCurrentSession()">Удалить</button>
@@ -653,6 +654,7 @@
                 const postmanBtn = document.getElementById('postmanExportBtn');
                 const pytestBtn = document.getElementById('pytestExportBtn');
                 const restassuredBtn = document.getElementById('restassuredExportBtn');
+                const k6Btn = document.getElementById('k6ExportBtn');
                 const ticketBtn = document.getElementById('ticketBtn');
 
                 if (postmanBtn) {
@@ -663,6 +665,9 @@
                 }
                 if (restassuredBtn) {
                     restassuredBtn.style.display = hasRecordedRequests ? 'inline-block' : 'none';
+                }
+                if (k6Btn) {
+                    k6Btn.style.display = hasRecordedRequests ? 'inline-block' : 'none';
                 }
                 if (ticketBtn) {
                     ticketBtn.style.display = hasAnalysis ? 'inline-block' : 'none';

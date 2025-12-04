@@ -5,9 +5,10 @@ Available generators:
 - restassured: Java REST Assured tests
 - postman: Postman Collection
 - cypress: Cypress API tests
+- k6: k6 load tests
 
 Usage:
-    from app.generators import pytest, restassured, postman, cypress
+    from app.generators import pytest, restassured, postman, cypress, k6
 
     # Generate pytest file
     code = pytest.generate_pytest_file(recorded_requests)
@@ -20,6 +21,9 @@ Usage:
 
     # Generate Cypress file
     code = cypress.generate_cypress_file(recorded_requests)
+
+    # Generate k6 load test
+    code = k6.generate_k6_file(recorded_requests)
 """
 
 # Base classes and utilities
@@ -64,6 +68,12 @@ from .cypress import (
     generate_package_json_deps,
 )
 
+# k6 load test generator
+from .k6 import (
+    K6Generator,
+    generate_k6_file,
+)
+
 # LLM comments
 from .llm_comments import generate_llm_comments
 
@@ -95,6 +105,9 @@ __all__ = [
     "generate_cypress_file",
     "generate_cypress_config",
     "generate_package_json_deps",
+    # k6
+    "K6Generator",
+    "generate_k6_file",
     # LLM
     "generate_llm_comments",
 ]
