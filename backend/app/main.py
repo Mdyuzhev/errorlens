@@ -42,7 +42,8 @@ from app.generators import (
 )
 from app.ticket_generator import generate_smart_ticket
 from app.test_runner import run_pytest, run_restassured, get_test_run, create_test_run
-from app.routers import auth, sessions
+from app.routers import auth, sessions, testcases, tasks, articles, testruns
+from app.integrations.testit_client import testit_client, TestItTestCase, TestItStep
 from app.services.auth import init_admin_user
 from app.session_analyzer import analyze_session
 
@@ -86,6 +87,10 @@ app.add_middleware(
 # Include routers
 app.include_router(auth.router)
 app.include_router(sessions.router)
+app.include_router(testcases.router)
+app.include_router(tasks.router)
+app.include_router(articles.router)
+app.include_router(testruns.router)
 
 
 @app.get("/health")
@@ -651,3 +656,114 @@ async def export_testit(
     except Exception as e:
         logger.exception(f"TestIt export failed: {e}")
         raise HTTPException(status_code=500, detail=f"Export failed: {e}")
+
+
+# ============================================================================
+# TestIt Integration Endpoints
+# ============================================================================
+
+
+@app.get("/integrations/testit/status")
+async def testit_status(_: User = Depends(require_auth)):
+    """Check TestIt connection status."""
+    if not settings.testit_enabled:
+        return {"enabled": False}
+
+    status = await testit_client.check_connection()
+    return {"enabled": True, **status}
+
+
+@app.post("/sessions/{session_id}/send-to-testit")
+async def send_session_to_testit(
+    session_id: str,
+    db=Depends(sessions.get_db),
+    _: User = Depends(require_auth),
+):
+    """
+    Send session directly to TestIt as a test case.
+
+    Returns URL to created test case in TestIt.
+    """
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from app.models.db_models import Session
+    from app.generators.testit import TestItGenerator
+
+    if not settings.testit_enabled:
+        raise HTTPException(status_code=400, detail="TestIt integration is disabled")
+
+    # Get session
+    result = await db.execute(
+        select(Session)
+        .options(selectinload(Session.data), selectinload(Session.analysis))
+        .where(Session.id == session_id)
+    )
+    session = result.scalar_one_or_none()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Build session data for generator
+    session_data = {
+        "url": session.url,
+        "console_logs": session.data.console_logs if session.data else [],
+        "network_errors": session.data.network_errors if session.data else [],
+        "js_exceptions": session.data.js_exceptions if session.data else [],
+        "recorded_requests": session.data.recorded_requests if session.data else [],
+    }
+
+    analysis = None
+    if session.analysis:
+        analysis = {
+            "summary": session.analysis.summary,
+            "probable_cause": session.analysis.probable_cause,
+            "suggested_fix": session.analysis.suggested_fix,
+        }
+
+    # Generate test case
+    generator = TestItGenerator(session_data, analysis)
+    tc = generator.generate()
+
+    # Convert to TestIt model
+    steps = [
+        TestItStep(
+            action=step["action"],
+            expected=step["expected"],
+            test_data=step.get("testData", ""),
+        )
+        for step in tc["steps"]
+    ]
+
+    test_case = TestItTestCase(
+        name=tc["name"],
+        description=tc["description"],
+        preconditions=tc["preconditions"],
+        postconditions=tc["postconditions"],
+        priority=tc["priority"],
+        state="Ready",
+        steps=steps,
+        tags=tc["tags"] + ["errorlens", "auto-generated"],
+    )
+
+    # Send to TestIt
+    result = await testit_client.create_test_case(test_case)
+
+    if result.get("success"):
+        # Save TestIt URL to session
+        session.testit_url = result["url"]
+        session.testit_id = result["globalId"]
+        await db.commit()
+
+        logger.info(f"Created test case in TestIt: {result['url']}")
+        return {
+            "success": True,
+            "message": "Test case created in TestIt",
+            "testit_url": result["url"],
+            "testit_id": result["globalId"],
+        }
+    else:
+        logger.error(f"Failed to create test case in TestIt: {result.get('error')}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create test case: {result.get('error')}",
+        )

@@ -50,6 +50,8 @@ class SessionResponse(BaseModel):
     has_errors: bool
     has_requests: bool
     events_count: int
+    testit_url: Optional[str] = None
+    testit_id: Optional[int] = None
 
 
 class SessionDetailResponse(BaseModel):
@@ -66,6 +68,8 @@ class SessionDetailResponse(BaseModel):
     recorded_requests: list[dict]
     screenshot: Optional[str]
     analysis: Optional[dict]
+    testit_url: Optional[str] = None
+    testit_id: Optional[int] = None
 
 
 class SessionListResponse(BaseModel):
@@ -224,6 +228,8 @@ async def list_sessions(
             has_errors=is_bug,
             has_requests=is_chain,
             events_count=events_count,
+            testit_url=s.testit_url,
+            testit_id=s.testit_id,
         ))
 
     return SessionListResponse(
@@ -279,6 +285,8 @@ async def get_session(
         recorded_requests=session.data.recorded_requests if session.data else [],
         screenshot=session.data.screenshot if session.data else None,
         analysis=analysis_dict,
+        testit_url=session.testit_url,
+        testit_id=session.testit_id,
     )
 
 
