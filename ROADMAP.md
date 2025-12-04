@@ -322,7 +322,19 @@
 | 8.6.3 | Экспорт в pytest (шаблон) | ✅ |
 | 8.6.4 | Генератор тикетов (Jira/GitHub/Markdown) | ✅ |
 | 8.6.5 | Запуск pytest из dashboard | ✅ |
-| 8.6.6 | Webhook интеграции (Jira, Slack) | ⬜ |
+| 8.6.6 | Запуск REST Assured (Java/Maven) из dashboard | ✅ |
+| 8.6.7 | Webhook интеграции (Jira, Slack) | ⬜ |
+
+### Story 8.7: Dashboard UX Improvements
+
+| ID | Задача | Статус |
+|----|--------|--------|
+| 8.7.1 | Фильтры сессий (All/Bug/Chain) | ✅ |
+| 8.7.2 | Quick Test кнопка на списке сессий | ✅ |
+| 8.7.3 | Цветовая индикация статуса теста (grey/blue/green/red) | ✅ |
+| 8.7.4 | Компактный grid кнопок в modal footer | ✅ |
+| 8.7.5 | Выбор типа теста (pytest/Java/k6) в runner | ✅ |
+| 8.7.6 | Кнопка скачать выбранный формат теста | ✅ |
 
 ---
 

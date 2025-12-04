@@ -77,14 +77,15 @@ errorlens/
 | POST | `/analyze` | AI-powered error analysis |
 | POST | `/export/postman` | Generate Postman Collection |
 | POST | `/export/pytest` | Generate pytest file |
-| POST | `/export/restassured` | Generate REST Assured (Java) |
+| POST | `/export/restassured` | Generate REST Assured (Java ZIP) |
 | POST | `/export/k6` | Generate k6 load test script |
 | POST | `/analyze/session` | Analyze session for test generation |
 | POST | `/tickets/generate` | Generate smart Jira/GitHub ticket |
 | POST | `/tests/run` | Start pytest execution |
+| POST | `/tests/run/restassured` | Start REST Assured (Maven) execution |
 | GET | `/tests/{id}/status` | Get test run status |
 | POST | `/sessions` | Create session with auto-analysis |
-| GET | `/sessions` | List sessions (paginated) |
+| GET | `/sessions` | List sessions (paginated, has_errors/has_requests flags) |
 | GET | `/sessions/{id}` | Get session details |
 | DELETE | `/sessions/{id}` | Delete session |
 | GET | `/sessions/{id}/export/{format}` | Export (markdown/postman/pytest) |
@@ -138,7 +139,11 @@ SQLite with async SQLAlchemy (aiosqlite).
 | Feature | Status |
 |---------|--------|
 | Session list with pagination | ✅ |
+| Session filters (All/Bug/Chain) | ✅ |
+| Quick 🐍 Test button on session list | ✅ |
+| Test status colors (grey/blue/green/red) | ✅ |
 | Session detail modal | ✅ |
+| Compact button grid in modal footer | ✅ |
 | Export to Markdown | ✅ |
 | Export to Postman | ✅ |
 | Export to pytest | ✅ |
@@ -147,6 +152,8 @@ SQLite with async SQLAlchemy (aiosqlite).
 | Smart ticket generator (auto-steps, timeline) | ✅ |
 | Integration stubs (Jira/Slack/Telegram) | ✅ |
 | pytest runner with live output | ✅ |
+| REST Assured runner (Java/Maven) | ✅ |
+| Test type selector (pytest/Java/k6) | ✅ |
 | Delete session | ✅ |
 
 ---
@@ -159,7 +166,7 @@ SQLite with async SQLAlchemy (aiosqlite).
 | Database | SQLite + SQLAlchemy (async) |
 | LLM | Groq Llama 3.3 70B |
 | Frontend | Vanilla JS |
-| Container | Docker, nginx |
+| Container | Docker, nginx, Java 21, Maven 3.9 |
 | CI/CD | GitHub Actions |
 
 ---
