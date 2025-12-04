@@ -74,6 +74,12 @@ from .k6 import (
     generate_k6_file,
 )
 
+# TestIt test case generator
+from .testit import (
+    TestItGenerator,
+    generate_testit_testcase,
+)
+
 # LLM comments
 from .llm_comments import generate_llm_comments
 
@@ -108,6 +114,9 @@ __all__ = [
     # k6
     "K6Generator",
     "generate_k6_file",
+    # TestIt
+    "TestItGenerator",
+    "generate_testit_testcase",
     # LLM
     "generate_llm_comments",
 ]
