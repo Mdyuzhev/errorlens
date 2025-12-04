@@ -50,6 +50,8 @@ class SessionResponse(BaseModel):
     has_errors: bool
     has_requests: bool
     events_count: int
+    testit_url: Optional[str] = None
+    testit_id: Optional[int] = None
 
 
 class SessionDetailResponse(BaseModel):
@@ -66,6 +68,8 @@ class SessionDetailResponse(BaseModel):
     recorded_requests: list[dict]
     screenshot: Optional[str]
     analysis: Optional[dict]
+    testit_url: Optional[str] = None
+    testit_id: Optional[int] = None
 
 
 class SessionListResponse(BaseModel):
@@ -224,6 +228,8 @@ async def list_sessions(
             has_errors=is_bug,
             has_requests=is_chain,
             events_count=events_count,
+            testit_url=s.testit_url,
+            testit_id=s.testit_id,
         ))
 
     return SessionListResponse(
@@ -279,6 +285,8 @@ async def get_session(
         recorded_requests=session.data.recorded_requests if session.data else [],
         screenshot=session.data.screenshot if session.data else None,
         analysis=analysis_dict,
+        testit_url=session.testit_url,
+        testit_id=session.testit_id,
     )
 
 
@@ -309,13 +317,15 @@ async def delete_session(
 async def export_session(
     session_id: str,
     format: str,
+    subformat: str = "json",
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_auth),
 ) -> Response:
     """
     Export session in specified format.
 
-    Supported formats: markdown, postman, pytest
+    Supported formats: markdown, postman, pytest, restassured, testit
+    For testit: subformat can be json, xml, or markdown
     """
     query = (
         select(Session)
@@ -411,6 +421,44 @@ async def export_session(
             media_type="application/zip",
             headers={
                 "Content-Disposition": f'attachment; filename="{class_name}.zip"'
+            }
+        )
+    elif format == "testit":
+        from app.generators import generate_testit_testcase
+
+        session_data = {
+            "id": session.id,
+            "url": session.url,
+            "recorded_requests": session.data.recorded_requests if session.data else [],
+            "has_errors": bool(session.data and session.data.network_errors),
+        }
+
+        analysis = None
+        if session.analysis:
+            analysis = {
+                "summary": session.analysis.summary,
+                "probable_cause": session.analysis.probable_cause,
+                "severity": session.analysis.severity,
+            }
+
+        content = generate_testit_testcase(session_data, analysis, subformat)
+
+        # Determine content type based on subformat
+        if subformat == "xml":
+            media_type = "application/xml"
+            filename = f"testcase-{session_id[:8]}.xml"
+        elif subformat == "markdown":
+            media_type = "text/markdown"
+            filename = f"testcase-{session_id[:8]}.md"
+        else:
+            media_type = "application/json"
+            filename = f"testcase-{session_id[:8]}.json"
+
+        return Response(
+            content=content,
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
             }
         )
     else:
