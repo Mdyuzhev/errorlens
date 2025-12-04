@@ -2,9 +2,9 @@
 
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Boolean
 from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -14,6 +14,118 @@ from app.database import Base
 def generate_uuid() -> str:
     """Generate UUID string for primary keys."""
     return str(uuid.uuid4())
+
+
+# ============= Multi-tenancy Models =============
+
+
+class Project(Base):
+    """Project for multi-tenancy grouping."""
+
+    __tablename__ = "projects"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=generate_uuid
+    )
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    slug: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+
+    # Owner
+    owner_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE")
+    )
+
+    # Settings
+    is_public: Mapped[bool] = mapped_column(Boolean, default=False)
+    settings: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Relationships
+    owner = relationship("User", back_populates="owned_projects", foreign_keys=[owner_id])
+    members: Mapped[List["ProjectMember"]] = relationship(
+        "ProjectMember", back_populates="project", cascade="all, delete-orphan"
+    )
+    folders: Mapped[List["Folder"]] = relationship(
+        "Folder", back_populates="project", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self) -> str:
+        return f"<Project {self.slug}>"
+
+
+class Folder(Base):
+    """Folder within a project for organizing test cases."""
+
+    __tablename__ = "folders"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=generate_uuid
+    )
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Parent project
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE")
+    )
+
+    # Parent folder (for nested structure)
+    parent_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("folders.id", ondelete="CASCADE"), nullable=True
+    )
+
+    # Ordering
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    project: Mapped["Project"] = relationship("Project", back_populates="folders")
+    parent: Mapped[Optional["Folder"]] = relationship(
+        "Folder", remote_side=[id], back_populates="children"
+    )
+    children: Mapped[List["Folder"]] = relationship(
+        "Folder", back_populates="parent", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self) -> str:
+        return f"<Folder {self.name}>"
+
+
+class ProjectMember(Base):
+    """Project membership (many-to-many User <-> Project)."""
+
+    __tablename__ = "project_members"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=generate_uuid
+    )
+
+    # Foreign keys
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE")
+    )
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE")
+    )
+
+    # Role within project
+    role: Mapped[str] = mapped_column(String(20), default="member")  # owner, admin, member, viewer
+
+    # Timestamps
+    joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    project: Mapped["Project"] = relationship("Project", back_populates="members")
+    user = relationship("User", back_populates="project_memberships")
+
+    def __repr__(self) -> str:
+        return f"<ProjectMember {self.user_id} in {self.project_id}>"
 
 
 class Session(Base):
