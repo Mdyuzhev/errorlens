@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ErrorLens Dashboard</title>
+    <title>ErrorLens Dashboard v3</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <style>
         * {
@@ -118,6 +118,11 @@
             font-size: 12px;
         }
 
+        .btn-test-idle { background: #9e9e9e; color: white; }
+        .btn-test-running { background: #2196F3; color: white; animation: pulse 1s infinite; }
+        .btn-test-passed { background: #4CAF50; color: white; }
+        .btn-test-failed { background: #F44336; color: white; }
+
         .sessions-list {
             background: white;
             border-radius: 12px;
@@ -213,8 +218,8 @@
             background: white;
             border-radius: 16px;
             max-width: 800px;
-            max-height: 90vh;
-            width: 90%;
+            max-height: 85vh;
+            width: 95%;
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -271,11 +276,17 @@
         }
 
         .modal-footer {
-            padding: 16px 24px;
+            padding: 12px 16px;
             border-top: 1px solid #eee;
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .modal-footer .btn {
+            padding: 8px 4px;
+            font-size: 11px;
+            white-space: nowrap;
         }
 
         .pagination {
@@ -316,6 +327,25 @@
             <button class="btn btn-primary" onclick="loadSessions()">Обновить</button>
         </div>
 
+        <!-- Filters -->
+        <div id="sessionFilters" style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 12px; background: #fff; border-radius: 8px; border: 1px solid #ddd;">
+                <input type="radio" name="sessionFilter" value="all" onchange="applyFilters()" checked>
+                <span>📋 Все</span>
+                <span id="countAll" style="background: #f5f5f5; color: #666; padding: 2px 8px; border-radius: 12px; font-size: 12px;">0</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 12px; background: #fff; border-radius: 8px; border: 1px solid #ddd;">
+                <input type="radio" name="sessionFilter" value="bugs" onchange="applyFilters()">
+                <span>🐛 Bug</span>
+                <span id="countBugs" style="background: #ffebee; color: #c62828; padding: 2px 8px; border-radius: 12px; font-size: 12px;">0</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 12px; background: #fff; border-radius: 8px; border: 1px solid #ddd;">
+                <input type="radio" name="sessionFilter" value="chain" onchange="applyFilters()">
+                <span>🔗 Chain</span>
+                <span id="countChain" style="background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 12px; font-size: 12px;">0</span>
+            </label>
+        </div>
+
         <div class="sessions-list" id="sessionsList">
             <div class="loading">Загрузка...</div>
         </div>
@@ -334,14 +364,14 @@
                 <!-- Content loaded dynamically -->
             </div>
             <div class="modal-footer" id="modalFooter">
-                <button class="btn" onclick="exportSession('markdown')">Экспорт MD</button>
-                <button class="btn" id="postmanExportBtn" onclick="exportSession('postman')" style="display: none;">Экспорт Postman</button>
-                <button class="btn" id="pytestExportBtn" onclick="exportSession('pytest')" style="display: none;">Экспорт pytest</button>
-                <button class="btn" id="restassuredExportBtn" onclick="exportSession('restassured')" style="display: none; background: #b07219; color: white;" title="Maven project with REST Assured tests">REST Assured</button>
-                <button class="btn" id="k6ExportBtn" onclick="exportSession('k6')" style="display: none; background: #7d64ff; color: white;" title="k6 load test script">k6 Load Test</button>
-                <button class="btn" id="ticketBtn" onclick="openTicketModal()" style="display: none; background: #FF9800;">Создать тикет</button>
-                <button class="btn" id="runnerBtn" onclick="openRunnerModal()" style="display: none; background: #4CAF50; color: white;">Запустить тесты</button>
-                <button class="btn btn-danger" onclick="deleteCurrentSession()">Удалить</button>
+                <button class="btn" onclick="exportSession('markdown')">📄 MD</button>
+                <button class="btn" id="postmanExportBtn" onclick="exportSession('postman')" style="display: none;">📦 Postman</button>
+                <button class="btn" id="pytestExportBtn" onclick="exportSession('pytest')" style="display: none;">🐍 pytest</button>
+                <button class="btn" id="restassuredExportBtn" onclick="exportSession('restassured')" style="display: none; background: #b07219; color: white;">☕ Java</button>
+                <button class="btn" id="k6ExportBtn" onclick="exportSession('k6')" style="display: none; background: #7d64ff; color: white;">⚡ k6</button>
+                <button class="btn" id="ticketBtn" onclick="openTicketModal()" style="display: none; background: #FF9800; color: white;">🎫 Тикет</button>
+                <button class="btn" id="runnerBtn" onclick="openRunnerModal()" style="display: none; background: #4CAF50; color: white;">▶️ Тесты</button>
+                <button class="btn btn-danger" onclick="deleteCurrentSession()">🗑️ Удалить</button>
             </div>
         </div>
     </div>
@@ -374,24 +404,29 @@
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="flex-wrap: wrap; gap: 8px;">
-                <button class="btn btn-primary" id="generateTicketBtn" onclick="generateTicket()">Сгенерировать</button>
-                <button class="btn" id="copyTicketBtn" onclick="copyTicket()" style="display: none; background: #4CAF50; color: white;">Скопировать</button>
-
-                <!-- Integration stubs (coming soon) -->
-                <div id="integrationButtons" style="display: none; border-left: 1px solid #ddd; padding-left: 12px; margin-left: 4px;">
-                    <button class="btn btn-integration" onclick="showComingSoon('Jira')" title="Отправить в Jira (скоро)">
-                        <span style="font-size: 16px;">📋</span> Jira
-                    </button>
-                    <button class="btn btn-integration" onclick="showComingSoon('Slack')" title="Отправить в Slack (скоро)">
-                        <span style="font-size: 16px;">💬</span> Slack
-                    </button>
-                    <button class="btn btn-integration" onclick="showComingSoon('Telegram')" title="Отправить в Telegram (скоро)">
-                        <span style="font-size: 16px;">✈️</span> Telegram
-                    </button>
+            <div class="modal-footer" style="flex-direction: column; gap: 12px; align-items: stretch;">
+                <!-- Main actions row -->
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" id="generateTicketBtn" onclick="generateTicket()">Сгенерировать</button>
+                    <button class="btn" id="copyTicketBtn" onclick="copyTicket()" style="display: none; background: #4CAF50; color: white;">Скопировать</button>
+                    <button class="btn" onclick="closeTicketModal()" style="margin-left: auto;">Закрыть</button>
                 </div>
 
-                <button class="btn" onclick="closeTicketModal()" style="margin-left: auto;">Закрыть</button>
+                <!-- Integration stubs (coming soon) - separate row -->
+                <div id="integrationButtons" style="display: none; border-top: 1px solid #eee; padding-top: 12px;">
+                    <div style="font-size: 12px; color: #888; margin-bottom: 8px;">Отправить в:</div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn btn-integration" onclick="showComingSoon('Jira')" title="Отправить в Jira (скоро)">
+                            📋 Jira
+                        </button>
+                        <button class="btn btn-integration" onclick="showComingSoon('Slack')" title="Отправить в Slack (скоро)">
+                            💬 Slack
+                        </button>
+                        <button class="btn btn-integration" onclick="showComingSoon('Telegram')" title="Отправить в Telegram (скоро)">
+                            ✈️ Telegram
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -404,11 +439,42 @@
                 <button class="modal-close" onclick="closeRunnerModal()">&times;</button>
             </div>
             <div class="modal-body">
+                <!-- Test type selector -->
+                <div id="testTypeSelector" style="margin-bottom: 16px; padding: 16px; background: #f9f9f9; border-radius: 8px;">
+                    <div style="font-weight: 600; margin-bottom: 12px;">Выберите тип тестов:</div>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 16px; border: 2px solid #ddd; border-radius: 8px; transition: all 0.2s;" class="test-type-option" data-type="pytest">
+                            <input type="radio" name="testType" value="pytest" checked style="width: 18px; height: 18px;">
+                            <span style="font-size: 20px;">🐍</span>
+                            <div>
+                                <div style="font-weight: 600;">pytest</div>
+                                <div style="font-size: 12px; color: #666;">Python + requests</div>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 16px; border: 2px solid #ddd; border-radius: 8px; transition: all 0.2s;" class="test-type-option" data-type="restassured">
+                            <input type="radio" name="testType" value="restassured" style="width: 18px; height: 18px;">
+                            <span style="font-size: 20px;">☕</span>
+                            <div>
+                                <div style="font-weight: 600;">REST Assured</div>
+                                <div style="font-size: 12px; color: #666;">Java + Maven</div>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 16px; border: 2px solid #ddd; border-radius: 8px; transition: all 0.2s;" class="test-type-option" data-type="k6">
+                            <input type="radio" name="testType" value="k6" style="width: 18px; height: 18px;">
+                            <span style="font-size: 20px;">⚡</span>
+                            <div>
+                                <div style="font-weight: 600;">k6 Load Test</div>
+                                <div style="font-size: 12px; color: #666;">Только скачать</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
                 <div id="runnerStatus" style="margin-bottom: 16px;">
                     <span class="runner-badge idle">Готов к запуску</span>
                 </div>
                 <div class="runner-output" style="background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 8px; max-height: 400px; overflow-y: auto; margin-bottom: 16px;">
-                    <pre id="testOutput" style="margin: 0; font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; line-height: 1.5; white-space: pre-wrap;">Нажмите "Запустить" для начала...</pre>
+                    <pre id="testOutput" style="margin: 0; font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; line-height: 1.5; white-space: pre-wrap;">Выберите тип тестов и нажмите "Запустить"...</pre>
                 </div>
                 <div id="runnerSummary" style="display: none; background: #f5f5f5; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
                     <div style="display: flex; gap: 24px; font-weight: 600; font-size: 16px;">
@@ -419,7 +485,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-primary" id="runTestsBtn" onclick="runTests()">Запустить</button>
+                <button class="btn" onclick="downloadSelectedTest()">📥 Скачать</button>
+                <button class="btn btn-primary" id="runTestsBtn" onclick="runTests()">🚀 Запустить</button>
                 <button class="btn" onclick="closeRunnerModal()">Закрыть</button>
             </div>
         </div>
@@ -482,6 +549,9 @@
         const pageSize = 20;
         let currentSessionId = null;
 
+        let allSessions = []; // Store all sessions for filtering
+        let sessionTestStatus = {}; // Track test status per session: idle/running/passed/failed
+
         async function loadSessions() {
             const list = document.getElementById('sessionsList');
             list.innerHTML = '<div class="loading">Загрузка...</div>';
@@ -491,33 +561,19 @@
                 const data = await response.json();
 
                 document.getElementById('totalSessions').textContent = data.total;
+                allSessions = data.items;
 
-                if (data.items.length === 0) {
-                    list.innerHTML = `
-                        <div class="empty-state">
-                            <h3>Нет записанных сессий</h3>
-                            <p>Установите букмарклет и начните запись на любом сайте</p>
-                        </div>
-                    `;
-                    return;
-                }
+                // Count categories
+                let bugCount = 0, chainCount = 0;
+                allSessions.forEach(s => {
+                    if (s.has_errors) bugCount++;
+                    if (s.has_requests) chainCount++;
+                });
+                document.getElementById('countAll').textContent = allSessions.length;
+                document.getElementById('countBugs').textContent = bugCount;
+                document.getElementById('countChain').textContent = chainCount;
 
-                list.innerHTML = data.items.map(session => `
-                    <div class="session-item" onclick="openSession('${session.id}')">
-                        <div class="session-severity severity-${session.has_analysis ? 'medium' : 'none'}"></div>
-                        <div class="session-info">
-                            <div class="session-url">${escapeHtml(session.url)}</div>
-                            <div class="session-meta">
-                                ${new Date(session.created_at).toLocaleString('ru-RU')} ·
-                                ${session.events_count} событий ·
-                                ${session.recording_duration_ms}ms
-                            </div>
-                        </div>
-                        <div class="session-actions">
-                            <button class="btn btn-small" onclick="event.stopPropagation(); deleteSession('${session.id}')">Удалить</button>
-                        </div>
-                    </div>
-                `).join('');
+                applyFilters();
 
                 // Update pagination
                 const totalPages = Math.ceil(data.total / pageSize);
@@ -531,6 +587,106 @@
                         <p>${error.message}</p>
                     </div>
                 `;
+            }
+        }
+
+        function applyFilters() {
+            const list = document.getElementById('sessionsList');
+            const filter = document.querySelector('input[name="sessionFilter"]:checked')?.value || 'all';
+
+            const filtered = allSessions.filter(session => {
+                if (filter === 'all') return true;
+                if (filter === 'bugs') return session.has_errors;
+                if (filter === 'chain') return session.has_requests;
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <h3>Нет записанных сессий</h3>
+                        <p>Установите букмарклет и начните запись на любом сайте</p>
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = filtered.map(session => {
+                // Build badges
+                let badges = '';
+                if (session.has_errors) badges += '<span style="background: #ffebee; color: #c62828; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-right: 4px;">🐛 Bug</span>';
+                if (session.has_requests) badges += '<span style="background: #e3f2fd; color: #1565c0; padding: 2px 6px; border-radius: 4px; font-size: 11px;">🔗 Chain</span>';
+
+                // Test button color based on status
+                const testStatus = sessionTestStatus[session.id];
+                let testBtnClass = 'btn-test-idle'; // grey - no tests
+                if (testStatus === 'running') testBtnClass = 'btn-test-running'; // blue
+                else if (testStatus === 'passed') testBtnClass = 'btn-test-passed'; // green
+                else if (testStatus === 'failed' || testStatus === 'error') testBtnClass = 'btn-test-failed'; // red
+
+                return `
+                    <div class="session-item" onclick="openSession('${session.id}')">
+                        <div class="session-severity severity-${session.has_analysis ? 'medium' : 'none'}"></div>
+                        <div class="session-info">
+                            <div class="session-url">${escapeHtml(session.url)}</div>
+                            <div class="session-meta">
+                                ${new Date(session.created_at).toLocaleString('ru-RU')} ·
+                                ${session.events_count} событий ·
+                                ${session.recording_duration_ms}ms
+                            </div>
+                            <div style="margin-top: 4px;">${badges}</div>
+                        </div>
+                        <div class="session-actions">
+                            <button class="btn btn-small ${testBtnClass}" onclick="event.stopPropagation(); runQuickTest('${session.id}')" title="Запустить pytest">🐍 Test</button>
+                            <button class="btn btn-small" onclick="event.stopPropagation(); deleteSession('${session.id}')">Удалить</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function runQuickTest(sessionId) {
+            // Update button to running state
+            sessionTestStatus[sessionId] = 'running';
+            applyFilters(); // Re-render to show blue button
+
+            try {
+                const response = await fetch(`${API_URL}/tests/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to start tests');
+                }
+
+                const data = await response.json();
+                const testId = data.test_id;
+
+                // Poll for results
+                const pollTest = setInterval(async () => {
+                    try {
+                        const statusResp = await fetch(`${API_URL}/tests/${testId}/status`);
+                        const status = await statusResp.json();
+
+                        if (status.status === 'passed' || status.status === 'failed' || status.status === 'error') {
+                            clearInterval(pollTest);
+                            sessionTestStatus[sessionId] = status.status;
+                            applyFilters(); // Re-render to show green/red button
+                        }
+                    } catch (e) {
+                        clearInterval(pollTest);
+                        sessionTestStatus[sessionId] = 'error';
+                        applyFilters();
+                    }
+                }, 1000);
+
+            } catch (error) {
+                sessionTestStatus[sessionId] = 'error';
+                applyFilters();
+                alert('Ошибка запуска теста: ' + error.message);
             }
         }
 
@@ -633,14 +789,118 @@
                     `;
                 }
 
+                // Errors section (Bug)
+                const hasErrors = (session.console_logs?.length > 0) ||
+                                  (session.network_errors?.length > 0) ||
+                                  (session.js_exceptions?.length > 0);
+
+                if (hasErrors) {
+                    html += `<div class="analysis-section">
+                        <h3>🐛 Bug - Ошибки</h3>
+                        <div style="max-height: 300px; overflow-y: auto;">`;
+
+                    // Console errors
+                    if (session.console_logs?.length > 0) {
+                        const errors = session.console_logs.filter(l => l.level === 'error' || l.level === 'warn');
+                        if (errors.length > 0) {
+                            html += `<div style="margin-bottom: 12px;">
+                                <div style="font-weight: 600; color: #666; margin-bottom: 8px;">Console (${errors.length})</div>`;
+                            errors.slice(0, 10).forEach(log => {
+                                const time = log.timestamp ? new Date(log.timestamp).toLocaleTimeString('ru-RU') : '';
+                                const color = log.level === 'error' ? '#D32F2F' : '#FF9800';
+                                html += `<div style="background: #fff5f5; border-left: 3px solid ${color}; padding: 8px; margin-bottom: 4px; font-size: 12px;">
+                                    <span style="color: #888;">${time}</span>
+                                    <span style="color: ${color}; font-weight: 600;">[${log.level}]</span>
+                                    ${escapeHtml(log.message?.substring(0, 200) || '')}
+                                </div>`;
+                            });
+                            if (errors.length > 10) html += `<div style="color: #888; font-size: 12px;">...и ещё ${errors.length - 10}</div>`;
+                            html += `</div>`;
+                        }
+                    }
+
+                    // Network errors
+                    if (session.network_errors?.length > 0) {
+                        html += `<div style="margin-bottom: 12px;">
+                            <div style="font-weight: 600; color: #666; margin-bottom: 8px;">Network Errors (${session.network_errors.length})</div>`;
+                        session.network_errors.slice(0, 10).forEach(err => {
+                            const time = err.timestamp ? new Date(err.timestamp).toLocaleTimeString('ru-RU') : '';
+                            html += `<div style="background: #fff5f5; border-left: 3px solid #D32F2F; padding: 8px; margin-bottom: 4px; font-size: 12px;">
+                                <span style="color: #888;">${time}</span>
+                                <span style="color: #D32F2F; font-weight: 600;">${err.status || 'ERR'}</span>
+                                ${escapeHtml(err.url?.substring(0, 100) || '')}
+                            </div>`;
+                        });
+                        html += `</div>`;
+                    }
+
+                    // JS Exceptions
+                    if (session.js_exceptions?.length > 0) {
+                        html += `<div style="margin-bottom: 12px;">
+                            <div style="font-weight: 600; color: #666; margin-bottom: 8px;">JS Exceptions (${session.js_exceptions.length})</div>`;
+                        session.js_exceptions.slice(0, 5).forEach(ex => {
+                            const time = ex.timestamp ? new Date(ex.timestamp).toLocaleTimeString('ru-RU') : '';
+                            html += `<div style="background: #fff5f5; border-left: 3px solid #D32F2F; padding: 8px; margin-bottom: 4px; font-size: 12px;">
+                                <span style="color: #888;">${time}</span>
+                                <span style="color: #D32F2F; font-weight: 600;">💥</span>
+                                ${escapeHtml(ex.message?.substring(0, 200) || '')}
+                            </div>`;
+                        });
+                        html += `</div>`;
+                    }
+
+                    html += `</div></div>`;
+                }
+
+                // Request chain section (Chain)
+                if (session.recorded_requests?.length > 0) {
+                    html += `<div class="analysis-section">
+                        <h3>🔗 Chain - Цепочка запросов (${session.recorded_requests.length})</h3>
+                        <div style="max-height: 400px; overflow-y: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                            <thead>
+                                <tr style="background: #f5f5f5;">
+                                    <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Время</th>
+                                    <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Method</th>
+                                    <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">URL</th>
+                                    <th style="padding: 8px; text-align: center; border-bottom: 2px solid #ddd;">Status</th>
+                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #ddd;">Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+
+                    session.recorded_requests.forEach((req, i) => {
+                        const r = req.request || req;
+                        const resp = req.response || {};
+                        const time = req.timestamp ? new Date(req.timestamp).toLocaleTimeString('ru-RU') : '';
+                        const status = resp.status || '-';
+                        const isError = status >= 400;
+                        const statusColor = status >= 500 ? '#D32F2F' : status >= 400 ? '#FF9800' : '#4CAF50';
+                        const duration = resp.duration_ms ? `${resp.duration_ms}ms` : '-';
+                        const url = r.url || '';
+                        const path = url.replace(/^https?:\/\/[^\/]+/, '').substring(0, 50);
+
+                        html += `<tr style="border-bottom: 1px solid #eee; ${isError ? 'background: #fff5f5;' : ''}">
+                            <td style="padding: 6px 8px; color: #888;">${time}</td>
+                            <td style="padding: 6px 8px; font-weight: 600;">${r.method || 'GET'}</td>
+                            <td style="padding: 6px 8px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(url)}">${escapeHtml(path)}</td>
+                            <td style="padding: 6px 8px; text-align: center; color: ${statusColor}; font-weight: 600;">${status}</td>
+                            <td style="padding: 6px 8px; text-align: right; color: #888;">${duration}</td>
+                        </tr>`;
+                    });
+
+                    html += `</tbody></table></div></div>`;
+                }
+
+                // Statistics summary
                 html += `
                     <div class="analysis-section">
-                        <h3>Статистика</h3>
-                        <p>
-                            Console logs: ${session.console_logs?.length || 0}<br>
-                            Network errors: ${session.network_errors?.length || 0}<br>
-                            JS exceptions: ${session.js_exceptions?.length || 0}<br>
-                            Recorded requests: ${session.recorded_requests?.length || 0}
+                        <h3>📊 Статистика</h3>
+                        <p style="display: flex; gap: 24px; flex-wrap: wrap;">
+                            <span>Console: <strong>${session.console_logs?.length || 0}</strong></span>
+                            <span>Network errors: <strong>${session.network_errors?.length || 0}</strong></span>
+                            <span>JS exceptions: <strong>${session.js_exceptions?.length || 0}</strong></span>
+                            <span>Requests: <strong>${session.recorded_requests?.length || 0}</strong></span>
                         </p>
                     </div>
                 `;
@@ -648,7 +908,12 @@
                 body.innerHTML = html;
 
                 // Show/hide export buttons based on data
+                // Chain: recorded_requests, Bug: network_errors/console_logs/js_exceptions
                 const hasRecordedRequests = session.recorded_requests && session.recorded_requests.length > 0;
+                const hasNetworkErrors = session.network_errors && session.network_errors.length > 0;
+                const hasConsoleLogs = session.console_logs && session.console_logs.length > 0;
+                const hasJsExceptions = session.js_exceptions && session.js_exceptions.length > 0;
+                const hasAnyData = hasRecordedRequests || hasNetworkErrors || hasConsoleLogs || hasJsExceptions;
                 const hasAnalysis = session.analysis !== null;
 
                 const postmanBtn = document.getElementById('postmanExportBtn');
@@ -656,27 +921,17 @@
                 const restassuredBtn = document.getElementById('restassuredExportBtn');
                 const k6Btn = document.getElementById('k6ExportBtn');
                 const ticketBtn = document.getElementById('ticketBtn');
-
-                if (postmanBtn) {
-                    postmanBtn.style.display = hasRecordedRequests ? 'inline-block' : 'none';
-                }
-                if (pytestBtn) {
-                    pytestBtn.style.display = hasRecordedRequests ? 'inline-block' : 'none';
-                }
-                if (restassuredBtn) {
-                    restassuredBtn.style.display = hasRecordedRequests ? 'inline-block' : 'none';
-                }
-                if (k6Btn) {
-                    k6Btn.style.display = hasRecordedRequests ? 'inline-block' : 'none';
-                }
-                if (ticketBtn) {
-                    ticketBtn.style.display = hasAnalysis ? 'inline-block' : 'none';
-                }
-
                 const runnerBtn = document.getElementById('runnerBtn');
-                if (runnerBtn) {
-                    runnerBtn.style.display = hasRecordedRequests ? 'inline-block' : 'none';
-                }
+
+                // Show all export buttons if we have any data
+                if (postmanBtn) postmanBtn.style.display = hasAnyData ? 'inline-block' : 'none';
+                if (pytestBtn) pytestBtn.style.display = hasAnyData ? 'inline-block' : 'none';
+                if (restassuredBtn) restassuredBtn.style.display = hasAnyData ? 'inline-block' : 'none';
+                if (k6Btn) k6Btn.style.display = hasAnyData ? 'inline-block' : 'none';
+                if (runnerBtn) runnerBtn.style.display = hasAnyData ? 'inline-block' : 'none';
+
+                // Ticket always available if has analysis
+                if (ticketBtn) ticketBtn.style.display = hasAnalysis ? 'inline-block' : 'none';
 
             } catch (error) {
                 body.innerHTML = `<div class="empty-state"><h3>Ошибка</h3><p>${error.message}</p></div>`;
@@ -694,7 +949,11 @@
             if (!confirm('Удалить эту сессию?')) return;
 
             try {
-                await fetch(`${API_URL}/sessions/${id}`, { method: 'DELETE' });
+                const response = await fetch(`${API_URL}/sessions/${id}`, { method: 'DELETE' });
+                if (!response.ok) {
+                    const error = await response.text();
+                    throw new Error(error || `HTTP ${response.status}`);
+                }
                 loadSessions();
             } catch (error) {
                 alert('Ошибка удаления: ' + error.message);
@@ -817,11 +1076,59 @@
 
         function openRunnerModal() {
             document.getElementById('runnerModalOverlay').style.display = 'flex';
-            document.getElementById('testOutput').textContent = 'Нажмите "Запустить" для начала...';
+            document.getElementById('testOutput').textContent = 'Выберите тип тестов и нажмите "Запустить"...';
             document.getElementById('runnerSummary').style.display = 'none';
             updateRunnerStatus('idle', 'Готов к запуску');
             document.getElementById('runTestsBtn').disabled = false;
-            document.getElementById('runTestsBtn').textContent = 'Запустить';
+            document.getElementById('runTestsBtn').textContent = '🚀 Запустить';
+        }
+
+        async function downloadRestAssured() {
+            if (!currentSessionId) return;
+            try {
+                const response = await fetch(`${API_URL}/sessions/${currentSessionId}`);
+                const session = await response.json();
+
+                if (!session.recorded_requests?.length) {
+                    alert('Нет записанных запросов для экспорта');
+                    return;
+                }
+
+                const exportResp = await fetch(`${API_URL}/export/restassured`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        recorded_requests: session.recorded_requests,
+                        class_name: 'SessionTest',
+                        package_name: 'com.errorlens.tests',
+                        include_pom: true
+                    })
+                });
+
+                if (!exportResp.ok) throw new Error('Export failed');
+
+                const blob = await exportResp.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'SessionTest.zip';
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                alert('Ошибка экспорта: ' + error.message);
+            }
+        }
+
+        async function downloadSelectedTest() {
+            const testType = document.querySelector('input[name="testType"]:checked')?.value || 'pytest';
+
+            if (testType === 'pytest') {
+                await exportSession('pytest');
+            } else if (testType === 'restassured') {
+                await exportSession('restassured');
+            } else if (testType === 'k6') {
+                await exportSession('k6');
+            }
         }
 
         function closeRunnerModal(event) {
@@ -845,12 +1152,17 @@
             btn.disabled = true;
             btn.textContent = 'Запуск...';
 
-            updateRunnerStatus('running', 'Выполняется...');
-            document.getElementById('testOutput').textContent = 'Подготовка тестов...\n';
+            // Get selected test type
+            const testType = document.querySelector('input[name="testType"]:checked')?.value || 'pytest';
+            const endpoint = testType === 'restassured' ? '/tests/run/restassured' : '/tests/run';
+            const testTypeName = testType === 'restassured' ? 'REST Assured (Maven)' : 'pytest';
+
+            updateRunnerStatus('running', `Запуск ${testTypeName}...`);
+            document.getElementById('testOutput').textContent = `Подготовка ${testTypeName} тестов...\n`;
             document.getElementById('runnerSummary').style.display = 'none';
 
             try {
-                const response = await fetch(`${API_URL}/tests/run`, {
+                const response = await fetch(`${API_URL}${endpoint}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ session_id: currentSessionId })

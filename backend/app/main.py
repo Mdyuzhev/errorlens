@@ -37,7 +37,7 @@ from app.generators import (
     generate_k6_file,
 )
 from app.ticket_generator import generate_smart_ticket
-from app.test_runner import run_pytest, get_test_run, create_test_run
+from app.test_runner import run_pytest, run_restassured, get_test_run, create_test_run
 from app.routers import sessions
 from app.session_analyzer import analyze_session
 
@@ -291,10 +291,10 @@ async def create_ticket(
     from sqlalchemy.orm import selectinload
     from app.models.db_models import Session
 
-    # Get session with analysis
+    # Get session with analysis and data
     query = (
         select(Session)
-        .options(selectinload(Session.analysis))
+        .options(selectinload(Session.analysis), selectinload(Session.data))
         .where(Session.id == request.session_id)
     )
     result = await db.execute(query)
@@ -314,14 +314,17 @@ async def create_ticket(
         "details": session.analysis.details,
     }
 
+    # Get data from session.data relationship
+    session_data = session.data
+
     # Use smart ticket generator with full session data
     ticket = generate_smart_ticket(
         analysis=analysis_dict,
         url=session.url,
         user_agent=session.user_agent,
-        recorded_requests=session.recorded_requests or [],
-        console_logs=session.console_logs or [],
-        js_exceptions=session.js_exceptions or [],
+        recorded_requests=session_data.recorded_requests if session_data else [],
+        console_logs=session_data.console_logs if session_data else [],
+        js_exceptions=session_data.js_exceptions if session_data else [],
         additional_info=request.additional_info,
         format=request.format,
     )
@@ -385,6 +388,59 @@ async def start_test_run(
     asyncio.create_task(run_pytest(test_code, test_id))
 
     logger.info(f"Started test run {test_id}")
+
+    return {"test_id": test_id, "status": "started"}
+
+
+@app.post("/tests/run/restassured")
+async def start_restassured_test_run(
+    request: RunTestRequest,
+    db=Depends(sessions.get_db),
+) -> dict:
+    """
+    Start REST Assured (Java/Maven) test execution.
+    """
+    import asyncio
+
+    test_id = create_test_run()
+
+    if not request.session_id:
+        raise HTTPException(status_code=400, detail="session_id is required")
+
+    # Get session data
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from app.models.db_models import Session
+
+    query = (
+        select(Session)
+        .options(selectinload(Session.data))
+        .where(Session.id == request.session_id)
+    )
+    result = await db.execute(query)
+    session = result.scalar_one_or_none()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if not session.data or not session.data.recorded_requests:
+        raise HTTPException(status_code=400, detail="Session has no recorded requests")
+
+    # Generate Java code
+    recorded = []
+    for req_dict in session.data.recorded_requests:
+        if isinstance(req_dict, dict):
+            recorded.append(RecordedHttpExchange(**req_dict))
+        else:
+            recorded.append(req_dict)
+
+    java_code = generate_restassured_file(recorded)
+    pom_xml = generate_pom_xml()
+
+    # Run in background
+    asyncio.create_task(run_restassured(java_code, pom_xml, test_id))
+
+    logger.info(f"Started REST Assured test run {test_id}")
 
     return {"test_id": test_id, "status": "started"}
 

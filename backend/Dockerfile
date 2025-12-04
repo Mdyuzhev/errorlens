@@ -3,8 +3,16 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install curl for healthcheck
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Install curl for healthcheck + Java & Maven for REST Assured tests
+RUN apt-get update && apt-get install -y \
+    curl \
+    default-jdk \
+    maven \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set JAVA_HOME
+ENV JAVA_HOME=/usr/lib/jvm/default-java
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 # Install Python dependencies
 COPY requirements.txt .

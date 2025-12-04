@@ -45,6 +45,8 @@ class SessionResponse(BaseModel):
     recording_duration_ms: int
     record_mode: str
     has_analysis: bool
+    has_errors: bool
+    has_requests: bool
     events_count: int
 
 
@@ -197,11 +199,16 @@ async def list_sessions(
     for s in sessions:
         events_count = 0
         if s.data:
-            events_count = (
-                len(s.data.console_logs or []) +
-                len(s.data.network_errors or []) +
-                len(s.data.js_exceptions or [])
-            )
+            console_logs = s.data.console_logs or []
+            network_errors = s.data.network_errors or []
+            js_exceptions = s.data.js_exceptions or []
+            events_count = len(console_logs) + len(network_errors) + len(js_exceptions)
+
+        # Bug or Chain determined by record_mode
+        # "errors" mode = Bug (looking for errors)
+        # "all" mode = Chain (recording everything including request chain)
+        is_bug = s.record_mode == "errors"
+        is_chain = s.record_mode == "all"
 
         items.append(SessionResponse(
             id=s.id,
@@ -211,6 +218,8 @@ async def list_sessions(
             recording_duration_ms=s.recording_duration_ms,
             record_mode=s.record_mode,
             has_analysis=s.analysis is not None,
+            has_errors=is_bug,
+            has_requests=is_chain,
             events_count=events_count,
         ))
 
