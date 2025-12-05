@@ -126,3 +126,56 @@ def get_user_project_role(project: Project, user: User, member: Optional[Project
     if member:
         return member.role
     return "none"
+
+
+async def get_user_projects(user: User, db: AsyncSession) -> list[Project]:
+    """
+    Get all projects user has access to.
+
+    Returns projects where user is owner or member.
+    """
+    # Get owned projects
+    owned_result = await db.execute(
+        select(Project).where(Project.owner_id == user.id)
+    )
+    owned = list(owned_result.scalars().all())
+
+    # Get member projects
+    member_result = await db.execute(
+        select(Project)
+        .join(ProjectMember, ProjectMember.project_id == Project.id)
+        .where(ProjectMember.user_id == user.id)
+    )
+    member_projects = list(member_result.scalars().all())
+
+    # Combine and deduplicate
+    all_projects = {p.id: p for p in owned + member_projects}
+    return list(all_projects.values())
+
+
+async def get_default_project(user: User, db: AsyncSession) -> Optional[Project]:
+    """
+    Get user's default project (first owned or first member project).
+
+    Used when project_id is not specified in request.
+    """
+    # Prefer owned project
+    owned_result = await db.execute(
+        select(Project)
+        .where(Project.owner_id == user.id)
+        .order_by(Project.created_at)
+        .limit(1)
+    )
+    owned = owned_result.scalar_one_or_none()
+    if owned:
+        return owned
+
+    # Fallback to member project
+    member_result = await db.execute(
+        select(Project)
+        .join(ProjectMember, ProjectMember.project_id == Project.id)
+        .where(ProjectMember.user_id == user.id)
+        .order_by(ProjectMember.added_at)
+        .limit(1)
+    )
+    return member_result.scalar_one_or_none()
