@@ -506,3 +506,76 @@
 - Запуск тестов в контейнере
 - Python, Java, Cypress runners
 - Live output в dashboard
+
+---
+
+## Wave 3.2: Code Refactoring ✅ DONE
+
+> Рефакторинг кодовой базы для улучшения поддерживаемости
+
+### Phase 1: Bookmarklet Modularization ✅
+| ID | Задача | Статус |
+|----|--------|--------|
+| 3.2.1.1 | Setup esbuild bundling (esbuild.config.js) | ✅ |
+| 3.2.1.2 | IIFE build from ES modules | ✅ |
+| 3.2.1.3 | Production minified build (68% size reduction) | ✅ |
+| 3.2.1.4 | Replace legacy monolith with bundled output | ✅ |
+
+### Phase 2: Backend Services Layer ✅
+| ID | Задача | Статус |
+|----|--------|--------|
+| 3.2.2.1 | ArticleService + ArticleRepository | ✅ |
+| 3.2.2.2 | TaskService + TaskRepository (Kanban move) | ✅ |
+| 3.2.2.3 | TestCaseService (search, tags, stats) | ✅ |
+| 3.2.2.4 | TestRunService + TestRunRepository (lifecycle) | ✅ |
+| 3.2.2.5 | AnalysisService (rerun, stats) | ✅ |
+
+**New files:**
+- `backend/app/repositories/article_repo.py`
+- `backend/app/repositories/task_repo.py`
+- `backend/app/repositories/testrun_repo.py`
+- `backend/app/services/article_service.py`
+- `backend/app/services/task_service.py`
+- `backend/app/services/testcase_service.py`
+- `backend/app/services/testrun_service.py`
+- `backend/app/services/analysis_service.py`
+
+**New endpoints (+14):**
+- PATCH `/api/tasks/{id}/move` - Kanban task move
+- GET `/api/testcases/search` - Full-text search
+- GET `/api/testcases/by-tags` - Filter by tags
+- GET `/api/testcases/stats` - Statistics
+- PATCH `/api/testcases/{id}/status` - Update status
+- PATCH `/api/testcases/{id}/automation` - Update automation status
+- POST `/api/testruns/{id}/finish` - Complete run
+- POST `/api/testruns/{id}/cancel` - Cancel run
+- POST `/api/analysis/{id}/rerun` - Rerun analysis
+- GET `/api/analysis/stats` - Analysis statistics
+
+### Phase 3: Frontend Component Split ✅
+| ID | Задача | Статус |
+|----|--------|--------|
+| 3.2.3.1 | DashboardView.vue refactor (687→199 LOC, -71%) | ✅ |
+| 3.2.3.2 | ResultsView.vue refactor (521→111 LOC, -79%) | ✅ |
+
+**New components:**
+- `dashboard-vue/src/components/dashboard/SessionFilters.vue`
+- `dashboard-vue/src/components/dashboard/SessionCard.vue`
+- `dashboard-vue/src/components/dashboard/SessionDetailModal.vue`
+- `dashboard-vue/src/components/results/StatsSummary.vue`
+- `dashboard-vue/src/components/results/DonutChart.vue`
+- `dashboard-vue/src/components/results/TestRunCard.vue`
+
+### Phase 4: Tests & Documentation ✅
+| ID | Задача | Статус |
+|----|--------|--------|
+| 3.2.4.1 | test_article_service.py | ✅ |
+| 3.2.4.2 | test_task_service.py | ✅ |
+| 3.2.4.3 | Update ROADMAP.md | ✅ |
+| 3.2.4.4 | Update README.md architecture | ✅ |
+
+**Summary:**
+- Total new files: 17
+- Lines added: ~3,800
+- Lines removed: ~2,500
+- Net improvement: Cleaner architecture, better testability
