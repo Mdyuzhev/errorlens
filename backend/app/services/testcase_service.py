@@ -1,0 +1,197 @@
+"""TestCase service - business logic layer."""
+
+from datetime import datetime
+from typing import Optional, List, Dict, Any
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.db_models import TestCase
+from app.repositories.testcase_repo import TestCaseRepository
+
+
+# Valid values
+VALID_STATUSES = ["Draft", "Ready", "Approved", "Deprecated"]
+VALID_PRIORITIES = ["Low", "Medium", "High", "Critical"]
+VALID_AUTOMATION = ["Manual", "Automated", "To Automate"]
+
+
+class TestCaseService:
+    """Service for test case business logic."""
+
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.repo = TestCaseRepository(db)
+
+    async def create_testcase(
+        self,
+        title: str,
+        created_by: str,
+        description: Optional[str] = None,
+        preconditions: Optional[str] = None,
+        postconditions: Optional[str] = None,
+        priority: str = "Medium",
+        status: str = "Draft",
+        automation_status: str = "Manual",
+        folder: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        steps: Optional[List[dict]] = None,
+        session_id: Optional[str] = None,
+    ) -> TestCase:
+        """Create new test case."""
+        # Validate enums
+        if status not in VALID_STATUSES:
+            status = "Draft"
+        if priority not in VALID_PRIORITIES:
+            priority = "Medium"
+        if automation_status not in VALID_AUTOMATION:
+            automation_status = "Manual"
+
+        testcase_data = {
+            "title": title,
+            "description": description,
+            "preconditions": preconditions,
+            "postconditions": postconditions,
+            "priority": priority,
+            "status": status,
+            "automation_status": automation_status,
+            "folder": folder,
+            "tags": tags or [],
+            "steps": steps or [],
+            "session_id": session_id,
+            "created_by": created_by,
+        }
+
+        testcase = await self.repo.create(testcase_data)
+        await self.db.commit()
+        return testcase
+
+    async def get_testcase(self, testcase_id: str) -> Optional[TestCase]:
+        """Get test case by ID."""
+        return await self.repo.get_by_id(testcase_id)
+
+    async def list_testcases(
+        self,
+        folder: Optional[str] = None,
+        status: Optional[str] = None,
+        priority: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """List test cases with filters."""
+        # Use repo methods based on filters
+        if folder:
+            testcases = await self.repo.get_by_folder(folder, skip=offset, limit=limit)
+        elif status:
+            testcases = await self.repo.get_by_status(status, skip=offset, limit=limit)
+        elif priority:
+            testcases = await self.repo.get_by_priority(priority, skip=offset, limit=limit)
+        else:
+            testcases = await self.repo.get_all(skip=offset, limit=limit, order_by=TestCase.created_at.desc())
+
+        return [self._to_list_dict(tc) for tc in testcases]
+
+    async def search_testcases(
+        self,
+        query: str,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """Search test cases by title or description."""
+        testcases = await self.repo.search(query, skip=offset, limit=limit)
+        return [self._to_list_dict(tc) for tc in testcases]
+
+    async def get_by_tags(
+        self,
+        tags: List[str],
+        match_all: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """Get test cases by tags."""
+        testcases = await self.repo.get_by_tags(tags, match_all=match_all)
+        return [self._to_list_dict(tc) for tc in testcases]
+
+    async def get_folders(self) -> List[str]:
+        """Get unique folders."""
+        return await self.repo.get_folders()
+
+    async def get_stats(self) -> Dict[str, Any]:
+        """Get test case statistics."""
+        return await self.repo.get_stats()
+
+    async def update_testcase(
+        self,
+        testcase_id: str,
+        **updates
+    ) -> Optional[TestCase]:
+        """Update test case fields."""
+        testcase = await self.repo.get_by_id(testcase_id)
+        if not testcase:
+            return None
+
+        for key, value in updates.items():
+            if value is not None:
+                setattr(testcase, key, value)
+
+        testcase.updated_at = datetime.utcnow()
+        await self.db.commit()
+        return testcase
+
+    async def update_status(self, testcase_id: str, status: str) -> Optional[TestCase]:
+        """Update test case status."""
+        if status not in VALID_STATUSES:
+            return None
+        result = await self.repo.update_status(testcase_id, status)
+        await self.db.commit()
+        return result
+
+    async def update_automation_status(self, testcase_id: str, automation_status: str) -> Optional[TestCase]:
+        """Update automation status."""
+        if automation_status not in VALID_AUTOMATION:
+            return None
+        result = await self.repo.update_automation_status(testcase_id, automation_status)
+        await self.db.commit()
+        return result
+
+    async def delete_testcase(self, testcase_id: str) -> bool:
+        """Delete test case by ID."""
+        deleted = await self.repo.delete(testcase_id)
+        if deleted:
+            await self.db.commit()
+        return deleted
+
+    async def link_to_external(
+        self,
+        testcase_id: str,
+        external_id: str,
+        external_url: str,
+    ) -> Optional[TestCase]:
+        """Link test case to external system (e.g., TestIT)."""
+        result = await self.repo.link_external(testcase_id, external_id, external_url)
+        await self.db.commit()
+        return result
+
+    def _to_list_dict(self, tc: TestCase) -> Dict[str, Any]:
+        """Convert test case to list response dict."""
+        return {
+            "id": tc.id,
+            "title": tc.title,
+            "description": tc.description,
+            "preconditions": tc.preconditions,
+            "postconditions": tc.postconditions,
+            "priority": tc.priority,
+            "status": tc.status,
+            "automation_status": tc.automation_status,
+            "folder": tc.folder,
+            "tags": tc.tags,
+            "steps": tc.steps,
+            "created_at": tc.created_at.isoformat() if tc.created_at else None,
+            "created_by": tc.created_by,
+        }
+
+    def to_detail_dict(self, tc: TestCase) -> Dict[str, Any]:
+        """Convert test case to detailed response dict."""
+        result = self._to_list_dict(tc)
+        result["session_id"] = tc.session_id
+        result["external_id"] = tc.external_id
+        result["external_url"] = tc.external_url
+        result["updated_at"] = tc.updated_at.isoformat() if tc.updated_at else None
+        return result
