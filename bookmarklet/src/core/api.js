@@ -32,7 +32,11 @@ export async function sendSession() {
     }
 
     const result = await response.json();
-    console.log('[ErrorLens] Session created:', result.id || result);
+    console.log('[ErrorLens] Session created:', result.session_id || result.id || result);
+    // Normalize response - backend returns session_id, UI expects id
+    if (result.session_id && !result.id) {
+      result.id = result.session_id;
+    }
     return result;
   } catch (error) {
     console.error('[ErrorLens] sendSession failed:', error);
