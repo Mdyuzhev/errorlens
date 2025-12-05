@@ -103,7 +103,7 @@ class FolderRepository(BaseRepository[Folder]):
         result = await self.session.execute(
             select(Folder)
             .where(Folder.project_id == project_id)
-            .order_by(Folder.order)
+            .order_by(Folder.sort_order)
         )
         return list(result.scalars().all())
 
@@ -112,7 +112,7 @@ class FolderRepository(BaseRepository[Folder]):
         result = await self.session.execute(
             select(Folder)
             .where(Folder.parent_id == parent_id)
-            .order_by(Folder.order)
+            .order_by(Folder.sort_order)
         )
         return list(result.scalars().all())
 

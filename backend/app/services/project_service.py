@@ -157,7 +157,7 @@ class ProjectService:
             name=data.name,
             project_id=project_id,
             parent_id=data.parent_id,
-            order=folder_count + 1
+            sort_order=folder_count + 1
         )
         self.db.add(folder)
         await self.db.commit()

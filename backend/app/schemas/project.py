@@ -68,7 +68,7 @@ class FolderResponse(BaseModel):
     name: str
     project_id: str
     parent_id: Optional[str]
-    order: int
+    sort_order: int
     created_at: datetime
 
     class Config:
