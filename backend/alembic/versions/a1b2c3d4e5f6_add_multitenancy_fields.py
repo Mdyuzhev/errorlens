@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 
 # revision identifiers, used by Alembic.
@@ -18,79 +19,102 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def column_exists(table_name: str, column_name: str) -> bool:
+    """Check if column exists in table."""
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    columns = [c['name'] for c in inspector.get_columns(table_name)]
+    return column_name in columns
+
+
 def upgrade() -> None:
-    """Add multi-tenancy columns."""
-    # Add plan column to projects
-    op.add_column('projects', sa.Column('plan', sa.String(length=20), nullable=True))
-    op.execute("UPDATE projects SET plan = 'free' WHERE plan IS NULL")
+    """Add multi-tenancy columns.
 
-    # Add project_id to sessions
-    op.add_column('sessions', sa.Column('project_id', sa.String(length=36), nullable=True))
-    op.create_foreign_key(
-        'fk_sessions_project_id', 'sessions', 'projects',
-        ['project_id'], ['id'], ondelete='CASCADE'
-    )
+    Uses batch mode for SQLite compatibility.
+    Checks column existence to make migration idempotent.
+    """
+    # Add plan column to projects (if not exists)
+    if not column_exists('projects', 'plan'):
+        with op.batch_alter_table('projects', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('plan', sa.String(length=20), nullable=True, server_default='free'))
 
-    # Add project_id to test_cases
-    op.add_column('test_cases', sa.Column('project_id', sa.String(length=36), nullable=True))
-    op.create_foreign_key(
-        'fk_test_cases_project_id', 'test_cases', 'projects',
-        ['project_id'], ['id'], ondelete='CASCADE'
-    )
+    # Add project_id to sessions (if not exists)
+    if not column_exists('sessions', 'project_id'):
+        with op.batch_alter_table('sessions', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('project_id', sa.String(length=36), nullable=True))
 
-    # Add project_id to tasks
-    op.add_column('tasks', sa.Column('project_id', sa.String(length=36), nullable=True))
-    op.create_foreign_key(
-        'fk_tasks_project_id', 'tasks', 'projects',
-        ['project_id'], ['id'], ondelete='CASCADE'
-    )
+    # Add project_id to test_cases (if not exists)
+    if not column_exists('test_cases', 'project_id'):
+        with op.batch_alter_table('test_cases', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('project_id', sa.String(length=36), nullable=True))
 
-    # Add project_id and created_by to articles
-    op.add_column('articles', sa.Column('project_id', sa.String(length=36), nullable=True))
-    op.add_column('articles', sa.Column('created_by', sa.String(length=36), nullable=True))
-    op.create_foreign_key(
-        'fk_articles_project_id', 'articles', 'projects',
-        ['project_id'], ['id'], ondelete='CASCADE'
-    )
-    op.create_foreign_key(
-        'fk_articles_created_by', 'articles', 'users',
-        ['created_by'], ['id'], ondelete='SET NULL'
-    )
+    # Add project_id to tasks (if not exists)
+    if not column_exists('tasks', 'project_id'):
+        with op.batch_alter_table('tasks', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('project_id', sa.String(length=36), nullable=True))
 
-    # Add added_by_id to project_members and rename joined_at to added_at
-    op.add_column('project_members', sa.Column('added_by_id', sa.String(length=36), nullable=True))
-    op.create_foreign_key(
-        'fk_project_members_added_by', 'project_members', 'users',
-        ['added_by_id'], ['id'], ondelete='SET NULL'
-    )
-    # Rename joined_at to added_at
-    op.alter_column('project_members', 'joined_at', new_column_name='added_at')
+    # Add project_id and created_by to articles (if not exists)
+    if not column_exists('articles', 'project_id'):
+        with op.batch_alter_table('articles', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('project_id', sa.String(length=36), nullable=True))
+
+    if not column_exists('articles', 'created_by'):
+        with op.batch_alter_table('articles', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('created_by', sa.String(length=36), nullable=True))
+
+    # Handle project_members: add added_by_id and rename joined_at to added_at
+    if not column_exists('project_members', 'added_by_id'):
+        with op.batch_alter_table('project_members', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('added_by_id', sa.String(length=36), nullable=True))
+
+    # Rename joined_at to added_at if needed
+    if column_exists('project_members', 'joined_at') and not column_exists('project_members', 'added_at'):
+        with op.batch_alter_table('project_members', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('added_at', sa.DateTime(), nullable=True))
+        op.execute("UPDATE project_members SET added_at = joined_at WHERE added_at IS NULL")
+        with op.batch_alter_table('project_members', schema=None) as batch_op:
+            batch_op.drop_column('joined_at')
 
 
 def downgrade() -> None:
     """Remove multi-tenancy columns."""
     # Revert project_members changes
-    op.alter_column('project_members', 'added_at', new_column_name='joined_at')
-    op.drop_constraint('fk_project_members_added_by', 'project_members', type_='foreignkey')
-    op.drop_column('project_members', 'added_by_id')
+    if column_exists('project_members', 'added_at') and not column_exists('project_members', 'joined_at'):
+        with op.batch_alter_table('project_members', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('joined_at', sa.DateTime(), nullable=True))
+        op.execute("UPDATE project_members SET joined_at = added_at WHERE joined_at IS NULL")
+        with op.batch_alter_table('project_members', schema=None) as batch_op:
+            batch_op.drop_column('added_at')
+
+    if column_exists('project_members', 'added_by_id'):
+        with op.batch_alter_table('project_members', schema=None) as batch_op:
+            batch_op.drop_column('added_by_id')
 
     # Revert articles changes
-    op.drop_constraint('fk_articles_created_by', 'articles', type_='foreignkey')
-    op.drop_constraint('fk_articles_project_id', 'articles', type_='foreignkey')
-    op.drop_column('articles', 'created_by')
-    op.drop_column('articles', 'project_id')
+    if column_exists('articles', 'created_by'):
+        with op.batch_alter_table('articles', schema=None) as batch_op:
+            batch_op.drop_column('created_by')
+
+    if column_exists('articles', 'project_id'):
+        with op.batch_alter_table('articles', schema=None) as batch_op:
+            batch_op.drop_column('project_id')
 
     # Revert tasks changes
-    op.drop_constraint('fk_tasks_project_id', 'tasks', type_='foreignkey')
-    op.drop_column('tasks', 'project_id')
+    if column_exists('tasks', 'project_id'):
+        with op.batch_alter_table('tasks', schema=None) as batch_op:
+            batch_op.drop_column('project_id')
 
     # Revert test_cases changes
-    op.drop_constraint('fk_test_cases_project_id', 'test_cases', type_='foreignkey')
-    op.drop_column('test_cases', 'project_id')
+    if column_exists('test_cases', 'project_id'):
+        with op.batch_alter_table('test_cases', schema=None) as batch_op:
+            batch_op.drop_column('project_id')
 
     # Revert sessions changes
-    op.drop_constraint('fk_sessions_project_id', 'sessions', type_='foreignkey')
-    op.drop_column('sessions', 'project_id')
+    if column_exists('sessions', 'project_id'):
+        with op.batch_alter_table('sessions', schema=None) as batch_op:
+            batch_op.drop_column('project_id')
 
     # Revert projects changes
-    op.drop_column('projects', 'plan')
+    if column_exists('projects', 'plan'):
+        with op.batch_alter_table('projects', schema=None) as batch_op:
+            batch_op.drop_column('plan')
