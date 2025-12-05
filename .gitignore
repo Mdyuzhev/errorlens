@@ -42,3 +42,7 @@ Thumbs.db
 # Node.js
 node_modules/
 package-lock.json
+
+# Bookmarklet build artifacts
+bookmarklet/dist/
+bookmarklet/*.backup.js

@@ -1,0 +1,49 @@
+# =============================================================================
+# EL_Bot v5 + Claude Agent Runner
+# 3 parallel agents, no SSH needed - everything runs inside container
+# =============================================================================
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    nodejs \
+    npm \
+    procps \
+    htop \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Claude CLI globally
+RUN npm install -g @anthropic-ai/claude-code
+
+# Create working directories
+WORKDIR /app
+RUN mkdir -p /app/tasks /app/logs /app/projects
+
+# Clone ErrorLens repo (will be mounted in production)
+# For now, create placeholder
+RUN mkdir -p /app/projects/errorlens/.claude
+
+# Copy bot files
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY bot_v5.py .
+COPY settings.local.json /app/projects/errorlens/.claude/
+
+# Environment variables (overridden by K8s secrets)
+ENV TELEGRAM_BOT_TOKEN=""
+ENV GITHUB_TOKEN=""
+ENV TELEGRAM_ADMIN_ID=""
+ENV GITHUB_REPO="Mdyuzhev/errorlens"
+ENV ANTHROPIC_API_KEY=""
+ENV AGENT_TASKS_DIR="/app/tasks"
+ENV AGENT_MAX_CONCURRENT="3"
+ENV PROJECT_DIR="/app/projects/errorlens"
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD pgrep -f "python bot_v5.py" || exit 1
+
+CMD ["python", "bot_v5.py"]
