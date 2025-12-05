@@ -1,180 +1,151 @@
-"""Analysis and ticket generation endpoints."""
+"""Analysis and ticket generation endpoints - thin controller."""
 
 import logging
+from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import select
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from app.analyzer import analyze_errors
 from app.config import settings
 from app.database import get_db
 from app.middleware.jwt_auth import require_auth
 from app.middleware.rate_limit import rate_limit_middleware
-from app.models.db_models import Session
 from app.models.user import User
-from app.models_pydantic import (
-    AnalyzeRequest,
-    AnalyzeResponse,
-    DetectedVariable,
-    GenerateTicketRequest,
-    GenerateTicketResponse,
-    RequestAssertion,
-    SessionAnalysisRequest,
-    SessionAnalysisResponse,
-)
-from app.session_analyzer import analyze_session
-from app.ticket_generator import generate_smart_ticket
+from app.services.analysis_service import AnalysisService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["analysis"])
 
 
-@router.post("/analyze", response_model=AnalyzeResponse)
+# Request/Response models
+class AnalyzeRequest(BaseModel):
+    url: str
+    user_agent: str
+    console_logs: List[dict] = []
+    js_exceptions: List[dict] = []
+    network_errors: List[dict] = []
+    screenshot: Optional[str] = None
+    recording_duration_ms: int = 0
+
+
+class SessionAnalysisRequest(BaseModel):
+    recorded_requests: List[dict]
+
+
+class GenerateTicketRequest(BaseModel):
+    session_id: str
+    format: str = "markdown"
+    additional_info: Optional[str] = None
+
+
+class ReanalyzeRequest(BaseModel):
+    session_id: str
+
+
+@router.post("/analyze")
 async def analyze(
     request: AnalyzeRequest,
     http_request: Request,
     response: Response,
+    db: AsyncSession = Depends(get_db),
     remaining: int = Depends(rate_limit_middleware),
     _: User = Depends(require_auth),
-) -> AnalyzeResponse:
+):
     """Analyze captured browser errors using AI."""
     if remaining >= 0:
         response.headers["X-RateLimit-Remaining"] = str(remaining)
         response.headers["X-RateLimit-Limit"] = str(settings.rate_limit_per_day)
 
-    if len(request.console_logs) > settings.max_console_logs:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Exceeded console_logs limit: max {settings.max_console_logs}",
-        )
-    if len(request.network_errors) > settings.max_network_errors:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Exceeded network_errors limit: max {settings.max_network_errors}",
-        )
-
-    total_events = (
-        len(request.console_logs)
-        + len(request.js_exceptions)
-        + len(request.network_errors)
-    )
-
-    if total_events == 0:
-        raise HTTPException(
-            status_code=400,
-            detail="No error data to analyze. Provide console_logs, js_exceptions, or network_errors.",
-        )
-
-    logger.info(f"Analyzing {total_events} events from {request.url}")
+    service = AnalysisService(db)
 
     try:
-        result = await analyze_errors(request)
-        logger.info(f"Analysis complete: severity={result.severity}")
+        result = await service.analyze_errors(
+            url=request.url,
+            user_agent=request.user_agent,
+            console_logs=request.console_logs,
+            js_exceptions=request.js_exceptions,
+            network_errors=request.network_errors,
+            screenshot=request.screenshot,
+            recording_duration_ms=request.recording_duration_ms,
+        )
         return result
     except ValueError as e:
-        logger.error(f"Configuration error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(f"Analysis failed: {e}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {e}")
 
 
-@router.post("/analyze/session", response_model=SessionAnalysisResponse)
-async def analyze_session_endpoint(
+@router.post("/analyze/session")
+async def analyze_session(
     request: SessionAnalysisRequest,
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(require_auth),
-) -> SessionAnalysisResponse:
+):
     """Analyze recorded session for test generation."""
-    if not request.recorded_requests:
-        raise HTTPException(status_code=400, detail="No recorded requests to analyze.")
-
-    logger.info(f"Analyzing session with {len(request.recorded_requests)} requests")
+    service = AnalysisService(db)
 
     try:
-        result = analyze_session(request.recorded_requests)
-
-        variables = {
-            name: DetectedVariable(
-                name=name,
-                source_request_id=data["source_request_id"],
-                source_path=data["source_path"],
-                value=data["value"][:50] + "..." if len(data["value"]) > 50 else data["value"],
-                used_in=data["used_in"],
-            )
-            for name, data in result["variables"].items()
-        }
-
-        assertions = {
-            req_id: [
-                RequestAssertion(
-                    type=a["type"],
-                    path=a.get("path"),
-                    expected=str(a["expected"]),
-                    description=a["description"],
-                )
-                for a in assertion_list
-            ]
-            for req_id, assertion_list in result["assertions"].items()
-        }
-
-        logger.info(f"Analysis complete: {result['summary']}")
-
-        return SessionAnalysisResponse(
-            variables=variables,
-            groups=result["groups"],
-            assertions=assertions,
-            summary=result["summary"],
-        )
+        result = service.analyze_session_requests(request.recorded_requests)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(f"Session analysis failed: {e}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {e}")
 
 
-@router.post("/tickets/generate", response_model=GenerateTicketResponse)
+@router.post("/analyze/rerun")
+async def reanalyze_session(
+    request: ReanalyzeRequest,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_auth),
+):
+    """Re-run analysis on existing session."""
+    service = AnalysisService(db)
+
+    try:
+        result = await service.reanalyze_session(request.session_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Session not found or has no data")
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Re-analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {e}")
+
+
+@router.post("/tickets/generate")
 async def create_ticket(
     request: GenerateTicketRequest,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_auth),
-) -> GenerateTicketResponse:
+):
     """Generate bug ticket from session analysis."""
-    query = (
-        select(Session)
-        .options(selectinload(Session.analysis), selectinload(Session.data))
-        .where(Session.id == request.session_id)
-    )
-    result = await db.execute(query)
-    session = result.scalar_one_or_none()
+    service = AnalysisService(db)
 
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+    try:
+        result = await service.generate_ticket(
+            session_id=request.session_id,
+            format=request.format,
+            additional_info=request.additional_info,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Ticket generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Ticket generation failed: {e}")
 
-    if not session.analysis:
-        raise HTTPException(status_code=400, detail="Session has no analysis")
 
-    analysis_dict = {
-        "summary": session.analysis.summary,
-        "probable_cause": session.analysis.probable_cause,
-        "suggested_fix": session.analysis.suggested_fix,
-        "severity": session.analysis.severity,
-        "details": session.analysis.details,
-    }
-
-    session_data = session.data
-
-    ticket = generate_smart_ticket(
-        analysis=analysis_dict,
-        url=session.url,
-        user_agent=session.user_agent,
-        recorded_requests=session_data.recorded_requests if session_data else [],
-        console_logs=session_data.console_logs if session_data else [],
-        js_exceptions=session_data.js_exceptions if session_data else [],
-        additional_info=request.additional_info,
-        format=request.format,
-    )
-
-    logger.info(f"Generated {request.format} ticket for session {request.session_id}")
-
-    return GenerateTicketResponse(**ticket)
+@router.get("/analysis/stats")
+async def get_analysis_stats(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_auth),
+):
+    """Get analysis statistics."""
+    service = AnalysisService(db)
+    return await service.get_analysis_stats()

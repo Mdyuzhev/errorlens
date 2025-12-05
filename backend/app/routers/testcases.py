@@ -1,17 +1,16 @@
-"""Test cases CRUD router."""
+"""Test cases CRUD router - thin controller."""
 
-from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.jwt_auth import require_auth
-from app.models.db_models import TestCase
 from app.models.user import User
+from app.services.testcase_service import TestCaseService
+
 
 router = APIRouter(prefix="/testcases", tags=["testcases"])
 
@@ -54,37 +53,39 @@ async def list_testcases(
     user: User = Depends(require_auth),
 ):
     """List test cases with filters."""
-    query = select(TestCase).order_by(TestCase.created_at.desc())
+    service = TestCaseService(db)
+    return await service.list_testcases(
+        folder=folder,
+        status=status,
+        priority=priority,
+        limit=limit,
+        offset=offset,
+    )
 
-    if folder:
-        query = query.where(TestCase.folder == folder)
-    if status:
-        query = query.where(TestCase.status == status)
-    if priority:
-        query = query.where(TestCase.priority == priority)
 
-    query = query.limit(limit).offset(offset)
-    result = await db.execute(query)
-    testcases = result.scalars().all()
+@router.get("/search")
+async def search_testcases(
+    q: str = Query(..., min_length=1),
+    limit: int = 50,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """Search test cases by title or description."""
+    service = TestCaseService(db)
+    return await service.search_testcases(q, limit=limit, offset=offset)
 
-    return [
-        {
-            "id": tc.id,
-            "title": tc.title,
-            "description": tc.description,
-            "preconditions": tc.preconditions,
-            "postconditions": tc.postconditions,
-            "priority": tc.priority,
-            "status": tc.status,
-            "automation_status": tc.automation_status,
-            "folder": tc.folder,
-            "tags": tc.tags,
-            "steps": tc.steps,
-            "created_at": tc.created_at.isoformat() if tc.created_at else None,
-            "created_by": tc.created_by,
-        }
-        for tc in testcases
-    ]
+
+@router.get("/by-tags")
+async def get_by_tags(
+    tags: List[str] = Query(...),
+    match_all: bool = False,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """Get test cases by tags."""
+    service = TestCaseService(db)
+    return await service.get_by_tags(tags, match_all=match_all)
 
 
 @router.get("/folders/list")
@@ -93,11 +94,18 @@ async def list_folders(
     user: User = Depends(require_auth),
 ):
     """Get unique folders."""
-    result = await db.execute(
-        select(TestCase.folder).distinct().where(TestCase.folder.isnot(None))
-    )
-    folders = [r[0] for r in result.all() if r[0]]
-    return folders
+    service = TestCaseService(db)
+    return await service.get_folders()
+
+
+@router.get("/stats")
+async def get_stats(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """Get test case statistics."""
+    service = TestCaseService(db)
+    return await service.get_stats()
 
 
 @router.get("/{testcase_id}")
@@ -107,28 +115,13 @@ async def get_testcase(
     user: User = Depends(require_auth),
 ):
     """Get test case by ID."""
-    result = await db.execute(select(TestCase).where(TestCase.id == testcase_id))
-    tc = result.scalar_one_or_none()
+    service = TestCaseService(db)
+    tc = await service.get_testcase(testcase_id)
 
     if not tc:
         raise HTTPException(status_code=404, detail="Test case not found")
 
-    return {
-        "id": tc.id,
-        "title": tc.title,
-        "description": tc.description,
-        "preconditions": tc.preconditions,
-        "postconditions": tc.postconditions,
-        "priority": tc.priority,
-        "status": tc.status,
-        "automation_status": tc.automation_status,
-        "folder": tc.folder,
-        "tags": tc.tags,
-        "steps": tc.steps,
-        "created_at": tc.created_at.isoformat() if tc.created_at else None,
-        "created_by": tc.created_by,
-        "session_id": tc.session_id,
-    }
+    return service.to_detail_dict(tc)
 
 
 @router.post("")
@@ -138,8 +131,10 @@ async def create_testcase(
     user: User = Depends(require_auth),
 ):
     """Create new test case."""
-    tc = TestCase(
+    service = TestCaseService(db)
+    tc = await service.create_testcase(
         title=data.title,
+        created_by=user.username,
         description=data.description,
         preconditions=data.preconditions,
         postconditions=data.postconditions,
@@ -150,13 +145,7 @@ async def create_testcase(
         tags=data.tags,
         steps=data.steps,
         session_id=data.session_id,
-        created_by=user.username,
     )
-
-    db.add(tc)
-    await db.commit()
-    await db.refresh(tc)
-
     return {"id": tc.id, "message": "Test case created"}
 
 
@@ -168,20 +157,50 @@ async def update_testcase(
     user: User = Depends(require_auth),
 ):
     """Update test case."""
-    result = await db.execute(select(TestCase).where(TestCase.id == testcase_id))
-    tc = result.scalar_one_or_none()
+    service = TestCaseService(db)
+    tc = await service.update_testcase(
+        testcase_id,
+        **data.model_dump(exclude_unset=True)
+    )
 
     if not tc:
         raise HTTPException(status_code=404, detail="Test case not found")
 
-    update_data = data.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(tc, key, value)
-
-    tc.updated_at = datetime.utcnow()
-    await db.commit()
-
     return {"message": "Test case updated"}
+
+
+@router.patch("/{testcase_id}/status")
+async def update_status(
+    testcase_id: str,
+    status: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """Update test case status."""
+    service = TestCaseService(db)
+    tc = await service.update_status(testcase_id, status)
+
+    if not tc:
+        raise HTTPException(status_code=404, detail="Test case not found or invalid status")
+
+    return {"message": f"Status updated to {status}"}
+
+
+@router.patch("/{testcase_id}/automation")
+async def update_automation_status(
+    testcase_id: str,
+    automation_status: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """Update automation status."""
+    service = TestCaseService(db)
+    tc = await service.update_automation_status(testcase_id, automation_status)
+
+    if not tc:
+        raise HTTPException(status_code=404, detail="Test case not found or invalid status")
+
+    return {"message": f"Automation status updated to {automation_status}"}
 
 
 @router.delete("/{testcase_id}")
@@ -191,13 +210,10 @@ async def delete_testcase(
     user: User = Depends(require_auth),
 ):
     """Delete test case."""
-    result = await db.execute(select(TestCase).where(TestCase.id == testcase_id))
-    tc = result.scalar_one_or_none()
+    service = TestCaseService(db)
+    deleted = await service.delete_testcase(testcase_id)
 
-    if not tc:
+    if not deleted:
         raise HTTPException(status_code=404, detail="Test case not found")
-
-    await db.delete(tc)
-    await db.commit()
 
     return {"message": "Test case deleted"}
