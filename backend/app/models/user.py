@@ -36,4 +36,8 @@ class User(Base):
 
     # Relationships
     owned_projects = relationship("Project", back_populates="owner", foreign_keys="Project.owner_id")
-    project_memberships = relationship("ProjectMember", back_populates="user")
+    project_memberships = relationship(
+        "ProjectMember",
+        back_populates="user",
+        foreign_keys="ProjectMember.user_id"
+    )
