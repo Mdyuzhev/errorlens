@@ -11,20 +11,33 @@ export async function sendSession() {
   const apiUrl = detectApiBaseUrl();
   const sessionData = getSessionData();
 
-  const response = await fetch(`${apiUrl}/sessions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(sessionData)
-  });
+  console.log('[ErrorLens] Sending session to:', `${apiUrl}/sessions`);
+  console.log('[ErrorLens] Session data:', JSON.stringify(sessionData).substring(0, 500) + '...');
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`API Error ${response.status}: ${errorText}`);
+  try {
+    const response = await fetch(`${apiUrl}/sessions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(sessionData)
+    });
+
+    console.log('[ErrorLens] Response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[ErrorLens] API Error:', response.status, errorText);
+      throw new Error(`API Error ${response.status}: ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log('[ErrorLens] Session created:', result.id || result);
+    return result;
+  } catch (error) {
+    console.error('[ErrorLens] sendSession failed:', error);
+    throw error;
   }
-
-  return response.json();
 }
 
 /**
