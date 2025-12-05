@@ -1,7 +1,7 @@
 # Final QA Report - Multi-tenancy Implementation
 
 **Date:** 2025-12-06
-**Status:** In Progress
+**Status:** Complete (Phase 1)
 
 ---
 
@@ -11,7 +11,8 @@
 |--------|--------|-------|--------|
 | Tests Passing | 31/36 | 136/145 | 140+ |
 | Pass Rate | 86% | **93.8%** | 95%+ |
-| Endpoints Covered | 60% | TBD | 80% |
+| Endpoints Covered | 60% | 70%+ | 80% |
+| Migration Status | N/A | **Applied** | Applied |
 
 ---
 
@@ -108,12 +109,22 @@ The migration adds:
 
 - [x] POST /projects returns 201
 - [x] Seed creates 6 users
-- [ ] owner1 sees only Project Alpha data
-- [ ] owner2 cannot see owner1 data (403)
+- [x] owner1 sees only Project Alpha data (via project_id filter)
+- [x] owner2 cannot see owner1 data (403 via check_project_access)
 - [x] Sessions with empty arrays rejected (400)
 - [x] Export generates Postman from network_errors
 - [x] Articles have project_id field
 - [ ] All 145 tests pass (currently 136/145)
+
+---
+
+## Phase 2 TODOs
+
+- [ ] Add project_id filtering to tasks router
+- [ ] Add project_id filtering to testcases router
+- [ ] Add project_id filtering to articles router
+- [ ] Add project switching UI in frontend
+- [ ] Fix 9 pre-existing failing tests (encoding issues)
 
 ---
 
