@@ -1,4 +1,8 @@
-"""Session management API endpoints - Thin controller."""
+"""Session management API endpoints - Thin controller.
+
+Multi-tenancy: Sessions are filtered by project_id.
+Users can only access sessions in projects they own or are members of.
+"""
 
 import logging
 from typing import Optional
@@ -11,7 +15,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.middleware.jwt_auth import require_auth
+from app.middleware.jwt_auth import (
+    require_auth,
+    get_current_user,
+    check_project_access,
+    get_default_project,
+)
 from app.models.user import User
 from app.services.session_service import SessionService
 from app.services.export_service import ExportService
@@ -129,14 +138,35 @@ async def create_session(
 
 @router.get("", response_model=SessionListResponse)
 async def list_sessions(
+    project_id: Optional[str] = Query(default=None, description="Filter by project ID"),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_auth),
+    current_user: User = Depends(require_auth),
 ) -> SessionListResponse:
-    """List all sessions with pagination."""
+    """
+    List sessions with pagination.
+
+    If project_id is provided, filters by that project (requires access).
+    If project_id is None, returns sessions from user's default project.
+    Returns 403 if user has no access to the specified project.
+    """
+    # Determine which project to use
+    if project_id:
+        # Verify user has access to this project
+        await check_project_access(project_id, current_user, db)
+        filter_project_id = project_id
+    else:
+        # Use default project (first owned or member)
+        default_project = await get_default_project(current_user, db)
+        filter_project_id = default_project.id if default_project else None
+
     service = SessionService(db)
-    result = await service.list_sessions(limit=limit, offset=offset)
+    result = await service.list_sessions(
+        limit=limit,
+        offset=offset,
+        project_id=filter_project_id
+    )
     return SessionListResponse(**result)
 
 
@@ -144,14 +174,23 @@ async def list_sessions(
 async def get_session(
     session_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_auth),
+    current_user: User = Depends(require_auth),
 ) -> SessionDetailResponse:
-    """Get detailed session information."""
+    """
+    Get detailed session information.
+
+    Returns 404 if session not found.
+    Returns 403 if user has no access to the session's project.
+    """
     service = SessionService(db)
     session = await service.get_session(session_id)
 
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    # Check project access if session has a project
+    if session.project_id:
+        await check_project_access(session.project_id, current_user, db)
 
     return SessionDetailResponse(**service.session_to_detail(session))
 
@@ -160,12 +199,27 @@ async def get_session(
 async def delete_session(
     session_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_auth),
+    current_user: User = Depends(require_auth),
 ) -> dict:
-    """Delete a session and all related data."""
-    service = SessionService(db)
-    deleted = await service.delete_session(session_id)
+    """
+    Delete a session and all related data.
 
+    Requires member role or higher in the session's project.
+    Viewers cannot delete sessions.
+    """
+    service = SessionService(db)
+    session = await service.get_session(session_id)
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Check project access with member role required
+    if session.project_id:
+        await check_project_access(
+            session.project_id, current_user, db, required_role="member"
+        )
+
+    deleted = await service.delete_session(session_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -178,18 +232,23 @@ async def export_session(
     format: str,
     subformat: str = "json",
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_auth),
+    current_user: User = Depends(require_auth),
 ) -> Response:
     """
     Export session in specified format.
 
     Supported formats: markdown, postman, pytest, restassured, testit
+    Requires viewer role or higher in the session's project.
     """
     session_service = SessionService(db)
     session = await session_service.get_session(session_id)
 
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    # Check project access (viewer can export)
+    if session.project_id:
+        await check_project_access(session.project_id, current_user, db)
 
     export_service = ExportService()
 
