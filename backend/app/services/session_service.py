@@ -44,6 +44,7 @@ class SessionService:
         js_exceptions: List[dict] = None,
         recorded_requests: List[dict] = None,
         screenshot: Optional[str] = None,
+        project_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Create a new session with data and run AI analysis.
@@ -65,6 +66,7 @@ class SessionService:
                 "user_agent": user_agent,
                 "recording_duration_ms": recording_duration_ms,
                 "record_mode": record_mode,
+                "project_id": project_id,
             },
             captured_data={
                 "console_logs": console_logs,

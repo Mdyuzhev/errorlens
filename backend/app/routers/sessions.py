@@ -33,6 +33,7 @@ class SessionCreateRequest(BaseModel):
     js_exceptions: list[dict] = Field(default_factory=list)
     recorded_requests: list[dict] = Field(default_factory=list)
     screenshot: Optional[str] = None
+    project_id: Optional[str] = None
 
 
 class SessionResponse(BaseModel):
@@ -97,6 +98,19 @@ async def create_session(
                 f"js_exceptions={len(request.js_exceptions)}, "
                 f"recorded_requests={len(request.recorded_requests)}")
 
+    # Validate that session has at least one event
+    has_events = (
+        request.console_logs or
+        request.network_errors or
+        request.js_exceptions or
+        request.recorded_requests
+    )
+    if not has_events:
+        raise HTTPException(
+            status_code=400,
+            detail="Session must contain at least one event (console_logs, network_errors, js_exceptions, or recorded_requests)"
+        )
+
     service = SessionService(db)
     result = await service.create_session(
         url=request.url,
@@ -108,6 +122,7 @@ async def create_session(
         js_exceptions=request.js_exceptions,
         recorded_requests=request.recorded_requests,
         screenshot=request.screenshot,
+        project_id=request.project_id,
     )
     return SessionCreateResponse(**result)
 
