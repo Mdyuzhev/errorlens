@@ -11,6 +11,7 @@ from app.routers import (
     tests,
     integrations,
     analysis,
+    projects,
 )
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "tests",
     "integrations",
     "analysis",
+    "projects",
 ]
