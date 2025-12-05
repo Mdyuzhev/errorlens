@@ -36,6 +36,9 @@ class Project(Base):
         String(36), ForeignKey("users.id", ondelete="CASCADE")
     )
 
+    # Plan (free/pro)
+    plan: Mapped[str] = mapped_column(String(20), default="free")
+
     # Settings
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
     settings: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
@@ -51,6 +54,18 @@ class Project(Base):
     )
     folders: Mapped[List["Folder"]] = relationship(
         "Folder", back_populates="project", cascade="all, delete-orphan"
+    )
+    sessions: Mapped[List["Session"]] = relationship(
+        "Session", back_populates="project", cascade="all, delete-orphan"
+    )
+    test_cases: Mapped[List["TestCase"]] = relationship(
+        "TestCase", back_populates="project", cascade="all, delete-orphan"
+    )
+    tasks: Mapped[List["Task"]] = relationship(
+        "Task", back_populates="project", cascade="all, delete-orphan"
+    )
+    articles: Mapped[List["Article"]] = relationship(
+        "Article", back_populates="project", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
@@ -117,12 +132,17 @@ class ProjectMember(Base):
     # Role within project
     role: Mapped[str] = mapped_column(String(20), default="member")  # owner, admin, member, viewer
 
+    # Who added this member
+    added_by_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
     # Timestamps
-    joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    added_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships
     project: Mapped["Project"] = relationship("Project", back_populates="members")
-    user = relationship("User", back_populates="project_memberships")
+    user = relationship("User", back_populates="project_memberships", foreign_keys=[user_id])
 
     def __repr__(self) -> str:
         return f"<ProjectMember {self.user_id} in {self.project_id}>"
@@ -146,11 +166,17 @@ class Session(Base):
         String(20), default="errors"
     )  # 'errors' or 'all'
 
+    # Multi-tenancy
+    project_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True
+    )
+
     # External integrations
     testit_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     testit_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # Relationships
+    project: Mapped[Optional["Project"]] = relationship("Project", back_populates="sessions")
     data: Mapped[Optional["SessionData"]] = relationship(
         "SessionData", back_populates="session", uselist=False, cascade="all, delete-orphan"
     )
@@ -233,6 +259,11 @@ class TestCase(Base):
     status: Mapped[str] = mapped_column(String(20), default="Draft")
     automation_status: Mapped[str] = mapped_column(String(20), default="Manual")
 
+    # Multi-tenancy
+    project_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True
+    )
+
     # Linking
     session_id: Mapped[Optional[str]] = mapped_column(
         String(36), ForeignKey("sessions.id", ondelete="SET NULL"), nullable=True
@@ -252,6 +283,9 @@ class TestCase(Base):
     external_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     external_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
+    # Relationships
+    project: Mapped[Optional["Project"]] = relationship("Project", back_populates="test_cases")
+
 
 class Task(Base):
     """Task for internal task tracking."""
@@ -267,6 +301,11 @@ class Task(Base):
     # Status & Priority
     status: Mapped[str] = mapped_column(String(20), default="todo")
     priority: Mapped[str] = mapped_column(String(20), default="medium")
+
+    # Multi-tenancy
+    project_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True
+    )
 
     # Linking
     session_id: Mapped[Optional[str]] = mapped_column(
@@ -290,6 +329,9 @@ class Task(Base):
     jira_key: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     github_issue: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
+    # Relationships
+    project: Mapped[Optional["Project"]] = relationship("Project", back_populates="tasks")
+
 
 class Article(Base):
     """Knowledge base article."""
@@ -304,6 +346,11 @@ class Article(Base):
     content: Mapped[str] = mapped_column(Text)
     excerpt: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
+    # Multi-tenancy
+    project_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True
+    )
+
     # Organization
     category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     tags: Mapped[dict] = mapped_column(JSON, default=list)
@@ -313,12 +360,18 @@ class Article(Base):
 
     # Metadata
     author: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    created_by: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     published_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     # Stats
     views: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Relationships
+    project: Mapped[Optional["Project"]] = relationship("Project", back_populates="articles")
 
 
 class TestRun(Base):
