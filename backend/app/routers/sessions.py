@@ -1,8 +1,11 @@
 """Session management API endpoints - Thin controller."""
 
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+
+logger = logging.getLogger(__name__)
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -88,6 +91,12 @@ async def create_session(
     db: AsyncSession = Depends(get_db),
 ) -> SessionCreateResponse:
     """Create a new session and trigger AI analysis."""
+    logger.info(f"[SESSIONS] POST /sessions received - URL: {request.url}")
+    logger.info(f"[SESSIONS] Payload: console_logs={len(request.console_logs)}, "
+                f"network_errors={len(request.network_errors)}, "
+                f"js_exceptions={len(request.js_exceptions)}, "
+                f"recorded_requests={len(request.recorded_requests)}")
+
     service = SessionService(db)
     result = await service.create_session(
         url=request.url,
