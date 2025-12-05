@@ -22,6 +22,7 @@ from app.routers import (
     tests,
     integrations,
     analysis,
+    projects,
 )
 from app.services.auth import init_admin_user
 
@@ -70,6 +71,7 @@ app.include_router(exports.router)
 app.include_router(tests.router)
 app.include_router(integrations.router)
 app.include_router(analysis.router)
+app.include_router(projects.router)
 
 # Static files setup
 DASHBOARD_PATH = None
