@@ -4,13 +4,14 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from app.config import settings
-from app.database import async_session_maker, init_db
+from app.database import async_session_maker, get_db, init_db
 # Import models to register them with Base.metadata before create_all
 from app.models import db_models, user  # noqa: F401
 from app.routers import (
@@ -132,3 +133,13 @@ async def serve_spa_root():
 async def health_check() -> dict:
     """Health check endpoint."""
     return {"status": "ok", "version": settings.version}
+
+
+@app.get("/debug/users")
+async def debug_users(db: AsyncSession = Depends(get_db)):
+    """Debug endpoint to check users in DB."""
+    from sqlalchemy import select
+    from app.models.user import User
+    result = await db.execute(select(User))
+    users = result.scalars().all()
+    return {"count": len(users), "usernames": [u.username for u in users]}
