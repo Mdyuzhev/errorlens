@@ -161,13 +161,27 @@ class SessionService:
         limit: int = 20,
         offset: int = 0,
         mode: Optional[str] = None,
+        project_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Get paginated list of sessions."""
-        # Get total count
-        total = await self.repo.count()
+        """
+        Get paginated list of sessions.
 
-        # Get sessions with data
-        sessions = await self.repo.get_recent(limit=limit, skip=offset, mode=mode)
+        Args:
+            limit: Max number of sessions to return
+            offset: Number of sessions to skip
+            mode: Filter by record_mode ('errors' or 'all')
+            project_id: Filter by project ID for multi-tenancy
+
+        Returns:
+            Dict with items, total, limit, offset
+        """
+        # Get total count (filtered by project_id)
+        total = await self.repo.count(project_id=project_id)
+
+        # Get sessions with data (filtered by project_id)
+        sessions = await self.repo.get_recent(
+            limit=limit, skip=offset, mode=mode, project_id=project_id
+        )
 
         items = []
         for s in sessions:

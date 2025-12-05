@@ -36,8 +36,17 @@ class SessionRepository(BaseRepository[Session]):
         limit: int = 50,
         skip: int = 0,
         mode: Optional[str] = None,
+        project_id: Optional[str] = None,
     ) -> List[Session]:
-        """Get recent sessions ordered by creation date."""
+        """
+        Get recent sessions ordered by creation date.
+
+        Args:
+            limit: Max sessions to return
+            skip: Number of sessions to skip
+            mode: Filter by record_mode
+            project_id: Filter by project_id for multi-tenancy
+        """
         query = (
             select(Session)
             .options(
@@ -49,6 +58,9 @@ class SessionRepository(BaseRepository[Session]):
 
         if mode:
             query = query.where(Session.record_mode == mode)
+
+        if project_id:
+            query = query.where(Session.project_id == project_id)
 
         query = query.offset(skip).limit(limit)
         result = await self.session.execute(query)
