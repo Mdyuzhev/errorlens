@@ -11,6 +11,8 @@ from fastapi.responses import FileResponse
 
 from app.config import settings
 from app.database import async_session_maker, init_db
+# Import models to register them with Base.metadata before create_all
+from app.models import db_models, user  # noqa: F401
 from app.routers import (
     admin,
     auth,
