@@ -36,7 +36,7 @@ Auth:       JWT (access 30min + refresh 7days)
 
 ```
 backend/app/
-├── main.py              # FastAPI entrypoint (~130 LOC, уже slim)
+├── main.py              # FastAPI entrypoint (~130 LOC)
 ├── config.py            # Pydantic Settings
 ├── database.py          # SQLAlchemy async engine
 │
@@ -45,17 +45,23 @@ backend/app/
 │   └── user.py          # User model
 │
 ├── routers/             # API endpoints (thin controllers)
-│   ├── sessions.py      # ✅ Использует Service
-│   ├── projects.py      # ✅ Использует Service
-│   ├── auth.py          # ✅ OK
-│   ├── articles.py      # ⚠️ Напрямую с моделями — нужен Service
-│   ├── tasks.py         # ⚠️ Напрямую с моделями — нужен Service
-│   ├── testcases.py     # ⚠️ Напрямую с моделями — нужен Service
-│   └── ...
+│   ├── sessions.py      # ✅ Service layer
+│   ├── projects.py      # ✅ Service layer
+│   ├── articles.py      # ✅ Service layer (Wave 3.2)
+│   ├── tasks.py         # ✅ Service layer (Wave 3.2)
+│   ├── testcases.py     # ✅ Service layer (Wave 3.2)
+│   ├── testruns.py      # ✅ Service layer (Wave 3.2)
+│   ├── analysis.py      # ✅ Service layer (Wave 3.2)
+│   └── auth.py          # ✅ OK
 │
 ├── services/            # Business logic
 │   ├── session_service.py
 │   ├── project_service.py
+│   ├── article_service.py   # Wave 3.2
+│   ├── task_service.py      # Wave 3.2
+│   ├── testcase_service.py  # Wave 3.2
+│   ├── testrun_service.py   # Wave 3.2
+│   ├── analysis_service.py  # Wave 3.2
 │   ├── export_service.py
 │   ├── auth.py
 │   └── seed_demo.py
@@ -64,7 +70,10 @@ backend/app/
 │   ├── base.py          # Generic CRUD
 │   ├── session_repo.py
 │   ├── project_repo.py
+│   ├── article_repo.py      # Wave 3.2
+│   ├── task_repo.py         # Wave 3.2
 │   ├── testcase_repo.py
+│   ├── testrun_repo.py      # Wave 3.2
 │   └── user_repo.py
 │
 ├── generators/          # Test code generators
@@ -83,36 +92,46 @@ backend/app/
 
 ## Архитектура Bookmarklet
 
-**ВНИМАНИЕ: Сейчас дублирование!**
+**✅ Модуляризация завершена (Wave 3.2)**
 
 ```
 bookmarklet/
-├── recorder.js          # 2438 LOC — LEGACY МОНОЛИТ (используется в prod!)
-├── recorder.min.js      # Minified legacy
+├── src/                 # ES модули (source)
+│   ├── index.js         # Entry point
+│   ├── recorder.js      # Core recording logic
+│   ├── network.js       # Fetch/XHR interception
+│   ├── ui.js            # Widget UI
+│   └── ...
 │
-└── src/                 # НОВАЯ модульная структура (НЕ используется!)
-    ├── index.js         # Entry point
-    ├── core/            # config, state, api
-    ├── interceptors/    # console, fetch, xhr, errors
-    ├── ui/              # widget, styles
-    └── utils/           # helpers
+├── dist/                # Собранные бандлы (esbuild)
+│   ├── recorder.js      # Development build (30.9KB)
+│   └── recorder.min.js  # Production build (19.6KB, -68%)
+│
+├── esbuild.config.js    # Build configuration
+└── package.json         # npm scripts: build, build:min, watch
 ```
 
-**Задача WAVE 3.2:** Настроить esbuild, собрать src/ → dist/, заменить legacy.
+**Build:** `npm run build:all` → IIFE bundle из ES modules
 
 ---
 
-## Текущий Wave
+## Завершённые Waves
 
-**WAVE 3.2: Code Refactoring**
+### WAVE 3.2: Code Refactoring ✅ DONE
 
 Цель: закрыть техдолг, сделать код правильным.
 
-Фазы:
-1. **Bookmarklet** — модуляризация, удаление legacy
-2. **Backend** — добавить недостающие Services
-3. **Frontend** — split крупных компонентов (>500 LOC)
-4. **Tests & Docs** — покрытие новых сервисов
+Результаты:
+1. **Bookmarklet** ✅ — esbuild bundling, 68% size reduction
+2. **Backend** ✅ — все роутеры используют Service layer (+5 services, +14 endpoints)
+3. **Frontend** ✅ — split DashboardView (-71%), ResultsView (-79%)
+4. **Tests & Docs** ✅ — 42 unit tests, architecture docs
+
+---
+
+## Следующий Wave
+
+**WAVE 3.3+:** TBD — см. ROADMAP.md для backlog
 
 ---
 
@@ -244,4 +263,4 @@ const items = ref([])
 
 ---
 
-*Последнее обновление: 2025-12-05*
+*Последнее обновление: 2025-12-05 (Wave 3.2 complete)*
