@@ -29,6 +29,7 @@ from app.routers import (
     projects,
 )
 from app.services.auth import init_admin_user
+from app.services.seed_demo import seed_demo_data
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,6 +48,13 @@ async def lifespan(app: FastAPI):
             logger.info("Admin/demo users initialized")
         except Exception as e:
             logger.error(f"Failed to init users: {e}")
+
+    # Seed demo data (articles, testcases, tasks)
+    try:
+        await seed_demo_data()
+        logger.info("Demo data seeded")
+    except Exception as e:
+        logger.error(f"Failed to seed demo data: {e}")
 
     yield
     logger.info("Shutting down...")
