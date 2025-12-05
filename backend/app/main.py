@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -143,3 +143,15 @@ async def debug_users(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User))
     users = result.scalars().all()
     return {"count": len(users), "usernames": [u.username for u in users]}
+
+
+@app.post("/debug/echo")
+async def debug_echo(request: Request):
+    """Debug endpoint to echo request body."""
+    try:
+        body = await request.json()
+        logger.info(f"[DEBUG] Echo received: {str(body)[:500]}")
+        return {"received": body, "content_type": request.headers.get("content-type")}
+    except Exception as e:
+        logger.error(f"[DEBUG] Echo error: {e}")
+        return {"error": str(e)}
