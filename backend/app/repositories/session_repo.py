@@ -38,7 +38,14 @@ class SessionRepository(BaseRepository[Session]):
         mode: Optional[str] = None,
     ) -> List[Session]:
         """Get recent sessions ordered by creation date."""
-        query = select(Session).order_by(desc(Session.created_at))
+        query = (
+            select(Session)
+            .options(
+                selectinload(Session.data),
+                selectinload(Session.analysis),
+            )
+            .order_by(desc(Session.created_at))
+        )
 
         if mode:
             query = query.where(Session.record_mode == mode)
