@@ -120,18 +120,30 @@ async def create_user(
 
 async def init_admin_user(db: AsyncSession) -> None:
     """Create admin user if not exists."""
-    result = await db.execute(select(User).where(User.username == "admin"))
-    admin = result.scalar_one_or_none()
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info("[AUTH] init_admin_user called")
 
-    if not admin:
-        admin_password = settings.admin_password
-        await create_user(db, "admin", admin_password, is_admin=True)
-        print("[AUTH] Admin user created. Username: admin")
+    try:
+        result = await db.execute(select(User).where(User.username == "admin"))
+        admin = result.scalar_one_or_none()
+        logger.info(f"[AUTH] Admin user exists: {admin is not None}")
 
-    # Create demo user for testing
-    result = await db.execute(select(User).where(User.username == "demo"))
-    demo = result.scalar_one_or_none()
+        if not admin:
+            admin_password = settings.admin_password
+            await create_user(db, "admin", admin_password, is_admin=True)
+            logger.info("[AUTH] Admin user created. Username: admin")
 
-    if not demo:
-        await create_user(db, "demo", "ErrorLenseTest", is_admin=True)
-        print("[AUTH] Demo user created. Username: demo / Password: ErrorLenseTest")
+        # Create demo user for testing
+        result = await db.execute(select(User).where(User.username == "demo"))
+        demo = result.scalar_one_or_none()
+        logger.info(f"[AUTH] Demo user exists: {demo is not None}")
+
+        if not demo:
+            await create_user(db, "demo", "ErrorLenseTest", is_admin=True)
+            logger.info("[AUTH] Demo user created. Username: demo / Password: ErrorLenseTest")
+
+        logger.info("[AUTH] init_admin_user completed successfully")
+    except Exception as e:
+        logger.error(f"[AUTH] init_admin_user failed: {e}")
+        raise
