@@ -133,12 +133,73 @@ GEMINI_API_KEY=your_gemini_api_key
 
 ## Технологии
 
-- **Frontend:** Vanilla JavaScript (букмарклет + dashboard)
+- **Frontend:** Vue 3 (Composition API) + Vanilla JS (bookmarklet)
 - **Backend:** Python 3.11+ / FastAPI / Pydantic
 - **Database:** SQLite + SQLAlchemy (async)
 - **AI:** Groq Llama 3.3 70B / Google Gemini
 - **Container:** Docker + nginx
 - **CI/CD:** GitHub Actions
+- **Build:** esbuild (bookmarklet bundling)
+
+## Архитектура
+
+```
+errorlens/
+├── backend/                    # FastAPI сервер
+│   ├── app/
+│   │   ├── models/            # SQLAlchemy модели (Session, User, Task, etc.)
+│   │   ├── repositories/      # Data Access Layer (article_repo, task_repo, etc.)
+│   │   ├── services/          # Business Logic Layer
+│   │   │   ├── article_service.py
+│   │   │   ├── task_service.py
+│   │   │   ├── testcase_service.py
+│   │   │   ├── testrun_service.py
+│   │   │   └── analysis_service.py
+│   │   ├── routers/           # API endpoints
+│   │   └── middleware/        # Auth, rate limiting
+│   └── tests/                 # pytest тесты
+│
+├── bookmarklet/               # Клиентский recorder
+│   ├── src/                   # ES модули
+│   │   ├── recorder.js        # Основная логика записи
+│   │   ├── network.js         # Перехват fetch/XHR
+│   │   ├── ui.js              # Widget UI
+│   │   └── index.js           # Entry point
+│   ├── dist/                  # Собранные бандлы (esbuild)
+│   │   ├── recorder.js        # Development build
+│   │   └── recorder.min.js    # Production build (minified)
+│   └── esbuild.config.js      # Build configuration
+│
+├── dashboard-vue/             # Vue 3 dashboard
+│   └── src/
+│       ├── views/             # Page components
+│       │   ├── DashboardView.vue
+│       │   └── ResultsView.vue
+│       ├── components/        # Reusable components
+│       │   ├── dashboard/     # Session-related components
+│       │   │   ├── SessionFilters.vue
+│       │   │   ├── SessionCard.vue
+│       │   │   └── SessionDetailModal.vue
+│       │   └── results/       # Test results components
+│       │       ├── StatsSummary.vue
+│       │       ├── DonutChart.vue
+│       │       └── TestRunCard.vue
+│       └── services/          # API client
+│
+└── landing/                   # GitHub Pages landing
+```
+
+### Backend Architecture
+
+Трёхслойная архитектура:
+
+```
+Router (HTTP) → Service (Business Logic) → Repository (Data Access) → Model (DB)
+```
+
+**Routers** — Тонкий слой HTTP, валидация запросов, вызов сервисов
+**Services** — Бизнес-логика, трансформация данных, orchestration
+**Repositories** — CRUD операции, SQL queries, изоляция БД
 
 ## Статус проекта
 
