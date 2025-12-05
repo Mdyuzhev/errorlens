@@ -34,6 +34,71 @@ First off, thanks for taking the time to contribute! 🎉
 - Keep functions small and focused
 - Write meaningful commit messages
 
+## Commit Message Guidelines (QA Integration)
+
+Our QA team uses AI-powered test generation that parses commit messages and docstrings. To help the AI generate better tests, follow these guidelines:
+
+### Good Commit Messages
+
+Include context about what the endpoint/function does:
+
+```
+Add GET /projects/{id}/sessions endpoint
+
+Returns all sessions belonging to project. Requires owner/admin/member
+permissions — viewers get 403. Supports pagination via limit/offset with
+default limit=20, max=100. Returns 404 if project not found or user
+has no access.
+
+Response includes session metadata but not full captured data.
+```
+
+### Poor Commit Messages (avoid)
+
+```
+fix bug
+add endpoint
+update code
+```
+
+### Docstrings for Endpoints
+
+Always include docstrings that explain:
+- What the endpoint does
+- Required permissions
+- Important edge cases
+- Response format
+
+Example:
+```python
+@router.delete("/sessions/{session_id}")
+async def delete_session(session_id: str):
+    """
+    Delete session and all related data (captured events, analysis).
+
+    Requires member role or higher. Viewers get 403.
+    Returns 404 if session not found or belongs to different project.
+    Cascade deletes session_data and analysis_result tables.
+    """
+```
+
+### What the AI Generates
+
+From good commit messages and docstrings, the AI will generate:
+- Auth/permission tests (403 for unauthorized roles)
+- Validation tests (400 for invalid input)
+- Not found tests (404 scenarios)
+- Pagination edge cases
+- Response schema validation
+
+### When to Write Tests Manually
+
+Write tests manually for:
+- Complex business logic
+- Non-obvious permission rules
+- Integration between multiple services
+- Race conditions and concurrency
+
 ## Development Setup
 
 See [README.md](README.md) for local development instructions.
