@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse
 from app.config import settings
 from app.database import async_session_maker, init_db
 from app.routers import (
+    admin,
     auth,
     sessions,
     testcases,
@@ -61,6 +62,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(admin.router)
 app.include_router(auth.router)
 app.include_router(sessions.router)
 app.include_router(testcases.router)
