@@ -3,8 +3,10 @@
   "version": "2.0.0",
   "description": "ErrorLens bookmarklet for recording browser sessions",
   "scripts": {
-    "build": "node build.js",
-    "dev": "node build.js --watch"
+    "build": "node esbuild.config.js",
+    "build:min": "node esbuild.config.js --minify",
+    "build:all": "npm run build && npm run build:min",
+    "watch": "node esbuild.config.js --watch"
   },
   "devDependencies": {
     "esbuild": "^0.19.0"

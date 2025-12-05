@@ -23,56 +23,76 @@
       "tables": true,
       "tree_diagrams": true,
       "code_comments": "на английском",
-      "commits": "[Story X.Y] description in English"
+      "commits": "[Wave X.Y] description in English"
     }
   },
-  "memory": {
-    "project": "ErrorLens - AI-powered QA platform с bookmarklet записью сессий",
-    "stack": {
-      "backend": "Python/FastAPI + PostgreSQL + Alembic + SQLAlchemy",
-      "frontend": "Vue 3 + Vite dashboard",
-      "bookmarklet": "Vanilla JS IIFE (2438 LOC → рефакторинг на модули)",
-      "llm": "Groq (primary) + Gemini (fallback)",
-      "integrations": "TestIt, YouGile"
-    },
-    "hosting": {
-      "production": "Railway (errorlens-production.up.railway.app)",
-      "database": "Railway PostgreSQL addon",
-      "repo": "github.com/Mdyuzhev/errorlens (private)"
-    },
-    "auth": {
-      "demo_user": "demo / ErrorLenseTest",
-      "admin_user": "admin / (configured)"
+  "project": {
+    "name": "ErrorLens",
+    "description": "AI-powered QA platform с bookmarklet записью сессий",
+    "production": "https://errorlens-production.up.railway.app",
+    "repo": "github.com/Mdyuzhev/errorlens",
+    "demo": "demo / ErrorLenseTest"
+  },
+  "stack": {
+    "backend": "Python 3.11 + FastAPI + SQLAlchemy async + Alembic",
+    "database": "PostgreSQL (prod) / SQLite (dev)",
+    "frontend": "Vue 3 + Vite + Pinia + TailwindCSS",
+    "bookmarklet": "Vanilla JS IIFE → refactoring to ES modules",
+    "llm": "Groq Llama 3.3 (primary) + Gemini 1.5 Flash (fallback)",
+    "auth": "JWT (access 30min + refresh 7days)"
+  },
+  "architecture": {
+    "pattern": "Router → Service → Repository → Model",
+    "issue": "8 of 11 routers bypass Service layer",
+    "bookmarklet_issue": "src/ exists but legacy recorder.js still in production"
+  },
+  "git": {
+    "main": "main",
+    "current": "feature/wave-3",
+    "workflow": "feature/* → PR → main",
+    "commit": "[Wave X.Y] Description in English"
+  },
+  "current_wave": {
+    "number": "3.2",
+    "name": "Code Refactoring",
+    "status": "in_progress",
+    "audit": "docs/TECHNICAL_AUDIT_2025-12-05.md",
+    "context": "CLAUDE.md",
+    "phases": {
+      "P1_bookmarklet": {
+        "priority": "P0 Critical",
+        "instruction": "docs/instructions/WAVE_3.2_PHASE_1_BOOKMARKLET.md"
+      },
+      "P2_backend": {
+        "priority": "P1 High", 
+        "instruction": "docs/instructions/WAVE_3.2_PHASE_2_BACKEND.md"
+      },
+      "P3_frontend": {
+        "priority": "P2 Medium",
+        "instruction": "docs/instructions/WAVE_3.2_PHASE_3_FRONTEND.md"
+      },
+      "P4_tests": {
+        "priority": "P2 Medium",
+        "instruction": "docs/instructions/WAVE_3.2_PHASE_4_TESTS.md"
+      }
     }
   },
-  "git_workflow": {
-    "branches": "feature/* → main via PR",
-    "current": "feature/wave-3 (multi-tenancy + refactoring)",
-    "process": "code → commit → push → PR → merge"
+  "key_files": {
+    "context": "CLAUDE.md",
+    "audit": "docs/TECHNICAL_AUDIT_2025-12-05.md",
+    "example_router": "backend/app/routers/sessions.py",
+    "example_service": "backend/app/services/session_service.py",
+    "example_repo": "backend/app/repositories/session_repo.py"
   },
-  "task_workflows": {
-    "tracker": "YouGile",
-    "api_key": "vPt2EZk7Obi7F1ZJxDbmQupKZbUR2mFIV2L9-Gz4S8E+rFwEp5Hyf2vmD7KIgHY-",
-    "story_naming": "[Wave X.Y] Description",
-    "agent_instructions": "/mnt/user-data/outputs/AGENT_*.md"
+  "yougile": {
+    "api_key": "vPt2EZk7Obi7F1ZJxDbmQupKZbUR2mFIV2L9-Gz4S8E+rFwEp5Hyf2vmD7KIgHY-"
   },
   "critical_rules": [
-    "Bookmarklet = vanilla JS, IIFE pattern, будет модуляризован",
-    "Backend = FastAPI + async + Repository pattern",
-    "Database = PostgreSQL (prod) / SQLite (dev) + Alembic migrations",
-    "LLM = Groq primary (fast), Gemini fallback",
-    "CORS allow all (bookmarklet runs on any domain)",
-    "Multi-tenancy = Projects → Folders → Sessions"
-  ],
-  "current_wave": {
-    "wave": "3.2",
-    "focus": "Code Refactoring",
-    "status": "in_progress",
-    "tasks": [
-      "recorder.js → 12 modules",
-      "Repository layer",
-      "Services refactor",
-      "main.py split"
-    ]
-  }
+    "ВСЕГДА читай CLAUDE.md в начале сессии",
+    "Router → Service → Repository → Model (не обходить!)",
+    "Файлы не более 500 LOC",
+    "Type hints везде в Python",
+    "Коммит только после тестирования",
+    "Push в feature/* → PR → main"
+  ]
 }
