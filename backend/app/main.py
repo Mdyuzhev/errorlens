@@ -41,7 +41,11 @@ async def lifespan(app: FastAPI):
     logger.info("Database initialized")
 
     async with async_session_maker() as db:
-        await init_admin_user(db)
+        try:
+            await init_admin_user(db)
+            logger.info("Admin/demo users initialized")
+        except Exception as e:
+            logger.error(f"Failed to init users: {e}")
 
     yield
     logger.info("Shutting down...")
