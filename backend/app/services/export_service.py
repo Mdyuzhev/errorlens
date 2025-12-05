@@ -93,19 +93,56 @@ class ExportService:
 
     def export_postman(self, session: Session) -> dict:
         """Export session as Postman collection."""
-        if not session.data or not session.data.recorded_requests:
-            raise ValueError("No recorded requests to export")
+        requests = []
+
+        if session.data and session.data.recorded_requests:
+            # Use recorded requests if available
+            requests = [
+                RecordedRequest(**req) for req in session.data.recorded_requests
+            ]
+        elif session.data and session.data.network_errors:
+            # Fallback: generate from network errors
+            requests = self._generate_requests_from_errors(session.data.network_errors)
+
+        if not requests:
+            raise ValueError("No recorded requests or network errors to export")
 
         request = ExportPostmanRequest(
-            recorded_requests=[
-                RecordedRequest(**req) for req in session.data.recorded_requests
-            ],
+            recorded_requests=requests,
             collection_name=f"ErrorLens - {session.url[:50]}",
             base_url_variable=True,
             generate_tests=True,
         )
         result = generate_postman_collection(request)
         return result.collection
+
+    def _generate_requests_from_errors(self, network_errors: list) -> list:
+        """Generate RecordedRequest objects from network errors."""
+        requests = []
+        for error in network_errors:
+            url = error.get("url", "")
+            method = error.get("method", "GET")
+            status = error.get("status", 0)
+
+            # Create a basic request structure
+            request = RecordedRequest(
+                method=method,
+                url=url,
+                headers={
+                    "Content-Type": "application/json",
+                },
+                body=error.get("body"),
+                response={
+                    "status": status,
+                    "statusText": error.get("statusText", "Error"),
+                    "headers": {},
+                    "body": error.get("response_body", ""),
+                },
+                timestamp=error.get("timestamp"),
+                duration_ms=error.get("duration_ms", 0),
+            )
+            requests.append(request)
+        return requests
 
     def export_pytest(self, session: Session) -> str:
         """Export session as pytest test file."""
