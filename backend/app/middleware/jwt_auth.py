@@ -4,10 +4,12 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.user import User
+from app.models.db_models import Project, ProjectMember
 from app.services.auth import decode_token, get_user_by_id
 
 
@@ -54,3 +56,73 @@ async def require_admin(user: User = Depends(require_auth)) -> User:
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
+
+
+async def check_project_access(
+    project_id: str,
+    user: User,
+    db: AsyncSession,
+    required_role: Optional[str] = None,
+) -> Project:
+    """
+    Check if user has access to project.
+
+    Args:
+        project_id: Project ID to check
+        user: Authenticated user
+        db: Database session
+        required_role: Optional minimum role required (owner, admin, member, viewer)
+
+    Returns:
+        Project if access granted
+
+    Raises:
+        HTTPException: 404 if project not found, 403 if access denied
+    """
+    # Get project
+    result = await db.execute(
+        select(Project).where(Project.id == project_id)
+    )
+    project = result.scalar_one_or_none()
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Check if user is owner
+    if project.owner_id == user.id:
+        return project
+
+    # Check if user is member
+    member_result = await db.execute(
+        select(ProjectMember).where(
+            ProjectMember.project_id == project_id,
+            ProjectMember.user_id == user.id
+        )
+    )
+    member = member_result.scalar_one_or_none()
+
+    if not member:
+        raise HTTPException(status_code=403, detail="Access denied to this project")
+
+    # Check role hierarchy if required
+    if required_role:
+        role_hierarchy = {"owner": 4, "admin": 3, "member": 2, "viewer": 1}
+        user_level = role_hierarchy.get(member.role, 0)
+        required_level = role_hierarchy.get(required_role, 0)
+
+        if user_level < required_level:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Requires {required_role} role or higher"
+            )
+
+    return project
+
+
+def get_user_project_role(project: Project, user: User, member: Optional[ProjectMember]) -> str:
+    """Get user's role in a project."""
+    if project.owner_id == user.id:
+        return "owner"
+    if member:
+        return member.role
+    return "none"
