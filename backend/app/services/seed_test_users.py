@@ -102,6 +102,7 @@ async def seed_test_users(db: AsyncSession) -> Dict[str, Any]:
                 slug=proj_data["slug"],
                 description=f"Test project: {proj_data['name']}",
                 owner_id=owner.id,
+                plan="free",
                 is_public=False,
             )
             db.add(project)
