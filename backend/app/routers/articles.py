@@ -1,13 +1,21 @@
-"""Articles/Knowledge base CRUD router - thin controller."""
+"""Articles/Knowledge base CRUD router - thin controller.
+
+Multi-tenancy: Articles are filtered by project_id.
+Users can only access articles in projects they own or are members of.
+"""
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.middleware.jwt_auth import require_auth
+from app.middleware.jwt_auth import (
+    require_auth,
+    check_project_access,
+    get_default_project,
+)
 from app.models.user import User
 from app.services.article_service import ArticleService
 
@@ -22,6 +30,7 @@ class ArticleCreate(BaseModel):
     category: Optional[str] = None
     tags: list[str] = []
     status: str = "draft"
+    project_id: Optional[str] = None  # Required for multi-tenancy
 
 
 class ArticleUpdate(BaseModel):
@@ -35,15 +44,30 @@ class ArticleUpdate(BaseModel):
 
 @router.get("")
 async def list_articles(
+    project_id: Optional[str] = Query(default=None, description="Filter by project ID"),
     category: Optional[str] = None,
     status: Optional[str] = None,
     tag: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
-    """List articles with filters."""
+    """
+    List articles with filters.
+
+    If project_id provided, filters by that project (requires access).
+    If project_id is None, returns articles from user's default project.
+    """
+    # Determine which project to use
+    if project_id:
+        await check_project_access(project_id, user, db)
+        filter_project_id = project_id
+    else:
+        default_project = await get_default_project(user, db)
+        filter_project_id = default_project.id if default_project else None
+
     service = ArticleService(db)
     return await service.list_articles(
+        project_id=filter_project_id,
         category=category,
         status=status,
         tag=tag
@@ -52,25 +76,42 @@ async def list_articles(
 
 @router.get("/categories/list")
 async def list_categories(
+    project_id: Optional[str] = Query(default=None),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
-    """Get unique categories."""
+    """Get unique categories for a project."""
+    if project_id:
+        await check_project_access(project_id, user, db)
+        filter_project_id = project_id
+    else:
+        default_project = await get_default_project(user, db)
+        filter_project_id = default_project.id if default_project else None
+
     service = ArticleService(db)
-    return await service.get_categories()
+    return await service.get_categories(project_id=filter_project_id)
 
 
-@router.get("/{slug}")
+@router.get("/{article_id}")
 async def get_article(
-    slug: str,
+    article_id: str,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
 ):
-    """Get article by slug (public for published)."""
+    """
+    Get article by ID.
+
+    Returns 404 if not found or user has no access to article's project.
+    """
     service = ArticleService(db)
-    article = await service.get_article(slug)
+    article = await service.get_article_by_id(article_id)
 
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
+
+    # Check project access
+    if article.project_id:
+        await check_project_access(article.project_id, user, db)
 
     return service.to_detail_dict(article)
 
@@ -81,7 +122,21 @@ async def create_article(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
-    """Create new article."""
+    """
+    Create new article.
+
+    Requires member role or higher in the project.
+    """
+    # Determine project
+    if data.project_id:
+        await check_project_access(data.project_id, user, db, required_role="member")
+        project_id = data.project_id
+    else:
+        default_project = await get_default_project(user, db)
+        if not default_project:
+            raise HTTPException(status_code=400, detail="No project specified and no default project found")
+        project_id = default_project.id
+
     service = ArticleService(db)
     article = await service.create_article(
         title=data.title,
@@ -90,7 +145,9 @@ async def create_article(
         excerpt=data.excerpt,
         category=data.category,
         tags=data.tags,
-        status=data.status
+        status=data.status,
+        project_id=project_id,
+        created_by=user.id,
     )
     return {"id": article.id, "slug": article.slug}
 
@@ -102,14 +159,27 @@ async def update_article(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
-    """Update article."""
+    """
+    Update article.
+
+    Requires member role or higher in the article's project.
+    """
     service = ArticleService(db)
-    article = await service.update_article(
+    article = await service.get_article_by_id(article_id)
+
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    # Check project access with member role
+    if article.project_id:
+        await check_project_access(article.project_id, user, db, required_role="member")
+
+    updated = await service.update_article(
         article_id,
         **data.model_dump(exclude_unset=True)
     )
 
-    if not article:
+    if not updated:
         raise HTTPException(status_code=404, detail="Article not found")
 
     return {"message": "Article updated"}
@@ -121,8 +191,21 @@ async def delete_article(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
-    """Delete article."""
+    """
+    Delete article.
+
+    Requires admin role or higher in the article's project.
+    """
     service = ArticleService(db)
+    article = await service.get_article_by_id(article_id)
+
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    # Check project access with admin role for delete
+    if article.project_id:
+        await check_project_access(article.project_id, user, db, required_role="admin")
+
     deleted = await service.delete_article(article_id)
 
     if not deleted:

@@ -33,13 +33,15 @@ class ArticleService:
         excerpt: Optional[str] = None,
         category: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        status: str = "draft"
+        status: str = "draft",
+        project_id: Optional[str] = None,
+        created_by: Optional[str] = None,
     ) -> Article:
         """Create new article with unique slug."""
         slug = slugify(title)
 
-        # Ensure unique slug
-        existing = await self.repo.get_by_slug(slug)
+        # Ensure unique slug within project
+        existing = await self.repo.get_by_slug(slug, project_id=project_id)
         if existing:
             slug = f"{slug}-{datetime.now().strftime('%Y%m%d%H%M')}"
 
@@ -52,6 +54,8 @@ class ArticleService:
             "tags": tags or [],
             "status": status,
             "author": author,
+            "project_id": project_id,
+            "created_by": created_by,
             "published_at": datetime.utcnow() if status == "published" else None,
         }
 
@@ -59,9 +63,9 @@ class ArticleService:
         await self.db.commit()
         return article
 
-    async def get_article(self, slug: str, increment_views: bool = True) -> Optional[Article]:
+    async def get_article(self, slug: str, project_id: Optional[str] = None, increment_views: bool = True) -> Optional[Article]:
         """Get article by slug."""
-        article = await self.repo.get_by_slug(slug)
+        article = await self.repo.get_by_slug(slug, project_id=project_id)
         if article and increment_views:
             await self.repo.increment_views(article)
             await self.db.commit()
@@ -73,6 +77,7 @@ class ArticleService:
 
     async def list_articles(
         self,
+        project_id: Optional[str] = None,
         category: Optional[str] = None,
         status: Optional[str] = None,
         tag: Optional[str] = None,
@@ -81,6 +86,7 @@ class ArticleService:
     ) -> List[Dict[str, Any]]:
         """List articles with filters."""
         articles = await self.repo.list_with_filters(
+            project_id=project_id,
             category=category,
             status=status,
             limit=limit,
@@ -93,9 +99,9 @@ class ArticleService:
 
         return [self._to_list_dict(a) for a in articles]
 
-    async def get_categories(self) -> List[str]:
-        """Get unique categories."""
-        return await self.repo.get_categories()
+    async def get_categories(self, project_id: Optional[str] = None) -> List[str]:
+        """Get unique categories for a project."""
+        return await self.repo.get_categories(project_id=project_id)
 
     async def update_article(
         self,
@@ -137,6 +143,7 @@ class ArticleService:
             "tags": article.tags,
             "status": article.status,
             "author": article.author,
+            "project_id": article.project_id,
             "created_at": article.created_at.isoformat() if article.created_at else None,
             "views": article.views,
         }
@@ -153,6 +160,7 @@ class ArticleService:
             "tags": article.tags,
             "status": article.status,
             "author": article.author,
+            "project_id": article.project_id,
             "created_at": article.created_at.isoformat() if article.created_at else None,
             "published_at": article.published_at.isoformat() if article.published_at else None,
             "views": article.views,
