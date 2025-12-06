@@ -1,13 +1,12 @@
 """TestCase service - business logic layer."""
 
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import TestCase
 from app.repositories.testcase_repo import TestCaseRepository
-
 
 # Valid values
 VALID_STATUSES = ["Draft", "Ready", "Approved", "Deprecated"]
@@ -26,16 +25,16 @@ class TestCaseService:
         self,
         title: str,
         created_by: str,
-        description: Optional[str] = None,
-        preconditions: Optional[str] = None,
-        postconditions: Optional[str] = None,
+        description: str | None = None,
+        preconditions: str | None = None,
+        postconditions: str | None = None,
         priority: str = "Medium",
         status: str = "Draft",
         automation_status: str = "Manual",
-        folder: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        steps: Optional[List[dict]] = None,
-        session_id: Optional[str] = None,
+        folder: str | None = None,
+        tags: list[str] | None = None,
+        steps: list[dict] | None = None,
+        session_id: str | None = None,
     ) -> TestCase:
         """Create new test case."""
         # Validate enums
@@ -65,18 +64,18 @@ class TestCaseService:
         await self.db.commit()
         return testcase
 
-    async def get_testcase(self, testcase_id: str) -> Optional[TestCase]:
+    async def get_testcase(self, testcase_id: str) -> TestCase | None:
         """Get test case by ID."""
         return await self.repo.get_by_id(testcase_id)
 
     async def list_testcases(
         self,
-        folder: Optional[str] = None,
-        status: Optional[str] = None,
-        priority: Optional[str] = None,
+        folder: str | None = None,
+        status: str | None = None,
+        priority: str | None = None,
         limit: int = 50,
         offset: int = 0,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """List test cases with filters."""
         # Use repo methods based on filters
         if folder:
@@ -86,7 +85,9 @@ class TestCaseService:
         elif priority:
             testcases = await self.repo.get_by_priority(priority, skip=offset, limit=limit)
         else:
-            testcases = await self.repo.get_all(skip=offset, limit=limit, order_by=TestCase.created_at.desc())
+            testcases = await self.repo.get_all(
+                skip=offset, limit=limit, order_by=TestCase.created_at.desc()
+            )
 
         return [self._to_list_dict(tc) for tc in testcases]
 
@@ -95,33 +96,29 @@ class TestCaseService:
         query: str,
         limit: int = 50,
         offset: int = 0,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search test cases by title or description."""
         testcases = await self.repo.search(query, skip=offset, limit=limit)
         return [self._to_list_dict(tc) for tc in testcases]
 
     async def get_by_tags(
         self,
-        tags: List[str],
+        tags: list[str],
         match_all: bool = False,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get test cases by tags."""
         testcases = await self.repo.get_by_tags(tags, match_all=match_all)
         return [self._to_list_dict(tc) for tc in testcases]
 
-    async def get_folders(self) -> List[str]:
+    async def get_folders(self) -> list[str]:
         """Get unique folders."""
         return await self.repo.get_folders()
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Get test case statistics."""
         return await self.repo.get_stats()
 
-    async def update_testcase(
-        self,
-        testcase_id: str,
-        **updates
-    ) -> Optional[TestCase]:
+    async def update_testcase(self, testcase_id: str, **updates) -> TestCase | None:
         """Update test case fields."""
         testcase = await self.repo.get_by_id(testcase_id)
         if not testcase:
@@ -135,7 +132,7 @@ class TestCaseService:
         await self.db.commit()
         return testcase
 
-    async def update_status(self, testcase_id: str, status: str) -> Optional[TestCase]:
+    async def update_status(self, testcase_id: str, status: str) -> TestCase | None:
         """Update test case status."""
         if status not in VALID_STATUSES:
             return None
@@ -143,7 +140,9 @@ class TestCaseService:
         await self.db.commit()
         return result
 
-    async def update_automation_status(self, testcase_id: str, automation_status: str) -> Optional[TestCase]:
+    async def update_automation_status(
+        self, testcase_id: str, automation_status: str
+    ) -> TestCase | None:
         """Update automation status."""
         if automation_status not in VALID_AUTOMATION:
             return None
@@ -163,13 +162,13 @@ class TestCaseService:
         testcase_id: str,
         external_id: str,
         external_url: str,
-    ) -> Optional[TestCase]:
+    ) -> TestCase | None:
         """Link test case to external system (e.g., TestIT)."""
         result = await self.repo.link_external(testcase_id, external_id, external_url)
         await self.db.commit()
         return result
 
-    def _to_list_dict(self, tc: TestCase) -> Dict[str, Any]:
+    def _to_list_dict(self, tc: TestCase) -> dict[str, Any]:
         """Convert test case to list response dict."""
         return {
             "id": tc.id,
@@ -187,7 +186,7 @@ class TestCaseService:
             "created_by": tc.created_by,
         }
 
-    def to_detail_dict(self, tc: TestCase) -> Dict[str, Any]:
+    def to_detail_dict(self, tc: TestCase) -> dict[str, Any]:
         """Convert test case to detailed response dict."""
         result = self._to_list_dict(tc)
         result["session_id"] = tc.session_id

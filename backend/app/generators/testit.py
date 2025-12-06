@@ -1,9 +1,8 @@
 """TestIt test case generator from recorded HTTP sessions."""
 
-from typing import Optional
-from datetime import datetime
 import json
 import re
+from datetime import datetime
 from urllib.parse import urlparse
 
 
@@ -40,7 +39,7 @@ class TestItGenerator:
         "low": "Low",
     }
 
-    def __init__(self, session_data: dict, analysis: Optional[dict] = None):
+    def __init__(self, session_data: dict, analysis: dict | None = None):
         """
         Initialize generator.
 
@@ -240,8 +239,7 @@ class TestItGenerator:
             path = urlparse(url).path
 
             step = {
-                "action": f"{self._request_to_action(request)}\n\n"
-                f"`{method} {path}`",
+                "action": f"{self._request_to_action(request)}\n\n" f"`{method} {path}`",
                 "expected": self._generate_expected_result(response, is_error),
                 "testData": self._extract_test_data(request),
             }
@@ -364,9 +362,7 @@ class TestItGenerator:
         for i, step in enumerate(tc["steps"], 1):
             action = step["action"].replace("\n", " ").replace("|", "\\|")
             expected = step["expected"].replace("|", "\\|")
-            test_data = (
-                step["testData"][:50].replace("|", "\\|") if step["testData"] else "-"
-            )
+            test_data = step["testData"][:50].replace("|", "\\|") if step["testData"] else "-"
             lines.append(f"| {i} | {action} | {expected} | {test_data} |")
 
         lines.extend(

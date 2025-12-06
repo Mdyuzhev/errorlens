@@ -1,7 +1,5 @@
 """Pydantic models for API request/response schemas."""
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -86,9 +84,7 @@ class AnalyzeRequest(BaseModel):
     recorded_requests: list[RecordedHttpExchange] = Field(
         default_factory=list, description="All recorded HTTP exchanges for test generation"
     )
-    record_mode: str = Field(
-        default="errors", description="Recording mode: 'errors' or 'all'"
-    )
+    record_mode: str = Field(default="errors", description="Recording mode: 'errors' or 'all'")
 
 
 class AnalyzeResponse(BaseModel):
@@ -169,7 +165,7 @@ class PostmanInfo(BaseModel):
     description: str = ""
     schema_url: str = Field(
         default="https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-        alias="schema"
+        alias="schema",
     )
 
     class Config:
@@ -196,9 +192,7 @@ class ExportPostmanRequest(BaseModel):
     base_url_variable: bool = Field(
         default=True, description="Extract base URL as {{baseUrl}} variable"
     )
-    generate_tests: bool = Field(
-        default=True, description="Generate pm.test() assertions"
-    )
+    generate_tests: bool = Field(default=True, description="Generate pm.test() assertions")
 
 
 class ExportPostmanResponse(BaseModel):
@@ -215,15 +209,9 @@ class ExportPytestRequest(BaseModel):
     recorded_requests: list[RecordedHttpExchange] = Field(
         ..., description="Recorded HTTP exchanges to convert"
     )
-    test_name: str = Field(
-        default="test_session", description="Name for the test file/class"
-    )
-    base_url_variable: bool = Field(
-        default=True, description="Extract base URL as variable"
-    )
-    use_llm: bool = Field(
-        default=True, description="Use LLM to generate intelligent comments"
-    )
+    test_name: str = Field(default="test_session", description="Name for the test file/class")
+    base_url_variable: bool = Field(default=True, description="Extract base URL as variable")
+    use_llm: bool = Field(default=True, description="Use LLM to generate intelligent comments")
 
 
 # Story 8.6.1: Ticket generator models
@@ -231,12 +219,8 @@ class GenerateTicketRequest(BaseModel):
     """Request body for ticket generation endpoint."""
 
     session_id: str = Field(..., description="Session ID to generate ticket from")
-    format: str = Field(
-        default="jira", description="Ticket format: jira, github, markdown"
-    )
-    additional_info: str = Field(
-        default="", description="Additional info to include in ticket"
-    )
+    format: str = Field(default="jira", description="Ticket format: jira, github, markdown")
+    additional_info: str = Field(default="", description="Additional info to include in ticket")
 
 
 class GenerateTicketResponse(BaseModel):
@@ -255,12 +239,8 @@ class GenerateTicketResponse(BaseModel):
 class RunTestRequest(BaseModel):
     """Request body for test runner endpoint."""
 
-    session_id: str | None = Field(
-        default=None, description="Session ID to run tests for"
-    )
-    test_code: str | None = Field(
-        default=None, description="Raw test code to execute"
-    )
+    session_id: str | None = Field(default=None, description="Session ID to run tests for")
+    test_code: str | None = Field(default=None, description="Raw test code to execute")
 
 
 class TestRunSummary(BaseModel):
@@ -292,7 +272,9 @@ class DetectedVariable(BaseModel):
     source_request_id: int = Field(..., description="Request ID where value originated")
     source_path: str = Field(..., description="Path to value (e.g., response.body.token)")
     value: str = Field(..., description="Actual value (may be truncated for security)")
-    used_in: list[int] = Field(default_factory=list, description="Request IDs where this value is used")
+    used_in: list[int] = Field(
+        default_factory=list, description="Request IDs where this value is used"
+    )
 
 
 class RequestAssertion(BaseModel):
@@ -334,15 +316,9 @@ class ExportRestAssuredRequest(BaseModel):
     recorded_requests: list[RecordedHttpExchange] = Field(
         ..., description="Recorded HTTP exchanges to convert"
     )
-    class_name: str = Field(
-        default="SessionTest", description="Java class name for the test file"
-    )
-    package_name: str = Field(
-        default="com.errorlens.tests", description="Java package name"
-    )
-    include_pom: bool = Field(
-        default=True, description="Include pom.xml in the ZIP output"
-    )
+    class_name: str = Field(default="SessionTest", description="Java class name for the test file")
+    package_name: str = Field(default="com.errorlens.tests", description="Java package name")
+    include_pom: bool = Field(default=True, description="Include pom.xml in the ZIP output")
 
 
 # Story 7.5.3: k6 load test export models
@@ -352,12 +328,8 @@ class ExportK6Request(BaseModel):
     recorded_requests: list[RecordedHttpExchange] = Field(
         ..., description="Recorded HTTP exchanges to convert"
     )
-    vus: int = Field(
-        default=10, ge=1, le=1000, description="Number of virtual users"
-    )
-    duration: str = Field(
-        default="30s", description="Test duration (e.g., '30s', '1m', '5m')"
-    )
+    vus: int = Field(default=10, ge=1, le=1000, description="Number of virtual users")
+    duration: str = Field(default="30s", description="Test duration (e.g., '30s', '1m', '5m')")
 
 
 # Story 13: TestIt test case export models
@@ -367,6 +339,6 @@ class ExportTestItRequest(BaseModel):
     recorded_requests: list[RecordedHttpExchange] = Field(
         ..., description="Recorded HTTP exchanges to convert to test case"
     )
-    analysis: Optional[AnalyzeResponse] = Field(
+    analysis: AnalyzeResponse | None = Field(
         default=None, description="Optional AI analysis for priority/description"
     )

@@ -1,10 +1,11 @@
 """
 Project, Folder, ProjectMember Pydantic Schemas
 """
-from pydantic import BaseModel, Field
-from typing import Optional, List
+
 from datetime import datetime
 from enum import Enum
+
+from pydantic import BaseModel, Field
 
 
 class ProjectPlan(str, Enum):
@@ -21,25 +22,26 @@ class MemberRole(str, Enum):
 
 # === Project Schemas ===
 
+
 class ProjectCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class ProjectUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    description: Optional[str] = None
+    name: str | None = Field(None, min_length=1, max_length=100)
+    description: str | None = None
 
 
 class ProjectResponse(BaseModel):
     id: str
     name: str
     slug: str
-    description: Optional[str]
+    description: str | None
     plan: ProjectPlan
     owner_id: str
     created_at: datetime
-    updated_at: Optional[datetime]
+    updated_at: datetime | None
 
     class Config:
         from_attributes = True
@@ -53,21 +55,22 @@ class ProjectWithStats(ProjectResponse):
 
 # === Folder Schemas ===
 
+
 class FolderCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
-    parent_id: Optional[str] = None
+    parent_id: str | None = None
 
 
 class FolderUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    parent_id: Optional[str] = None
+    name: str | None = Field(None, min_length=1, max_length=100)
+    parent_id: str | None = None
 
 
 class FolderResponse(BaseModel):
     id: str
     name: str
     project_id: str
-    parent_id: Optional[str]
+    parent_id: str | None
     sort_order: int
     created_at: datetime
 
@@ -76,6 +79,7 @@ class FolderResponse(BaseModel):
 
 
 # === Member Schemas ===
+
 
 class MemberAdd(BaseModel):
     username: str
@@ -99,6 +103,7 @@ class MemberResponse(BaseModel):
 
 # === Limits ===
 
+
 class PlanLimits(BaseModel):
     max_projects: int
     max_folders_per_project: int
@@ -116,7 +121,7 @@ FREE_LIMITS = PlanLimits(
     max_members_per_project=3,
     max_ai_analyses_per_day=20,
     retention_days=7,
-    max_integrations=1
+    max_integrations=1,
 )
 
 PRO_LIMITS = PlanLimits(
@@ -126,7 +131,7 @@ PRO_LIMITS = PlanLimits(
     max_members_per_project=999999,
     max_ai_analyses_per_day=999999,
     retention_days=90,
-    max_integrations=999999
+    max_integrations=999999,
 )
 
 

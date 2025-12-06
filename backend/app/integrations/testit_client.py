@@ -1,8 +1,8 @@
 """TestIt TMS Integration Client."""
 
 import httpx
-from typing import Optional
 from pydantic import BaseModel
+
 from app.config import settings
 
 
@@ -11,7 +11,7 @@ class TestItStep(BaseModel):
 
     action: str
     expected: str
-    test_data: Optional[str] = None
+    test_data: str | None = None
 
 
 class TestItTestCase(BaseModel):
@@ -25,7 +25,7 @@ class TestItTestCase(BaseModel):
     state: str = "Ready"  # NeedsWork, NotReady, Ready
     steps: list[TestItStep] = []
     tags: list[str] = []
-    section_id: Optional[str] = None
+    section_id: str | None = None
 
 
 class TestItClient:

@@ -1,17 +1,17 @@
 """Routers package."""
 
 from app.routers import (
-    auth,
-    sessions,
-    testcases,
-    tasks,
-    articles,
-    testruns,
-    exports,
-    tests,
-    integrations,
     analysis,
+    articles,
+    auth,
+    exports,
+    integrations,
     projects,
+    sessions,
+    tasks,
+    testcases,
+    testruns,
+    tests,
 )
 
 __all__ = [

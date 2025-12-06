@@ -1,10 +1,8 @@
 """Base generator class and shared utilities for test code generation."""
 
+import json
 from abc import ABC, abstractmethod
 from urllib.parse import urlparse
-from typing import Optional
-import json
-import re
 
 from app.models_pydantic import RecordedHttpExchange
 
@@ -59,23 +57,22 @@ class BaseGenerator(ABC):
 # Shared utility functions
 # =============================================================================
 
+
 def is_auth_endpoint(url: str) -> bool:
     """Check if URL is an authentication endpoint."""
     path = urlparse(url).path.lower()
-    auth_patterns = ['/login', '/auth', '/signin', '/token', '/oauth', '/session']
+    auth_patterns = ["/login", "/auth", "/signin", "/token", "/oauth", "/session"]
     return any(pattern in path for pattern in auth_patterns)
 
 
 def has_auth_header_in_request(headers: dict) -> bool:
     """Check if request has authorization header."""
-    auth_headers = {'authorization', 'x-api-key', 'x-auth-token', 'x-access-token'}
+    auth_headers = {"authorization", "x-api-key", "x-auth-token", "x-access-token"}
     return any(h.lower() in auth_headers for h in headers.keys())
 
 
 def filter_headers(
-    headers: dict,
-    exclude_auth: bool = False,
-    exclude_standard: bool = True
+    headers: dict, exclude_auth: bool = False, exclude_standard: bool = True
 ) -> dict:
     """
     Filter headers for generated code.
@@ -88,15 +85,27 @@ def filter_headers(
     skip = set()
 
     if exclude_standard:
-        skip.update({
-            'host', 'connection', 'accept-encoding', 'content-length',
-            'user-agent', 'cookie', 'origin', 'referer',
-            'sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform',
-            'sec-fetch-dest', 'sec-fetch-mode', 'sec-fetch-site'
-        })
+        skip.update(
+            {
+                "host",
+                "connection",
+                "accept-encoding",
+                "content-length",
+                "user-agent",
+                "cookie",
+                "origin",
+                "referer",
+                "sec-ch-ua",
+                "sec-ch-ua-mobile",
+                "sec-ch-ua-platform",
+                "sec-fetch-dest",
+                "sec-fetch-mode",
+                "sec-fetch-site",
+            }
+        )
 
     if exclude_auth:
-        skip.update({'authorization', 'x-api-key', 'x-auth-token', 'x-access-token'})
+        skip.update({"authorization", "x-api-key", "x-auth-token", "x-access-token"})
 
     return {k: v for k, v in headers.items() if k.lower() not in skip}
 
@@ -105,11 +114,11 @@ def generate_method_name(method: str, url: str, index: int) -> str:
     """Generate readable method/function name from URL path."""
     path = urlparse(url).path or "/"
     # Take last 2 meaningful path segments
-    parts = [p for p in path.split('/') if p and not p.isdigit() and len(p) < 30][-2:]
+    parts = [p for p in path.split("/") if p and not p.isdigit() and len(p) < 30][-2:]
 
     if parts:
         # CamelCase for Java, snake_case will be converted by caller if needed
-        name = ''.join(word.capitalize() for word in parts)
+        name = "".join(word.capitalize() for word in parts)
         return f"{method.lower()}{name}"
 
     return f"{method.lower()}Request{index + 1}"
@@ -120,7 +129,7 @@ def extract_path(url: str) -> str:
     return urlparse(url).path or "/"
 
 
-def parse_json_body(body: Optional[str]) -> Optional[dict]:
+def parse_json_body(body: str | None) -> dict | None:
     """Try to parse body as JSON, return None if not JSON."""
     if not body:
         return None
@@ -135,20 +144,20 @@ def escape_string(s: str, quote_char: str = '"') -> str:
     if not s:
         return ""
     # Escape backslashes first, then quotes, then newlines
-    result = s.replace('\\', '\\\\')
-    result = result.replace(quote_char, f'\\{quote_char}')
-    result = result.replace('\n', '\\n')
-    result = result.replace('\r', '\\r')
-    result = result.replace('\t', '\\t')
+    result = s.replace("\\", "\\\\")
+    result = result.replace(quote_char, f"\\{quote_char}")
+    result = result.replace("\n", "\\n")
+    result = result.replace("\r", "\\r")
+    result = result.replace("\t", "\\t")
     return result
 
 
 def get_token_field_names() -> list[str]:
     """Common field names for auth tokens in API responses."""
-    return ['token', 'access_token', 'accessToken', 'jwt', 'id_token', 'auth_token']
+    return ["token", "access_token", "accessToken", "jwt", "id_token", "auth_token"]
 
 
-def detect_token_in_response(response_body: Optional[str]) -> Optional[str]:
+def detect_token_in_response(response_body: str | None) -> str | None:
     """Detect which field contains auth token in response."""
     data = parse_json_body(response_body)
     if not data or not isinstance(data, dict):

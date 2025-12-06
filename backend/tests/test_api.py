@@ -22,37 +22,22 @@ class TestHealthEndpoint:
 
 
 class TestAnalyzeEndpoint:
-    """Tests for /analyze endpoint."""
+    """Tests for /analyze endpoint - requires authentication."""
 
-    def test_analyze_rejects_empty_data(self, client, empty_analyze_request):
-        """Analyze should reject requests with no error data."""
+    def test_analyze_rejects_unauthenticated(self, client, empty_analyze_request):
+        """Analyze should reject unauthenticated requests."""
         response = client.post("/analyze", json=empty_analyze_request)
-        assert response.status_code == 400
-        assert "No error data" in response.json()["detail"]
+        assert response.status_code == 401  # Unauthorized
 
-    def test_analyze_validates_required_fields(self, client):
-        """Analyze should validate required fields."""
+    def test_analyze_validates_auth_before_body(self, client):
+        """Analyze should check auth before validating body."""
         response = client.post("/analyze", json={})
-        assert response.status_code == 422  # Validation error
+        assert response.status_code == 401  # Auth check first
 
-    def test_analyze_accepts_valid_request(self, client, sample_analyze_request, mocker):
-        """Analyze should accept valid request (with mocked LLM)."""
-        # Mock the LLM provider to avoid real API calls
-        mock_response = {
-            "summary": "Test error",
-            "probable_cause": "Test cause",
-            "suggested_fix": "Test fix",
-            "severity": "medium",
-            "details": "Test details",
-        }
-        mocker.patch(
-            "app.analyzer._get_provider",
-            side_effect=ValueError("No LLM API key configured"),
-        )
-
+    def test_analyze_requires_auth(self, client, sample_analyze_request):
+        """Analyze should require authentication."""
         response = client.post("/analyze", json=sample_analyze_request)
-        # Without API keys, should return 500
-        assert response.status_code == 500
+        assert response.status_code == 401  # Unauthorized
 
 
 class TestCORS:

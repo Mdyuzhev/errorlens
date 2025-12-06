@@ -7,17 +7,37 @@ from urllib.parse import urlparse
 
 from app.models_pydantic import RecordedHttpExchange
 
-
 # Common token/ID field names
 TOKEN_FIELDS = {
-    "token", "access_token", "accessToken", "auth_token", "authToken",
-    "refresh_token", "refreshToken", "jwt", "bearer", "session_id",
-    "sessionId", "csrf", "csrfToken", "csrf_token", "api_key", "apiKey",
+    "token",
+    "access_token",
+    "accessToken",
+    "auth_token",
+    "authToken",
+    "refresh_token",
+    "refreshToken",
+    "jwt",
+    "bearer",
+    "session_id",
+    "sessionId",
+    "csrf",
+    "csrfToken",
+    "csrf_token",
+    "api_key",
+    "apiKey",
 }
 
 ID_FIELDS = {
-    "id", "_id", "userId", "user_id", "orderId", "order_id",
-    "productId", "product_id", "itemId", "item_id",
+    "id",
+    "_id",
+    "userId",
+    "user_id",
+    "orderId",
+    "order_id",
+    "productId",
+    "product_id",
+    "itemId",
+    "item_id",
 }
 
 
@@ -91,7 +111,7 @@ def detect_variables(exchanges: list[RecordedHttpExchange]) -> dict[str, dict]:
                             "source_request_id": source_id,
                             "source_path": source_path,
                             "value": value,
-                            "used_in": []
+                            "used_in": [],
                         }
                     if ex.id not in variables[var_name]["used_in"]:
                         variables[var_name]["used_in"].append(ex.id)
@@ -106,7 +126,7 @@ def detect_variables(exchanges: list[RecordedHttpExchange]) -> dict[str, dict]:
                                 "source_request_id": source_id,
                                 "source_path": source_path,
                                 "value": resp_value,
-                                "used_in": []
+                                "used_in": [],
                             }
                         if ex.id not in variables[var_name]["used_in"]:
                             variables[var_name]["used_in"].append(ex.id)
@@ -124,7 +144,7 @@ def detect_variables(exchanges: list[RecordedHttpExchange]) -> dict[str, dict]:
                             "source_request_id": source_id,
                             "source_path": source_path,
                             "value": value,
-                            "used_in": []
+                            "used_in": [],
                         }
                     if ex.id not in variables[var_name]["used_in"]:
                         variables[var_name]["used_in"].append(ex.id)
@@ -138,7 +158,7 @@ def detect_variables(exchanges: list[RecordedHttpExchange]) -> dict[str, dict]:
                         "source_request_id": source_id,
                         "source_path": source_path,
                         "value": value,
-                        "used_in": []
+                        "used_in": [],
                     }
                 if ex.id not in variables[var_name]["used_in"]:
                     variables[var_name]["used_in"].append(ex.id)
@@ -184,7 +204,10 @@ def group_requests_by_scenario(exchanges: list[RecordedHttpExchange]) -> dict[st
         method = ex.request.method.upper()
 
         # Authentication
-        if any(p in path for p in ["/auth", "/login", "/logout", "/register", "/signup", "/token", "/oauth"]):
+        if any(
+            p in path
+            for p in ["/auth", "/login", "/logout", "/register", "/signup", "/token", "/oauth"]
+        ):
             groups["auth"].append(ex.id)
             continue
 
@@ -224,30 +247,36 @@ def extract_assertions(exchange: RecordedHttpExchange) -> list[dict]:
     assertions = []
 
     # Status code assertion
-    assertions.append({
-        "type": "status",
-        "expected": exchange.response.status,
-        "description": f"Status code is {exchange.response.status}"
-    })
+    assertions.append(
+        {
+            "type": "status",
+            "expected": exchange.response.status,
+            "description": f"Status code is {exchange.response.status}",
+        }
+    )
 
     # Response time assertion
     if exchange.response.duration_ms > 0:
         threshold = max(exchange.response.duration_ms * 2, 1000)
-        assertions.append({
-            "type": "response_time",
-            "expected": threshold,
-            "description": f"Response time under {threshold}ms"
-        })
+        assertions.append(
+            {
+                "type": "response_time",
+                "expected": threshold,
+                "description": f"Response time under {threshold}ms",
+            }
+        )
 
     # Content-Type header
     content_type = exchange.response.headers.get("content-type", "")
     if content_type:
-        assertions.append({
-            "type": "header",
-            "path": "content-type",
-            "expected": content_type.split(";")[0].strip(),
-            "description": f"Content-Type is {content_type.split(';')[0].strip()}"
-        })
+        assertions.append(
+            {
+                "type": "header",
+                "path": "content-type",
+                "expected": content_type.split(";")[0].strip(),
+                "description": f"Content-Type is {content_type.split(';')[0].strip()}",
+            }
+        )
 
     # JSON body assertions
     if "application/json" in content_type.lower() and exchange.response.body:
@@ -255,40 +284,58 @@ def extract_assertions(exchange: RecordedHttpExchange) -> list[dict]:
             data = json.loads(exchange.response.body)
             if isinstance(data, dict):
                 # Check for important fields
-                for field in ["id", "_id", "data", "results", "items", "error", "message", "success", "status"]:
+                for field in [
+                    "id",
+                    "_id",
+                    "data",
+                    "results",
+                    "items",
+                    "error",
+                    "message",
+                    "success",
+                    "status",
+                ]:
                     if field in data:
                         value = data[field]
-                        assertions.append({
-                            "type": "json_field",
-                            "path": field,
-                            "expected": type(value).__name__,
-                            "description": f"Response has '{field}' field"
-                        })
+                        assertions.append(
+                            {
+                                "type": "json_field",
+                                "path": field,
+                                "expected": type(value).__name__,
+                                "description": f"Response has '{field}' field",
+                            }
+                        )
 
                 # For arrays, check length
                 for field, value in data.items():
                     if isinstance(value, list) and len(value) > 0:
-                        assertions.append({
-                            "type": "json_array",
-                            "path": field,
-                            "expected": "non-empty",
-                            "description": f"'{field}' array is not empty"
-                        })
+                        assertions.append(
+                            {
+                                "type": "json_array",
+                                "path": field,
+                                "expected": "non-empty",
+                                "description": f"'{field}' array is not empty",
+                            }
+                        )
                         break  # Only one array assertion
 
             elif isinstance(data, list):
-                assertions.append({
-                    "type": "json_type",
-                    "expected": "array",
-                    "description": "Response is an array"
-                })
+                assertions.append(
+                    {
+                        "type": "json_type",
+                        "expected": "array",
+                        "description": "Response is an array",
+                    }
+                )
                 if len(data) > 0:
-                    assertions.append({
-                        "type": "json_array",
-                        "path": "$",
-                        "expected": "non-empty",
-                        "description": "Response array is not empty"
-                    })
+                    assertions.append(
+                        {
+                            "type": "json_array",
+                            "path": "$",
+                            "expected": "non-empty",
+                            "description": "Response array is not empty",
+                        }
+                    )
         except (json.JSONDecodeError, TypeError):
             pass
 

@@ -4,21 +4,18 @@ Multi-tenancy: Articles are filtered by project_id.
 Users can only access articles in projects they own or are members of.
 """
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.jwt_auth import (
-    require_auth,
     check_project_access,
     get_default_project,
+    require_auth,
 )
 from app.models.user import User
 from app.services.article_service import ArticleService
-
 
 router = APIRouter(prefix="/articles", tags=["articles"])
 
@@ -26,28 +23,28 @@ router = APIRouter(prefix="/articles", tags=["articles"])
 class ArticleCreate(BaseModel):
     title: str
     content: str
-    excerpt: Optional[str] = None
-    category: Optional[str] = None
+    excerpt: str | None = None
+    category: str | None = None
     tags: list[str] = []
     status: str = "draft"
-    project_id: Optional[str] = None  # Required for multi-tenancy
+    project_id: str | None = None  # Required for multi-tenancy
 
 
 class ArticleUpdate(BaseModel):
-    title: Optional[str] = None
-    content: Optional[str] = None
-    excerpt: Optional[str] = None
-    category: Optional[str] = None
-    tags: Optional[list[str]] = None
-    status: Optional[str] = None
+    title: str | None = None
+    content: str | None = None
+    excerpt: str | None = None
+    category: str | None = None
+    tags: list[str] | None = None
+    status: str | None = None
 
 
 @router.get("")
 async def list_articles(
-    project_id: Optional[str] = Query(default=None, description="Filter by project ID"),
-    category: Optional[str] = None,
-    status: Optional[str] = None,
-    tag: Optional[str] = None,
+    project_id: str | None = Query(default=None, description="Filter by project ID"),
+    category: str | None = None,
+    status: str | None = None,
+    tag: str | None = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
@@ -67,16 +64,13 @@ async def list_articles(
 
     service = ArticleService(db)
     return await service.list_articles(
-        project_id=filter_project_id,
-        category=category,
-        status=status,
-        tag=tag
+        project_id=filter_project_id, category=category, status=status, tag=tag
     )
 
 
 @router.get("/categories/list")
 async def list_categories(
-    project_id: Optional[str] = Query(default=None),
+    project_id: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
@@ -134,7 +128,9 @@ async def create_article(
     else:
         default_project = await get_default_project(user, db)
         if not default_project:
-            raise HTTPException(status_code=400, detail="No project specified and no default project found")
+            raise HTTPException(
+                status_code=400, detail="No project specified and no default project found"
+            )
         project_id = default_project.id
 
     service = ArticleService(db)
@@ -174,10 +170,7 @@ async def update_article(
     if article.project_id:
         await check_project_access(article.project_id, user, db, required_role="member")
 
-    updated = await service.update_article(
-        article_id,
-        **data.model_dump(exclude_unset=True)
-    )
+    updated = await service.update_article(article_id, **data.model_dump(exclude_unset=True))
 
     if not updated:
         raise HTTPException(status_code=404, detail="Article not found")

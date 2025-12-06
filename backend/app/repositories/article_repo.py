@@ -1,7 +1,5 @@
 """Article repository - data access layer."""
 
-from typing import Optional, List
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +13,7 @@ class ArticleRepository(BaseRepository[Article]):
     def __init__(self, db: AsyncSession):
         super().__init__(Article, db)
 
-    async def get_by_slug(self, slug: str, project_id: Optional[str] = None) -> Optional[Article]:
+    async def get_by_slug(self, slug: str, project_id: str | None = None) -> Article | None:
         """Get article by slug, optionally filtered by project."""
         query = select(Article).where(Article.slug == slug)
         if project_id:
@@ -25,12 +23,12 @@ class ArticleRepository(BaseRepository[Article]):
 
     async def list_with_filters(
         self,
-        project_id: Optional[str] = None,
-        category: Optional[str] = None,
-        status: Optional[str] = None,
+        project_id: str | None = None,
+        category: str | None = None,
+        status: str | None = None,
         limit: int = 100,
-        offset: int = 0
-    ) -> List[Article]:
+        offset: int = 0,
+    ) -> list[Article]:
         """List articles with filters including project_id."""
         query = select(Article).order_by(Article.created_at.desc())
 
@@ -47,7 +45,7 @@ class ArticleRepository(BaseRepository[Article]):
         result = await self.session.execute(query)
         return list(result.scalars().all())
 
-    async def get_categories(self, project_id: Optional[str] = None) -> List[str]:
+    async def get_categories(self, project_id: str | None = None) -> list[str]:
         """Get unique categories, optionally filtered by project."""
         query = select(Article.category).distinct().where(Article.category.isnot(None))
         if project_id:

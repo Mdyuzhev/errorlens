@@ -1,27 +1,24 @@
 """Analysis service - business logic for error analysis and ticket generation."""
 
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.analyzer import analyze_errors
-from app.session_analyzer import analyze_session
-from app.ticket_generator import generate_smart_ticket
-from app.models.db_models import Session, AnalysisResult
+from app.config import settings
+from app.models.db_models import AnalysisResult, Session
 from app.models_pydantic import (
     AnalyzeRequest,
-    AnalyzeResponse,
     ConsoleLogEntry,
     JSException,
     NetworkError,
     RecordedHttpExchange,
-    DetectedVariable,
-    RequestAssertion,
 )
-from app.config import settings
+from app.session_analyzer import analyze_session
+from app.ticket_generator import generate_smart_ticket
 
 logger = logging.getLogger(__name__)
 
@@ -36,12 +33,12 @@ class AnalysisService:
         self,
         url: str,
         user_agent: str,
-        console_logs: List[dict],
-        js_exceptions: List[dict],
-        network_errors: List[dict],
-        screenshot: Optional[str] = None,
+        console_logs: list[dict],
+        js_exceptions: list[dict],
+        network_errors: list[dict],
+        screenshot: str | None = None,
         recording_duration_ms: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Analyze captured browser errors using AI."""
         # Validate limits
         if len(console_logs) > settings.max_console_logs:
@@ -80,8 +77,8 @@ class AnalysisService:
 
     def analyze_session_requests(
         self,
-        recorded_requests: List[dict],
-    ) -> Dict[str, Any]:
+        recorded_requests: list[dict],
+    ) -> dict[str, Any]:
         """Analyze recorded session for test generation."""
         if not recorded_requests:
             raise ValueError("No recorded requests to analyze")
@@ -131,8 +128,8 @@ class AnalysisService:
         self,
         session_id: str,
         format: str = "markdown",
-        additional_info: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        additional_info: str | None = None,
+    ) -> dict[str, Any]:
         """Generate bug ticket from session analysis."""
         # Get session with analysis and data
         query = (
@@ -174,13 +171,9 @@ class AnalysisService:
 
         return ticket
 
-    async def reanalyze_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+    async def reanalyze_session(self, session_id: str) -> dict[str, Any] | None:
         """Re-run analysis on existing session."""
-        query = (
-            select(Session)
-            .options(selectinload(Session.data))
-            .where(Session.id == session_id)
-        )
+        query = select(Session).options(selectinload(Session.data)).where(Session.id == session_id)
         result = await self.db.execute(query)
         session = result.scalar_one_or_none()
 
@@ -225,13 +218,10 @@ class AnalysisService:
 
         return analysis_result
 
-    async def get_analysis_stats(self) -> Dict[str, Any]:
+    async def get_analysis_stats(self) -> dict[str, Any]:
         """Get analysis statistics."""
         # Count by severity
-        query = (
-            select(Session)
-            .options(selectinload(Session.analysis))
-        )
+        query = select(Session).options(selectinload(Session.analysis))
         result = await self.db.execute(query)
         sessions = result.scalars().all()
 

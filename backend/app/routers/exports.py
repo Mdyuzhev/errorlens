@@ -7,24 +7,24 @@ import zipfile
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 
-from app.middleware.jwt_auth import require_auth
-from app.models.user import User
-from app.models_pydantic import (
-    ExportPostmanRequest,
-    ExportPostmanResponse,
-    ExportPytestRequest,
-    ExportRestAssuredRequest,
-    ExportK6Request,
-    ExportTestItRequest,
-)
 from app.generators import (
+    generate_k6_file,
+    generate_pom_xml,
     generate_postman_collection,
     generate_pytest_file,
     generate_pytest_file_async,
     generate_restassured_file,
-    generate_pom_xml,
-    generate_k6_file,
     generate_testit_testcase,
+)
+from app.middleware.jwt_auth import require_auth
+from app.models.user import User
+from app.models_pydantic import (
+    ExportK6Request,
+    ExportPostmanRequest,
+    ExportPostmanResponse,
+    ExportPytestRequest,
+    ExportRestAssuredRequest,
+    ExportTestItRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -108,17 +108,14 @@ async def export_restassured(
         java_code = generate_restassured_file(
             recorded_requests=request.recorded_requests,
             class_name=request.class_name,
-            package_name=request.package_name
+            package_name=request.package_name,
         )
 
         if request.include_pom:
             zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-                package_path = request.package_name.replace('.', '/')
-                zf.writestr(
-                    f"src/test/java/{package_path}/{request.class_name}.java",
-                    java_code
-                )
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                package_path = request.package_name.replace(".", "/")
+                zf.writestr(f"src/test/java/{package_path}/{request.class_name}.java", java_code)
                 zf.writestr("pom.xml", generate_pom_xml())
                 zf.writestr("README.md", "# ErrorLens Generated Tests\n\n## Run: mvn test")
 
@@ -132,7 +129,9 @@ async def export_restassured(
             return Response(
                 content=java_code,
                 media_type="text/x-java",
-                headers={"Content-Disposition": f'attachment; filename="{request.class_name}.java"'},
+                headers={
+                    "Content-Disposition": f'attachment; filename="{request.class_name}.java"'
+                },
             )
 
     except Exception as e:
@@ -187,9 +186,7 @@ async def export_testit(
             "url": request.recorded_requests[0].request.url if request.recorded_requests else "",
             "recorded_requests": [r.model_dump() for r in request.recorded_requests],
             "has_errors": any(
-                r.response.status >= 400
-                for r in request.recorded_requests
-                if r.response
+                r.response.status >= 400 for r in request.recorded_requests if r.response
             ),
         }
 

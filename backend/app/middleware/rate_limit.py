@@ -34,8 +34,8 @@ async def rate_limit_middleware(request: Request) -> int:
                 "error": "rate_limit_exceeded",
                 "message": f"Лимит исчерпан. Максимум {settings.rate_limit_per_day} запросов в день.",
                 "limit": settings.rate_limit_per_day,
-                "reset": "midnight"
-            }
+                "reset": "midnight",
+            },
         )
 
     request_counts[client_ip][today] += 1

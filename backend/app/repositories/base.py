@@ -4,8 +4,9 @@ Base Repository with generic CRUD operations.
 Provides reusable data access patterns for SQLAlchemy models.
 """
 
-from typing import TypeVar, Generic, Type, Optional, List, Any, Dict
-from sqlalchemy import select, delete, update, func
+from typing import Any, Generic, TypeVar
+
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -25,15 +26,11 @@ class BaseRepository(Generic[ModelType]):
                 super().__init__(User, session)
     """
 
-    def __init__(self, model: Type[ModelType], session: AsyncSession):
+    def __init__(self, model: type[ModelType], session: AsyncSession):
         self.model = model
         self.session = session
 
-    async def get_by_id(
-        self,
-        id: Any,
-        load_relations: Optional[List[str]] = None
-    ) -> Optional[ModelType]:
+    async def get_by_id(self, id: Any, load_relations: list[str] | None = None) -> ModelType | None:
         """Get single record by ID."""
         query = select(self.model).where(self.model.id == id)
 
@@ -48,9 +45,9 @@ class BaseRepository(Generic[ModelType]):
         self,
         skip: int = 0,
         limit: int = 100,
-        load_relations: Optional[List[str]] = None,
-        order_by: Optional[Any] = None,
-    ) -> List[ModelType]:
+        load_relations: list[str] | None = None,
+        order_by: Any | None = None,
+    ) -> list[ModelType]:
         """Get all records with pagination."""
         query = select(self.model)
 
@@ -69,8 +66,8 @@ class BaseRepository(Generic[ModelType]):
         self,
         field_name: str,
         value: Any,
-        load_relations: Optional[List[str]] = None,
-    ) -> Optional[ModelType]:
+        load_relations: list[str] | None = None,
+    ) -> ModelType | None:
         """Get single record by field value."""
         field = getattr(self.model, field_name)
         query = select(self.model).where(field == value)
@@ -88,14 +85,14 @@ class BaseRepository(Generic[ModelType]):
         value: Any,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[ModelType]:
+    ) -> list[ModelType]:
         """Get multiple records by field value."""
         field = getattr(self.model, field_name)
         query = select(self.model).where(field == value).offset(skip).limit(limit)
         result = await self.session.execute(query)
         return list(result.scalars().all())
 
-    async def create(self, data: Dict[str, Any]) -> ModelType:
+    async def create(self, data: dict[str, Any]) -> ModelType:
         """Create new record."""
         instance = self.model(**data)
         self.session.add(instance)
@@ -103,11 +100,7 @@ class BaseRepository(Generic[ModelType]):
         await self.session.refresh(instance)
         return instance
 
-    async def update(
-        self,
-        id: Any,
-        data: Dict[str, Any]
-    ) -> Optional[ModelType]:
+    async def update(self, id: Any, data: dict[str, Any]) -> ModelType | None:
         """Update record by ID."""
         # Remove None values to avoid overwriting with nulls
         update_data = {k: v for k, v in data.items() if v is not None}
@@ -115,11 +108,7 @@ class BaseRepository(Generic[ModelType]):
         if not update_data:
             return await self.get_by_id(id)
 
-        stmt = (
-            update(self.model)
-            .where(self.model.id == id)
-            .values(**update_data)
-        )
+        stmt = update(self.model).where(self.model.id == id).values(**update_data)
         await self.session.execute(stmt)
         await self.session.flush()
 
@@ -150,14 +139,14 @@ class BaseRepository(Generic[ModelType]):
         result = await self.session.execute(query)
         return (result.scalar() or 0) > 0
 
-    async def bulk_create(self, items: List[Dict[str, Any]]) -> List[ModelType]:
+    async def bulk_create(self, items: list[dict[str, Any]]) -> list[ModelType]:
         """Create multiple records at once."""
         instances = [self.model(**data) for data in items]
         self.session.add_all(instances)
         await self.session.flush()
         return instances
 
-    async def bulk_delete(self, ids: List[Any]) -> int:
+    async def bulk_delete(self, ids: list[Any]) -> int:
         """Delete multiple records by IDs."""
         stmt = delete(self.model).where(self.model.id.in_(ids))
         result = await self.session.execute(stmt)

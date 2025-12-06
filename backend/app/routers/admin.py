@@ -3,13 +3,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
 
 from app.database import get_db
 from app.middleware.jwt_auth import require_auth
 from app.models.user import User
-from app.services.seed_test_users import seed_test_users, clear_test_users
-
+from app.services.seed_test_users import clear_test_users, seed_test_users
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -17,11 +15,11 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 class SeedResult(BaseModel):
     """Result of seeding operation."""
 
-    users_created: List[str]
-    users_skipped: List[str]
-    projects_created: List[str]
-    projects_skipped: List[str]
-    memberships_created: List[str]
+    users_created: list[str]
+    users_skipped: list[str]
+    projects_created: list[str]
+    projects_skipped: list[str]
+    memberships_created: list[str]
 
 
 class ClearResult(BaseModel):
@@ -34,10 +32,7 @@ class ClearResult(BaseModel):
 def require_admin(user: User = Depends(require_auth)) -> User:
     """Require admin user for endpoint access."""
     if not user.is_admin:
-        raise HTTPException(
-            status_code=403,
-            detail="Admin access required"
-        )
+        raise HTTPException(status_code=403, detail="Admin access required")
     return user
 
 

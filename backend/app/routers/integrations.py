@@ -9,11 +9,11 @@ from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.database import get_db
+from app.generators.testit import TestItGenerator
+from app.integrations.testit_client import TestItStep, TestItTestCase, testit_client
 from app.middleware.jwt_auth import require_auth
 from app.models.db_models import Session
 from app.models.user import User
-from app.integrations.testit_client import testit_client, TestItTestCase, TestItStep
-from app.generators.testit import TestItGenerator
 
 logger = logging.getLogger(__name__)
 

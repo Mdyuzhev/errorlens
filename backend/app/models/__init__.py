@@ -1,6 +1,9 @@
 """Models package - exports both Pydantic and SQLAlchemy models."""
 
 # Re-export Pydantic models from original location
+# Export SQLAlchemy models
+from app.models.db_models import AnalysisResult, Session, SessionData
+from app.models.user import User
 from app.models_pydantic import (
     AnalyzeRequest,
     AnalyzeResponse,
@@ -15,10 +18,6 @@ from app.models_pydantic import (
     SessionAnalysisRequest,
     SessionAnalysisResponse,
 )
-
-# Export SQLAlchemy models
-from app.models.db_models import AnalysisResult, Session, SessionData
-from app.models.user import User
 
 __all__ = [
     # Pydantic models

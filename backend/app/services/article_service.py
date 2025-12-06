@@ -2,7 +2,7 @@
 
 import re
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,12 +30,12 @@ class ArticleService:
         title: str,
         content: str,
         author: str,
-        excerpt: Optional[str] = None,
-        category: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        excerpt: str | None = None,
+        category: str | None = None,
+        tags: list[str] | None = None,
         status: str = "draft",
-        project_id: Optional[str] = None,
-        created_by: Optional[str] = None,
+        project_id: str | None = None,
+        created_by: str | None = None,
     ) -> Article:
         """Create new article with unique slug."""
         slug = slugify(title)
@@ -63,7 +63,9 @@ class ArticleService:
         await self.db.commit()
         return article
 
-    async def get_article(self, slug: str, project_id: Optional[str] = None, increment_views: bool = True) -> Optional[Article]:
+    async def get_article(
+        self, slug: str, project_id: str | None = None, increment_views: bool = True
+    ) -> Article | None:
         """Get article by slug."""
         article = await self.repo.get_by_slug(slug, project_id=project_id)
         if article and increment_views:
@@ -71,26 +73,22 @@ class ArticleService:
             await self.db.commit()
         return article
 
-    async def get_article_by_id(self, article_id: str) -> Optional[Article]:
+    async def get_article_by_id(self, article_id: str) -> Article | None:
         """Get article by ID."""
         return await self.repo.get_by_id(article_id)
 
     async def list_articles(
         self,
-        project_id: Optional[str] = None,
-        category: Optional[str] = None,
-        status: Optional[str] = None,
-        tag: Optional[str] = None,
+        project_id: str | None = None,
+        category: str | None = None,
+        status: str | None = None,
+        tag: str | None = None,
         limit: int = 100,
-        offset: int = 0
-    ) -> List[Dict[str, Any]]:
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
         """List articles with filters."""
         articles = await self.repo.list_with_filters(
-            project_id=project_id,
-            category=category,
-            status=status,
-            limit=limit,
-            offset=offset
+            project_id=project_id, category=category, status=status, limit=limit, offset=offset
         )
 
         # Filter by tag (post-filter for JSON field)
@@ -99,15 +97,11 @@ class ArticleService:
 
         return [self._to_list_dict(a) for a in articles]
 
-    async def get_categories(self, project_id: Optional[str] = None) -> List[str]:
+    async def get_categories(self, project_id: str | None = None) -> list[str]:
         """Get unique categories for a project."""
         return await self.repo.get_categories(project_id=project_id)
 
-    async def update_article(
-        self,
-        article_id: str,
-        **updates
-    ) -> Optional[Article]:
+    async def update_article(self, article_id: str, **updates) -> Article | None:
         """Update article fields."""
         article = await self.repo.get_by_id(article_id)
         if not article:
@@ -132,7 +126,7 @@ class ArticleService:
             await self.db.commit()
         return deleted
 
-    def _to_list_dict(self, article: Article) -> Dict[str, Any]:
+    def _to_list_dict(self, article: Article) -> dict[str, Any]:
         """Convert article to list response dict."""
         return {
             "id": article.id,
@@ -148,7 +142,7 @@ class ArticleService:
             "views": article.views,
         }
 
-    def to_detail_dict(self, article: Article) -> Dict[str, Any]:
+    def to_detail_dict(self, article: Article) -> dict[str, Any]:
         """Convert article to detailed response dict."""
         return {
             "id": article.id,

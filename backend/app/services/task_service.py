@@ -1,13 +1,12 @@
 """Task service - business logic layer."""
 
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import Task
 from app.repositories.task_repo import TaskRepository
-
 
 # Valid status transitions for Kanban
 VALID_STATUSES = ["todo", "in_progress", "review", "done"]
@@ -24,14 +23,14 @@ class TaskService:
     async def create_task(
         self,
         title: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         status: str = "todo",
         priority: str = "medium",
-        assignee: Optional[str] = None,
-        labels: Optional[List[str]] = None,
-        due_date: Optional[datetime] = None,
-        session_id: Optional[str] = None,
-        testcase_id: Optional[str] = None,
+        assignee: str | None = None,
+        labels: list[str] | None = None,
+        due_date: datetime | None = None,
+        session_id: str | None = None,
+        testcase_id: str | None = None,
     ) -> Task:
         """Create new task."""
         # Validate status and priority
@@ -56,17 +55,17 @@ class TaskService:
         await self.db.commit()
         return task
 
-    async def get_task(self, task_id: str) -> Optional[Task]:
+    async def get_task(self, task_id: str) -> Task | None:
         """Get task by ID."""
         return await self.repo.get_by_id(task_id)
 
     async def list_tasks(
         self,
-        status: Optional[str] = None,
-        priority: Optional[str] = None,
-        assignee: Optional[str] = None,
-        session_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        status: str | None = None,
+        priority: str | None = None,
+        assignee: str | None = None,
+        session_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         """List tasks with filters."""
         tasks = await self.repo.list_with_filters(
             status=status,
@@ -76,7 +75,7 @@ class TaskService:
         )
         return [self._to_list_dict(t) for t in tasks]
 
-    async def get_board(self) -> Dict[str, List[Dict[str, Any]]]:
+    async def get_board(self) -> dict[str, list[dict[str, Any]]]:
         """Get tasks grouped by status for Kanban board."""
         tasks = await self.repo.get_all_tasks()
 
@@ -89,11 +88,7 @@ class TaskService:
 
         return board
 
-    async def update_task(
-        self,
-        task_id: str,
-        **updates
-    ) -> Optional[Task]:
+    async def update_task(self, task_id: str, **updates) -> Task | None:
         """Update task fields."""
         task = await self.repo.get_by_id(task_id)
         if not task:
@@ -118,7 +113,7 @@ class TaskService:
         await self.db.commit()
         return task
 
-    async def move_task(self, task_id: str, new_status: str) -> Optional[Task]:
+    async def move_task(self, task_id: str, new_status: str) -> Task | None:
         """Move task to new status (Kanban operation)."""
         if new_status not in VALID_STATUSES:
             return None
@@ -131,11 +126,11 @@ class TaskService:
             await self.db.commit()
         return deleted
 
-    async def get_stats(self) -> Dict[str, int]:
+    async def get_stats(self) -> dict[str, int]:
         """Get task counts by status."""
         return await self.repo.count_by_status()
 
-    def _to_list_dict(self, task: Task) -> Dict[str, Any]:
+    def _to_list_dict(self, task: Task) -> dict[str, Any]:
         """Convert task to list response dict."""
         return {
             "id": task.id,
@@ -150,7 +145,7 @@ class TaskService:
             "completed_at": task.completed_at.isoformat() if task.completed_at else None,
         }
 
-    def to_detail_dict(self, task: Task) -> Dict[str, Any]:
+    def to_detail_dict(self, task: Task) -> dict[str, Any]:
         """Convert task to detailed response dict."""
         result = self._to_list_dict(task)
         result["session_id"] = task.session_id

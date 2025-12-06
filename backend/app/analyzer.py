@@ -150,9 +150,7 @@ async def analyze_errors(request: AnalyzeRequest) -> AnalyzeResponse:
         details = json.dumps(details, indent=2)
 
     total_events = (
-        len(request.console_logs)
-        + len(request.js_exceptions)
-        + len(request.network_errors)
+        len(request.console_logs) + len(request.js_exceptions) + len(request.network_errors)
     )
 
     return AnalyzeResponse(

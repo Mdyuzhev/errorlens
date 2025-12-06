@@ -1,15 +1,14 @@
 """Tests for Pydantic models."""
 
 import pytest
-from pydantic import ValidationError
-
 from app.models_pydantic import (
-    ConsoleLogEntry,
-    NetworkError,
-    JSException,
     AnalyzeRequest,
     AnalyzeResponse,
+    ConsoleLogEntry,
+    JSException,
+    NetworkError,
 )
+from pydantic import ValidationError
 
 
 class TestConsoleLogEntry:
@@ -135,15 +134,9 @@ class TestAnalyzeRequest:
         request = AnalyzeRequest(
             url="https://example.com/app",
             user_agent="Mozilla/5.0",
-            console_logs=[
-                ConsoleLogEntry(
-                    timestamp="t1", level="error", message="Console error"
-                )
-            ],
+            console_logs=[ConsoleLogEntry(timestamp="t1", level="error", message="Console error")],
             network_errors=[
-                NetworkError(
-                    timestamp="t2", method="GET", url="http://api.com", status=404
-                )
+                NetworkError(timestamp="t2", method="GET", url="http://api.com", status=404)
             ],
             js_exceptions=[JSException(timestamp="t3", message="JS error")],
             recording_duration_ms=5000,

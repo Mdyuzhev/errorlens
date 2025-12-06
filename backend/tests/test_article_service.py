@@ -1,9 +1,9 @@
 """Tests for ArticleService."""
 
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from app.services.article_service import ArticleService, slugify
 
 
@@ -71,9 +71,7 @@ class TestArticleService:
 
         # Act
         result = await article_service.create_article(
-            title="Test Article",
-            content="Test content here",
-            author="testuser"
+            title="Test Article", content="Test content here", author="testuser"
         )
 
         # Assert
@@ -93,13 +91,11 @@ class TestArticleService:
         mock_repo.create.return_value = mock_article
 
         # Act
-        with patch('app.services.article_service.datetime') as mock_datetime:
+        with patch("app.services.article_service.datetime") as mock_datetime:
             mock_datetime.now.return_value = datetime(2025, 1, 15, 10, 30)
             mock_datetime.utcnow.return_value = datetime(2025, 1, 15, 10, 30)
             await article_service.create_article(
-                title="Test Article",
-                content="Content",
-                author="testuser"
+                title="Test Article", content="Content", author="testuser"
             )
 
         # Assert - check that slug was modified
@@ -115,10 +111,7 @@ class TestArticleService:
 
         # Act
         await article_service.create_article(
-            title="Published Article",
-            content="Content",
-            author="testuser",
-            status="published"
+            title="Published Article", content="Content", author="testuser", status="published"
         )
 
         # Assert
@@ -212,10 +205,7 @@ class TestArticleService:
         mock_repo.get_by_id.return_value = mock_article
 
         # Act
-        result = await article_service.update_article(
-            "article-123",
-            title="Updated Title"
-        )
+        result = await article_service.update_article("article-123", title="Updated Title")
 
         # Assert
         assert result == mock_article
@@ -229,10 +219,7 @@ class TestArticleService:
         mock_repo.get_by_id.return_value = None
 
         # Act
-        result = await article_service.update_article(
-            "nonexistent-id",
-            title="New Title"
-        )
+        result = await article_service.update_article("nonexistent-id", title="New Title")
 
         # Assert
         assert result is None
@@ -246,10 +233,7 @@ class TestArticleService:
         mock_repo.get_by_id.return_value = mock_article
 
         # Act
-        await article_service.update_article(
-            "article-123",
-            status="published"
-        )
+        await article_service.update_article("article-123", status="published")
 
         # Assert
         assert mock_article.published_at is not None

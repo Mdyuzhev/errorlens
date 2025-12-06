@@ -1,7 +1,6 @@
 """Authentication service with JWT tokens."""
 
 from datetime import datetime, timedelta
-from typing import Optional
 
 import bcrypt
 from jose import JWTError, jwt
@@ -29,15 +28,13 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     """Token payload data."""
 
-    username: Optional[str] = None
-    user_id: Optional[str] = None
+    username: str | None = None
+    user_id: str | None = None
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify password against hash."""
-    return bcrypt.checkpw(
-        plain_password.encode("utf-8"), hashed_password.encode("utf-8")
-    )
+    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
 def get_password_hash(password: str) -> str:
@@ -45,12 +42,10 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """Create JWT access token."""
     to_encode = data.copy()
-    expire = datetime.utcnow() + (
-        expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=ALGORITHM)
 
@@ -63,7 +58,7 @@ def create_refresh_token(data: dict) -> str:
     return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=ALGORITHM)
 
 
-def decode_token(token: str) -> Optional[TokenData]:
+def decode_token(token: str) -> TokenData | None:
     """Decode and validate JWT token."""
     try:
         payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[ALGORITHM])
@@ -76,9 +71,7 @@ def decode_token(token: str) -> Optional[TokenData]:
         return None
 
 
-async def authenticate_user(
-    db: AsyncSession, username: str, password: str
-) -> Optional[User]:
+async def authenticate_user(db: AsyncSession, username: str, password: str) -> User | None:
     """Authenticate user by username and password."""
     result = await db.execute(select(User).where(User.username == username))
     user = result.scalar_one_or_none()
@@ -97,7 +90,7 @@ async def authenticate_user(
     return user
 
 
-async def get_user_by_id(db: AsyncSession, user_id: str) -> Optional[User]:
+async def get_user_by_id(db: AsyncSession, user_id: str) -> User | None:
     """Get user by ID."""
     result = await db.execute(select(User).where(User.id == user_id))
     return result.scalar_one_or_none()
@@ -121,6 +114,7 @@ async def create_user(
 async def init_admin_user(db: AsyncSession) -> None:
     """Create admin user if not exists."""
     import logging
+
     logger = logging.getLogger(__name__)
     logger.info("[AUTH] init_admin_user called")
 

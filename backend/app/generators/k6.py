@@ -1,18 +1,18 @@
 """Generate k6 load test scripts from recorded HTTP sessions."""
 
 import json
-from urllib.parse import urlparse
 
 from app.models_pydantic import RecordedHttpExchange
+
 from .base import (
     BaseGenerator,
-    is_auth_endpoint,
-    has_auth_header_in_request,
-    filter_headers,
-    extract_path,
-    parse_json_body,
-    escape_string,
     detect_token_in_response,
+    escape_string,
+    extract_path,
+    filter_headers,
+    has_auth_header_in_request,
+    is_auth_endpoint,
+    parse_json_body,
 )
 
 
@@ -45,7 +45,7 @@ class K6Generator(BaseGenerator):
         lines.extend(self._generate_variables())
         lines.extend(self._generate_main_function())
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def _generate_header(self) -> list[str]:
         """Generate k6 imports and comments."""
@@ -95,11 +95,13 @@ class K6Generator(BaseGenerator):
         ]
 
         if self.has_auth_flow:
-            lines.extend([
-                "// Auth token (will be set after login)",
-                "let authToken = null;",
-                "",
-            ])
+            lines.extend(
+                [
+                    "// Auth token (will be set after login)",
+                    "let authToken = null;",
+                    "",
+                ]
+            )
 
         return lines
 
@@ -112,13 +114,15 @@ class K6Generator(BaseGenerator):
         for i, exchange in enumerate(self.requests):
             lines.extend(self._generate_request(i, exchange))
 
-        lines.extend([
-            "",
-            "    // Sleep between iterations",
-            "    sleep(1);",
-            "}",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "    // Sleep between iterations",
+                "    sleep(1);",
+                "}",
+                "",
+            ]
+        )
 
         return lines
 
@@ -145,14 +149,22 @@ class K6Generator(BaseGenerator):
         var_name = f"res{index + 1}"
 
         # Build request call
-        if method == 'GET':
+        if method == "GET":
             lines.extend(self._generate_get_request(var_name, path, headers, needs_auth))
-        elif method in ('POST', 'PUT', 'PATCH'):
-            lines.extend(self._generate_body_request(var_name, method.lower(), path, req.body, headers, needs_auth))
-        elif method == 'DELETE':
+        elif method in ("POST", "PUT", "PATCH"):
+            lines.extend(
+                self._generate_body_request(
+                    var_name, method.lower(), path, req.body, headers, needs_auth
+                )
+            )
+        elif method == "DELETE":
             lines.extend(self._generate_delete_request(var_name, path, headers, needs_auth))
         else:
-            lines.extend(self._generate_generic_request(var_name, method.lower(), path, req.body, headers, needs_auth))
+            lines.extend(
+                self._generate_generic_request(
+                    var_name, method.lower(), path, req.body, headers, needs_auth
+                )
+            )
 
         # Add check
         lines.extend(self._generate_check(var_name, resp.status, index))
@@ -161,13 +173,17 @@ class K6Generator(BaseGenerator):
         if is_auth and self.has_auth_flow:
             token_field = detect_token_in_response(resp.body)
             if token_field:
-                lines.extend([
-                    f"    authToken = {var_name}.json('{token_field}');",
-                ])
+                lines.extend(
+                    [
+                        f"    authToken = {var_name}.json('{token_field}');",
+                    ]
+                )
 
         return lines
 
-    def _generate_get_request(self, var_name: str, path: str, headers: dict, needs_auth: bool) -> list[str]:
+    def _generate_get_request(
+        self, var_name: str, path: str, headers: dict, needs_auth: bool
+    ) -> list[str]:
         """Generate GET request."""
         headers_str = self._format_headers(headers, needs_auth)
 
@@ -182,7 +198,9 @@ class K6Generator(BaseGenerator):
                 f"    let {var_name} = http.get(`${{BASE_URL}}{path}`);",
             ]
 
-    def _generate_body_request(self, var_name: str, method: str, path: str, body: str, headers: dict, needs_auth: bool) -> list[str]:
+    def _generate_body_request(
+        self, var_name: str, method: str, path: str, body: str, headers: dict, needs_auth: bool
+    ) -> list[str]:
         """Generate POST/PUT/PATCH request with body."""
         headers_str = self._format_headers(headers, needs_auth)
         body_str = self._format_body(body)
@@ -202,7 +220,9 @@ class K6Generator(BaseGenerator):
         lines.append("    );")
         return lines
 
-    def _generate_delete_request(self, var_name: str, path: str, headers: dict, needs_auth: bool) -> list[str]:
+    def _generate_delete_request(
+        self, var_name: str, path: str, headers: dict, needs_auth: bool
+    ) -> list[str]:
         """Generate DELETE request."""
         headers_str = self._format_headers(headers, needs_auth)
 
@@ -217,7 +237,9 @@ class K6Generator(BaseGenerator):
                 f"    let {var_name} = http.del(`${{BASE_URL}}{path}`);",
             ]
 
-    def _generate_generic_request(self, var_name: str, method: str, path: str, body: str, headers: dict, needs_auth: bool) -> list[str]:
+    def _generate_generic_request(
+        self, var_name: str, method: str, path: str, body: str, headers: dict, needs_auth: bool
+    ) -> list[str]:
         """Generate generic request for other methods."""
         headers_str = self._format_headers(headers, needs_auth)
         body_str = self._format_body(body)
@@ -233,7 +255,7 @@ class K6Generator(BaseGenerator):
         return [
             f"    check({var_name}, {{",
             f"        'status is {expected_status}': (r) => r.status === {expected_status},",
-            f"    }}) || errorRate.add(1);",
+            "    }) || errorRate.add(1);",
         ]
 
     def _format_headers(self, headers: dict, needs_auth: bool) -> str:
@@ -241,21 +263,21 @@ class K6Generator(BaseGenerator):
         h = dict(headers)
 
         if needs_auth:
-            h['Authorization'] = '${authToken ? `Bearer ${authToken}` : ""}'
+            h["Authorization"] = '${authToken ? `Bearer ${authToken}` : ""}'
 
         if not h:
             return ""
 
         # Simple case: just content-type
-        if len(h) == 1 and 'Content-Type' in h:
+        if len(h) == 1 and "Content-Type" in h:
             return f"{{ 'Content-Type': '{h['Content-Type']}' }}"
 
         # Complex case with auth
         if needs_auth:
             parts = []
             for k, v in h.items():
-                if k == 'Authorization':
-                    parts.append(f"'Authorization': `Bearer ${{authToken}}`")
+                if k == "Authorization":
+                    parts.append("'Authorization': `Bearer ${authToken}`")
                 else:
                     parts.append(f"'{k}': '{escape_string(v)}'")
             return "{ " + ", ".join(parts) + " }"

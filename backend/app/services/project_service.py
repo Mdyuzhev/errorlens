@@ -1,25 +1,31 @@
 """
 Project Service - Business Logic for projects, folders, members.
 """
-import re
+
 import logging
-from typing import Optional, List
+import re
 from datetime import datetime
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.db_models import Folder, Project, ProjectMember
 from app.repositories.project_repo import (
-    ProjectRepository,
     FolderRepository,
     ProjectMemberRepository,
+    ProjectRepository,
 )
 from app.repositories.user_repo import UserRepository
-from app.models.db_models import Project, Folder, ProjectMember
 from app.schemas.project import (
-    ProjectCreate, ProjectUpdate, ProjectPlan, MemberRole,
-    FolderCreate, FolderUpdate, MemberAdd, MemberUpdate,
-    get_plan_limits
+    FolderCreate,
+    FolderUpdate,
+    MemberAdd,
+    MemberRole,
+    MemberUpdate,
+    ProjectCreate,
+    ProjectPlan,
+    ProjectUpdate,
+    get_plan_limits,
 )
 
 logger = logging.getLogger(__name__)
@@ -28,10 +34,10 @@ logger = logging.getLogger(__name__)
 def generate_slug(name: str) -> str:
     """Generate URL-safe slug from name."""
     slug = name.lower()
-    slug = re.sub(r'[^a-z0-9\s-]', '', slug)
-    slug = re.sub(r'[\s_]+', '-', slug)
-    slug = re.sub(r'-+', '-', slug)
-    return slug.strip('-')[:50]
+    slug = re.sub(r"[^a-z0-9\s-]", "", slug)
+    slug = re.sub(r"[\s_]+", "-", slug)
+    slug = re.sub(r"-+", "-", slug)
+    return slug.strip("-")[:50]
 
 
 class ProjectService:
@@ -59,7 +65,7 @@ class ProjectService:
         if project_count >= limits.max_projects:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Project limit reached ({limits.max_projects}). Upgrade to PRO."
+                detail=f"Project limit reached ({limits.max_projects}). Upgrade to PRO.",
             )
 
         # Generate unique slug
@@ -76,7 +82,7 @@ class ProjectService:
             slug=slug,
             description=data.description,
             owner_id=owner_id,
-            plan=ProjectPlan.FREE
+            plan=ProjectPlan.FREE,
         )
         self.db.add(project)
         await self.db.commit()
@@ -96,7 +102,7 @@ class ProjectService:
 
         return project
 
-    async def get_user_projects(self, user_id: str) -> List[Project]:
+    async def get_user_projects(self, user_id: str) -> list[Project]:
         """Get all projects user has access to."""
         return await self.project_repo.get_user_projects(user_id)
 
@@ -150,14 +156,14 @@ class ProjectService:
         if folder_count >= limits.max_folders_per_project:
             raise HTTPException(
                 status_code=403,
-                detail=f"Folder limit reached ({limits.max_folders_per_project}). Upgrade to PRO."
+                detail=f"Folder limit reached ({limits.max_folders_per_project}). Upgrade to PRO.",
             )
 
         folder = Folder(
             name=data.name,
             project_id=project_id,
             parent_id=data.parent_id,
-            sort_order=folder_count + 1
+            sort_order=folder_count + 1,
         )
         self.db.add(folder)
         await self.db.commit()
@@ -166,7 +172,7 @@ class ProjectService:
         logger.info(f"Created folder {folder.id} in project {project_id}")
         return folder
 
-    async def get_folders(self, project_id: str, user_id: str) -> List[Folder]:
+    async def get_folders(self, project_id: str, user_id: str) -> list[Folder]:
         """Get all folders in project."""
         await self.get_project(project_id, user_id)  # Check access
         return await self.folder_repo.get_by_project(project_id)
@@ -229,7 +235,7 @@ class ProjectService:
         if member_count >= limits.max_members_per_project:
             raise HTTPException(
                 status_code=403,
-                detail=f"Member limit reached ({limits.max_members_per_project}). Upgrade to PRO."
+                detail=f"Member limit reached ({limits.max_members_per_project}). Upgrade to PRO.",
             )
 
         # Find user
@@ -246,10 +252,7 @@ class ProjectService:
             raise HTTPException(status_code=400, detail="Cannot add as owner")
 
         member = ProjectMember(
-            project_id=project_id,
-            user_id=target_user.id,
-            role=data.role,
-            added_by_id=user_id
+            project_id=project_id, user_id=target_user.id, role=data.role, added_by_id=user_id
         )
         self.db.add(member)
         await self.db.commit()
@@ -258,7 +261,7 @@ class ProjectService:
         logger.info(f"Added member {target_user.id} to project {project_id}")
         return member
 
-    async def get_members(self, project_id: str, user_id: str) -> List[ProjectMember]:
+    async def get_members(self, project_id: str, user_id: str) -> list[ProjectMember]:
         """Get all members of project."""
         await self.get_project(project_id, user_id)  # Check access
         return await self.member_repo.get_by_project(project_id)

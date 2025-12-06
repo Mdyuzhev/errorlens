@@ -28,9 +28,7 @@ class GroqProvider(LLMProvider):
 
         payload = {
             "model": self.MODEL,
-            "messages": [
-                {"role": "user", "content": context}
-            ],
+            "messages": [{"role": "user", "content": context}],
             "temperature": 0.3,
             "max_tokens": 2048,
         }
@@ -43,6 +41,7 @@ class GroqProvider(LLMProvider):
             )
             if response.status_code != 200:
                 import logging
+
                 logging.error(f"Groq API error: {response.status_code} - {response.text}")
             response.raise_for_status()
             data = response.json()

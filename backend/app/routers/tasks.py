@@ -1,7 +1,6 @@
 """Tasks CRUD router with Kanban board support - thin controller."""
 
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -12,37 +11,36 @@ from app.middleware.jwt_auth import require_auth
 from app.models.user import User
 from app.services.task_service import TaskService
 
-
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 class TaskCreate(BaseModel):
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     status: str = "todo"
     priority: str = "medium"
-    assignee: Optional[str] = None
+    assignee: str | None = None
     labels: list[str] = []
-    due_date: Optional[datetime] = None
-    session_id: Optional[str] = None
-    testcase_id: Optional[str] = None
+    due_date: datetime | None = None
+    session_id: str | None = None
+    testcase_id: str | None = None
 
 
 class TaskUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    status: Optional[str] = None
-    priority: Optional[str] = None
-    assignee: Optional[str] = None
-    labels: Optional[list[str]] = None
-    due_date: Optional[datetime] = None
+    title: str | None = None
+    description: str | None = None
+    status: str | None = None
+    priority: str | None = None
+    assignee: str | None = None
+    labels: list[str] | None = None
+    due_date: datetime | None = None
 
 
 @router.get("")
 async def list_tasks(
-    status: Optional[str] = None,
-    priority: Optional[str] = None,
-    assignee: Optional[str] = None,
+    status: str | None = None,
+    priority: str | None = None,
+    assignee: str | None = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
@@ -122,10 +120,7 @@ async def update_task(
 ):
     """Update task."""
     service = TaskService(db)
-    task = await service.update_task(
-        task_id,
-        **data.model_dump(exclude_unset=True)
-    )
+    task = await service.update_task(task_id, **data.model_dump(exclude_unset=True))
 
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")

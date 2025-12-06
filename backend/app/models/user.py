@@ -35,9 +35,9 @@ class User(Base):
     last_login = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
-    owned_projects = relationship("Project", back_populates="owner", foreign_keys="Project.owner_id")
+    owned_projects = relationship(
+        "Project", back_populates="owner", foreign_keys="Project.owner_id"
+    )
     project_memberships = relationship(
-        "ProjectMember",
-        back_populates="user",
-        foreign_keys="ProjectMember.user_id"
+        "ProjectMember", back_populates="user", foreign_keys="ProjectMember.user_id"
     )

@@ -1,13 +1,12 @@
 """TestRun service - business logic layer."""
 
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import TestRun
 from app.repositories.testrun_repo import TestRunRepository
-
 
 VALID_STATUSES = ["pending", "running", "passed", "failed", "cancelled"]
 VALID_TEST_TYPES = ["unit", "integration", "e2e", "api", "performance"]
@@ -46,7 +45,7 @@ class TestRunService:
         await self.db.commit()
         return run
 
-    async def get_run(self, run_id: str) -> Optional[TestRun]:
+    async def get_run(self, run_id: str) -> TestRun | None:
         """Get test run by ID."""
         return await self.repo.get_by_id(run_id)
 
@@ -54,9 +53,9 @@ class TestRunService:
         self,
         limit: int = 10,
         offset: int = 0,
-        test_type: Optional[str] = None,
-        status: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        test_type: str | None = None,
+        status: str | None = None,
+    ) -> list[dict[str, Any]]:
         """List test runs with filters."""
         runs = await self.repo.get_recent(
             limit=limit,
@@ -66,7 +65,7 @@ class TestRunService:
         )
         return [self._to_list_dict(r) for r in runs]
 
-    async def get_summary_stats(self) -> Dict[str, Any]:
+    async def get_summary_stats(self) -> dict[str, Any]:
         """Get aggregated test statistics from recent runs."""
         runs = await self.repo.get_completed(limit=5)
 
@@ -94,15 +93,11 @@ class TestRunService:
             ],
         }
 
-    async def get_stats(self, days: int = 30) -> Dict[str, Any]:
+    async def get_stats(self, days: int = 30) -> dict[str, Any]:
         """Get detailed statistics."""
         return await self.repo.get_stats(days=days)
 
-    async def update_run(
-        self,
-        run_id: str,
-        **updates
-    ) -> Optional[TestRun]:
+    async def update_run(self, run_id: str, **updates) -> TestRun | None:
         """Update test run fields."""
         run = await self.repo.get_by_id(run_id)
         if not run:
@@ -122,9 +117,9 @@ class TestRunService:
         passed: int,
         failed: int,
         skipped: int,
-        results: Optional[List[dict]] = None,
-        output: Optional[str] = None,
-    ) -> Optional[TestRun]:
+        results: list[dict] | None = None,
+        output: str | None = None,
+    ) -> TestRun | None:
         """Finish test run with results."""
         run = await self.repo.get_by_id(run_id)
         if not run:
@@ -145,7 +140,7 @@ class TestRunService:
         await self.db.commit()
         return run
 
-    async def cancel_run(self, run_id: str) -> Optional[TestRun]:
+    async def cancel_run(self, run_id: str) -> TestRun | None:
         """Cancel a running test."""
         run = await self.repo.get_by_id(run_id)
         if not run:
@@ -165,7 +160,7 @@ class TestRunService:
             await self.db.commit()
         return deleted
 
-    def _to_list_dict(self, run: TestRun) -> Dict[str, Any]:
+    def _to_list_dict(self, run: TestRun) -> dict[str, Any]:
         """Convert test run to list response dict."""
         return {
             "id": run.id,
@@ -180,7 +175,7 @@ class TestRunService:
             "skipped": run.skipped,
         }
 
-    def to_detail_dict(self, run: TestRun) -> Dict[str, Any]:
+    def to_detail_dict(self, run: TestRun) -> dict[str, Any]:
         """Convert test run to detailed response dict."""
         result = self._to_list_dict(run)
         result["results"] = run.results
