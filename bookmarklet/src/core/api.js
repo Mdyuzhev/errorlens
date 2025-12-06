@@ -11,19 +11,32 @@ export async function sendSession() {
   const apiUrl = detectApiBaseUrl();
   const sessionData = getSessionData();
 
-  console.log('[ErrorLens] Sending session to:', `${apiUrl}/sessions`);
-  console.log('[ErrorLens] Session data:', JSON.stringify(sessionData).substring(0, 500) + '...');
+  // Detailed logging for debugging
+  console.log('[ErrorLens] ====== SEND SESSION START ======');
+  console.log('[ErrorLens] API URL:', `${apiUrl}/sessions`);
+  console.log('[ErrorLens] Event counts:', {
+    console_logs: sessionData.console_logs?.length || 0,
+    network_errors: sessionData.network_errors?.length || 0,
+    js_exceptions: sessionData.js_exceptions?.length || 0,
+    recorded_requests: sessionData.recorded_requests?.length || 0,
+    has_screenshot: !!sessionData.screenshot
+  });
+  console.log('[ErrorLens] Full payload:', sessionData);
+
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  console.log('[ErrorLens] Request headers:', headers);
 
   try {
     const response = await fetch(`${apiUrl}/sessions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: headers,
       body: JSON.stringify(sessionData)
     });
 
     console.log('[ErrorLens] Response status:', response.status);
+    console.log('[ErrorLens] Response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -32,14 +45,18 @@ export async function sendSession() {
     }
 
     const result = await response.json();
-    console.log('[ErrorLens] Session created:', result.session_id || result.id || result);
+    console.log('[ErrorLens] Session created successfully:', result);
+    console.log('[ErrorLens] ====== SEND SESSION END ======');
     // Normalize response - backend returns session_id, UI expects id
     if (result.session_id && !result.id) {
       result.id = result.session_id;
     }
     return result;
   } catch (error) {
-    console.error('[ErrorLens] sendSession failed:', error);
+    console.error('[ErrorLens] ====== SEND SESSION FAILED ======');
+    console.error('[ErrorLens] Error type:', error.name);
+    console.error('[ErrorLens] Error message:', error.message);
+    console.error('[ErrorLens] Full error:', error);
     throw error;
   }
 }
