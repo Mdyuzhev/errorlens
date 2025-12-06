@@ -1,6 +1,7 @@
 """Tests for TestIt generator."""
 
 import json
+
 import pytest
 from app.generators.testit import TestItGenerator, generate_testit_testcase
 
@@ -128,7 +129,10 @@ class TestTestItGenerator:
         result = generator.generate()
 
         # Should detect auth from Authorization header
-        assert "авторизован" in result["preconditions"].lower() or "Базовый URL" in result["preconditions"]
+        assert (
+            "авторизован" in result["preconditions"].lower()
+            or "Базовый URL" in result["preconditions"]
+        )
 
     def test_tags_include_auth(self, sample_session):
         """Test that auth tag is added for login endpoints."""

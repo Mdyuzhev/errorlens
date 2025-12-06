@@ -1,7 +1,5 @@
 """Test cases CRUD router - thin controller."""
 
-from typing import Optional, List
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,42 +9,41 @@ from app.middleware.jwt_auth import require_auth
 from app.models.user import User
 from app.services.testcase_service import TestCaseService
 
-
 router = APIRouter(prefix="/testcases", tags=["testcases"])
 
 
 class TestCaseCreate(BaseModel):
     title: str
-    description: Optional[str] = None
-    preconditions: Optional[str] = None
-    postconditions: Optional[str] = None
+    description: str | None = None
+    preconditions: str | None = None
+    postconditions: str | None = None
     priority: str = "Medium"
     status: str = "Draft"
     automation_status: str = "Manual"
-    folder: Optional[str] = None
+    folder: str | None = None
     tags: list[str] = []
     steps: list[dict] = []
-    session_id: Optional[str] = None
+    session_id: str | None = None
 
 
 class TestCaseUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    preconditions: Optional[str] = None
-    postconditions: Optional[str] = None
-    priority: Optional[str] = None
-    status: Optional[str] = None
-    automation_status: Optional[str] = None
-    folder: Optional[str] = None
-    tags: Optional[list[str]] = None
-    steps: Optional[list[dict]] = None
+    title: str | None = None
+    description: str | None = None
+    preconditions: str | None = None
+    postconditions: str | None = None
+    priority: str | None = None
+    status: str | None = None
+    automation_status: str | None = None
+    folder: str | None = None
+    tags: list[str] | None = None
+    steps: list[dict] | None = None
 
 
 @router.get("")
 async def list_testcases(
-    folder: Optional[str] = None,
-    status: Optional[str] = None,
-    priority: Optional[str] = None,
+    folder: str | None = None,
+    status: str | None = None,
+    priority: str | None = None,
     limit: int = 50,
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
@@ -78,7 +75,7 @@ async def search_testcases(
 
 @router.get("/by-tags")
 async def get_by_tags(
-    tags: List[str] = Query(...),
+    tags: list[str] = Query(...),
     match_all: bool = False,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
@@ -158,10 +155,7 @@ async def update_testcase(
 ):
     """Update test case."""
     service = TestCaseService(db)
-    tc = await service.update_testcase(
-        testcase_id,
-        **data.model_dump(exclude_unset=True)
-    )
+    tc = await service.update_testcase(testcase_id, **data.model_dump(exclude_unset=True))
 
     if not tc:
         raise HTTPException(status_code=404, detail="Test case not found")

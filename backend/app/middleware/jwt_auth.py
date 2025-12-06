@@ -1,25 +1,22 @@
 """JWT authentication middleware."""
 
-from typing import Optional
-
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models.user import User
 from app.models.db_models import Project, ProjectMember
+from app.models.user import User
 from app.services.auth import decode_token, get_user_by_id
-
 
 security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: AsyncSession = Depends(get_db),
-) -> Optional[User]:
+) -> User | None:
     """Get current user from JWT token (optional - returns None if no token)."""
     if not credentials:
         return None
@@ -33,7 +30,7 @@ async def get_current_user(
 
 
 async def require_auth(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: AsyncSession = Depends(get_db),
 ) -> User:
     """Require valid authentication - raises 401 if not authenticated."""
@@ -62,7 +59,7 @@ async def check_project_access(
     project_id: str,
     user: User,
     db: AsyncSession,
-    required_role: Optional[str] = None,
+    required_role: str | None = None,
 ) -> Project:
     """
     Check if user has access to project.
@@ -80,9 +77,7 @@ async def check_project_access(
         HTTPException: 404 if project not found, 403 if access denied
     """
     # Get project
-    result = await db.execute(
-        select(Project).where(Project.id == project_id)
-    )
+    result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
 
     if not project:
@@ -95,8 +90,7 @@ async def check_project_access(
     # Check if user is member
     member_result = await db.execute(
         select(ProjectMember).where(
-            ProjectMember.project_id == project_id,
-            ProjectMember.user_id == user.id
+            ProjectMember.project_id == project_id, ProjectMember.user_id == user.id
         )
     )
     member = member_result.scalar_one_or_none()
@@ -111,15 +105,12 @@ async def check_project_access(
         required_level = role_hierarchy.get(required_role, 0)
 
         if user_level < required_level:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Requires {required_role} role or higher"
-            )
+            raise HTTPException(status_code=403, detail=f"Requires {required_role} role or higher")
 
     return project
 
 
-def get_user_project_role(project: Project, user: User, member: Optional[ProjectMember]) -> str:
+def get_user_project_role(project: Project, user: User, member: ProjectMember | None) -> str:
     """Get user's role in a project."""
     if project.owner_id == user.id:
         return "owner"
@@ -135,9 +126,7 @@ async def get_user_projects(user: User, db: AsyncSession) -> list[Project]:
     Returns projects where user is owner or member.
     """
     # Get owned projects
-    owned_result = await db.execute(
-        select(Project).where(Project.owner_id == user.id)
-    )
+    owned_result = await db.execute(select(Project).where(Project.owner_id == user.id))
     owned = list(owned_result.scalars().all())
 
     # Get member projects
@@ -153,7 +142,7 @@ async def get_user_projects(user: User, db: AsyncSession) -> list[Project]:
     return list(all_projects.values())
 
 
-async def get_default_project(user: User, db: AsyncSession) -> Optional[Project]:
+async def get_default_project(user: User, db: AsyncSession) -> Project | None:
     """
     Get user's default project (first owned or first member project).
 
@@ -161,10 +150,7 @@ async def get_default_project(user: User, db: AsyncSession) -> Optional[Project]
     """
     # Prefer owned project
     owned_result = await db.execute(
-        select(Project)
-        .where(Project.owner_id == user.id)
-        .order_by(Project.created_at)
-        .limit(1)
+        select(Project).where(Project.owner_id == user.id).order_by(Project.created_at).limit(1)
     )
     owned = owned_result.scalar_one_or_none()
     if owned:

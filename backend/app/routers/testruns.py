@@ -1,7 +1,5 @@
 """Test runs API router - thin controller."""
 
-from typing import Optional, List
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +8,6 @@ from app.database import get_db
 from app.middleware.jwt_auth import require_auth
 from app.models.user import User
 from app.services.testrun_service import TestRunService
-
 
 router = APIRouter(prefix="/test-runs", tags=["test-runs"])
 
@@ -25,16 +22,16 @@ class TestRunFinish(BaseModel):
     passed: int
     failed: int
     skipped: int
-    results: Optional[List[dict]] = None
-    output: Optional[str] = None
+    results: list[dict] | None = None
+    output: str | None = None
 
 
 @router.get("")
 async def list_test_runs(
     limit: int = 10,
     offset: int = 0,
-    test_type: Optional[str] = None,
-    status: Optional[str] = None,
+    test_type: str | None = None,
+    status: str | None = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):

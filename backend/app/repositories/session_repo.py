@@ -2,14 +2,15 @@
 Session Repository for browser session data access.
 """
 
-from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
-from sqlalchemy import select, desc, and_, func
+from typing import Any
+
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.db_models import AnalysisResult, Session, SessionData
 from app.repositories.base import BaseRepository
-from app.models.db_models import Session, SessionData, AnalysisResult
 
 
 class SessionRepository(BaseRepository[Session]):
@@ -18,7 +19,7 @@ class SessionRepository(BaseRepository[Session]):
     def __init__(self, session: AsyncSession):
         super().__init__(Session, session)
 
-    async def get_with_data(self, session_id: str) -> Optional[Session]:
+    async def get_with_data(self, session_id: str) -> Session | None:
         """Get session with related SessionData and AnalysisResult."""
         query = (
             select(Session)
@@ -35,9 +36,9 @@ class SessionRepository(BaseRepository[Session]):
         self,
         limit: int = 50,
         skip: int = 0,
-        mode: Optional[str] = None,
-        project_id: Optional[str] = None,
-    ) -> List[Session]:
+        mode: str | None = None,
+        project_id: str | None = None,
+    ) -> list[Session]:
         """
         Get recent sessions ordered by creation date.
 
@@ -70,7 +71,7 @@ class SessionRepository(BaseRepository[Session]):
         self,
         url_pattern: str,
         limit: int = 50,
-    ) -> List[Session]:
+    ) -> list[Session]:
         """Get sessions matching URL pattern."""
         query = (
             select(Session)
@@ -83,8 +84,8 @@ class SessionRepository(BaseRepository[Session]):
 
     async def create_full_session(
         self,
-        session_data: Dict[str, Any],
-        captured_data: Dict[str, Any],
+        session_data: dict[str, Any],
+        captured_data: dict[str, Any],
     ) -> Session:
         """Create session with associated SessionData."""
         # Create session
@@ -110,7 +111,7 @@ class SessionRepository(BaseRepository[Session]):
     async def add_analysis(
         self,
         session_id: str,
-        analysis_data: Dict[str, Any],
+        analysis_data: dict[str, Any],
     ) -> AnalysisResult:
         """Add analysis result to session."""
         analysis = AnalysisResult(
@@ -127,7 +128,7 @@ class SessionRepository(BaseRepository[Session]):
         await self.session.refresh(analysis)
         return analysis
 
-    async def get_stats(self, days: int = 30) -> Dict[str, Any]:
+    async def get_stats(self, days: int = 30) -> dict[str, Any]:
         """Get session statistics for the last N days."""
         cutoff = datetime.utcnow() - timedelta(days=days)
 
@@ -137,11 +138,7 @@ class SessionRepository(BaseRepository[Session]):
         total = total_result.scalar() or 0
 
         # Recent count
-        recent_query = (
-            select(func.count())
-            .select_from(Session)
-            .where(Session.created_at >= cutoff)
-        )
+        recent_query = select(func.count()).select_from(Session).where(Session.created_at >= cutoff)
         recent_result = await self.session.execute(recent_query)
         recent = recent_result.scalar() or 0
 
@@ -166,9 +163,6 @@ class SessionRepository(BaseRepository[Session]):
         session_id: str,
         testit_id: int,
         testit_url: str,
-    ) -> Optional[Session]:
+    ) -> Session | None:
         """Update Test IT integration fields."""
-        return await self.update(
-            session_id,
-            {"testit_id": testit_id, "testit_url": testit_url}
-        )
+        return await self.update(session_id, {"testit_id": testit_id, "testit_url": testit_url})

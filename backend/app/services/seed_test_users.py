@@ -1,19 +1,18 @@
 """Seed test users for smoke testing."""
 
 import asyncio
-from typing import List, Dict, Any
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db_context
-from app.models.user import User
 from app.models.db_models import Project, ProjectMember
+from app.models.user import User
 from app.services.auth import get_password_hash
 
-
 # Test users configuration
-TEST_USERS: List[Dict[str, Any]] = [
+TEST_USERS: list[dict[str, Any]] = [
     {"username": "owner1", "password": "Test123!", "is_admin": False},
     {"username": "owner2", "password": "Test123!", "is_admin": False},
     {"username": "admin1", "password": "Test123!", "is_admin": False},
@@ -41,7 +40,7 @@ PROJECT_MEMBERSHIPS = [
 ]
 
 
-async def seed_test_users(db: AsyncSession) -> Dict[str, Any]:
+async def seed_test_users(db: AsyncSession) -> dict[str, Any]:
     """
     Seed test users and projects for smoke testing.
 
@@ -57,14 +56,12 @@ async def seed_test_users(db: AsyncSession) -> Dict[str, Any]:
     }
 
     # Cache for lookups
-    user_cache: Dict[str, User] = {}
-    project_cache: Dict[str, Project] = {}
+    user_cache: dict[str, User] = {}
+    project_cache: dict[str, Project] = {}
 
     # 1. Create users
     for user_data in TEST_USERS:
-        existing = await db.execute(
-            select(User).where(User.username == user_data["username"])
-        )
+        existing = await db.execute(select(User).where(User.username == user_data["username"]))
         user = existing.scalar_one_or_none()
 
         if user:
@@ -86,9 +83,7 @@ async def seed_test_users(db: AsyncSession) -> Dict[str, Any]:
 
     # 2. Create projects
     for proj_data in TEST_PROJECTS:
-        existing = await db.execute(
-            select(Project).where(Project.slug == proj_data["slug"])
-        )
+        existing = await db.execute(select(Project).where(Project.slug == proj_data["slug"]))
         project = existing.scalar_one_or_none()
 
         if project:
@@ -152,7 +147,7 @@ async def seed_test_users(db: AsyncSession) -> Dict[str, Any]:
     return result
 
 
-async def clear_test_users(db: AsyncSession) -> Dict[str, int]:
+async def clear_test_users(db: AsyncSession) -> dict[str, int]:
     """
     Remove all test users and their projects.
 
@@ -166,9 +161,7 @@ async def clear_test_users(db: AsyncSession) -> Dict[str, int]:
 
     # Delete projects owned by test users
     for proj_data in TEST_PROJECTS:
-        existing = await db.execute(
-            select(Project).where(Project.slug == proj_data["slug"])
-        )
+        existing = await db.execute(select(Project).where(Project.slug == proj_data["slug"]))
         project = existing.scalar_one_or_none()
         if project:
             await db.delete(project)
@@ -176,9 +169,7 @@ async def clear_test_users(db: AsyncSession) -> Dict[str, int]:
 
     # Delete test users
     for username in test_usernames:
-        existing = await db.execute(
-            select(User).where(User.username == username)
-        )
+        existing = await db.execute(select(User).where(User.username == username))
         user = existing.scalar_one_or_none()
         if user:
             await db.delete(user)

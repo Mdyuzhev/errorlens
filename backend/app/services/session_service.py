@@ -5,23 +5,20 @@ Handles session creation, analysis, and export operations.
 """
 
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Any
 from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analyzer import analyze_errors
-from app.repositories.session_repo import SessionRepository
 from app.models.db_models import Session
 from app.models_pydantic import (
     AnalyzeRequest,
     ConsoleLogEntry,
     JSException,
     NetworkError,
-    RecordedRequest,
-    RecordedHttpExchange,
-    ExportPostmanRequest,
 )
+from app.repositories.session_repo import SessionRepository
 
 logger = logging.getLogger(__name__)
 
@@ -39,13 +36,13 @@ class SessionService:
         user_agent: str,
         recording_duration_ms: int = 0,
         record_mode: str = "errors",
-        console_logs: List[dict] = None,
-        network_errors: List[dict] = None,
-        js_exceptions: List[dict] = None,
-        recorded_requests: List[dict] = None,
-        screenshot: Optional[str] = None,
-        project_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        console_logs: list[dict] = None,
+        network_errors: list[dict] = None,
+        js_exceptions: list[dict] = None,
+        recorded_requests: list[dict] = None,
+        screenshot: str | None = None,
+        project_id: str | None = None,
+    ) -> dict[str, Any]:
         """
         Create a new session with data and run AI analysis.
 
@@ -59,7 +56,7 @@ class SessionService:
         session_id = str(uuid4())
 
         # Create session with data
-        session = await self.repo.create_full_session(
+        await self.repo.create_full_session(
             session_data={
                 "id": session_id,
                 "url": url,
@@ -107,11 +104,11 @@ class SessionService:
         url: str,
         user_agent: str,
         recording_duration_ms: int,
-        console_logs: List[dict],
-        js_exceptions: List[dict],
-        network_errors: List[dict],
-        screenshot: Optional[str],
-    ) -> Optional[Dict[str, Any]]:
+        console_logs: list[dict],
+        js_exceptions: list[dict],
+        network_errors: list[dict],
+        screenshot: str | None,
+    ) -> dict[str, Any] | None:
         """Run AI analysis on session data."""
         try:
             analyze_request = AnalyzeRequest(
@@ -152,7 +149,7 @@ class SessionService:
             logger.error(f"Analysis failed for session {session_id}: {e}")
             return None
 
-    async def get_session(self, session_id: str) -> Optional[Session]:
+    async def get_session(self, session_id: str) -> Session | None:
         """Get session with all related data."""
         return await self.repo.get_with_data(session_id)
 
@@ -160,9 +157,9 @@ class SessionService:
         self,
         limit: int = 20,
         offset: int = 0,
-        mode: Optional[str] = None,
-        project_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        mode: str | None = None,
+        project_id: str | None = None,
+    ) -> dict[str, Any]:
         """
         Get paginated list of sessions.
 
@@ -206,7 +203,7 @@ class SessionService:
         logger.info(f"Deleted session {session_id}")
         return True
 
-    async def get_stats(self, days: int = 30) -> Dict[str, Any]:
+    async def get_stats(self, days: int = 30) -> dict[str, Any]:
         """Get session statistics."""
         return await self.repo.get_stats(days=days)
 
@@ -220,7 +217,7 @@ class SessionService:
             + len(session.data.js_exceptions or [])
         )
 
-    def _session_to_response(self, session: Session, events_count: int) -> Dict[str, Any]:
+    def _session_to_response(self, session: Session, events_count: int) -> dict[str, Any]:
         """Convert Session model to response dict."""
         return {
             "id": session.id,
@@ -237,7 +234,7 @@ class SessionService:
             "testit_id": session.testit_id,
         }
 
-    def session_to_detail(self, session: Session) -> Dict[str, Any]:
+    def session_to_detail(self, session: Session) -> dict[str, Any]:
         """Convert Session model to detailed response dict."""
         analysis_dict = None
         if session.analysis:

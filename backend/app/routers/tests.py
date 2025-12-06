@@ -9,12 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
+from app.generators import generate_pom_xml, generate_pytest_file, generate_restassured_file
 from app.middleware.jwt_auth import require_auth
 from app.models.db_models import Session
 from app.models.user import User
-from app.models_pydantic import RunTestRequest, RecordedHttpExchange
-from app.generators import generate_pytest_file, generate_restassured_file, generate_pom_xml
-from app.test_runner import run_pytest, run_restassured, get_test_run, create_test_run
+from app.models_pydantic import RecordedHttpExchange, RunTestRequest
+from app.test_runner import create_test_run, get_test_run, run_pytest, run_restassured
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +78,7 @@ async def start_restassured_test_run(
         raise HTTPException(status_code=400, detail="session_id is required")
 
     query = (
-        select(Session)
-        .options(selectinload(Session.data))
-        .where(Session.id == request.session_id)
+        select(Session).options(selectinload(Session.data)).where(Session.id == request.session_id)
     )
     result = await db.execute(query)
     session = result.scalar_one_or_none()

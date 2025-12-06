@@ -5,28 +5,29 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import async_session_maker, get_db, init_db
+
 # Import models to register them with Base.metadata before create_all
 from app.models import db_models, user  # noqa: F401
 from app.routers import (
     admin,
-    auth,
-    sessions,
-    testcases,
-    tasks,
-    articles,
-    testruns,
-    exports,
-    tests,
-    integrations,
     analysis,
+    articles,
+    auth,
+    exports,
+    integrations,
     projects,
+    sessions,
+    tasks,
+    testcases,
+    testruns,
+    tests,
 )
 from app.services.auth import init_admin_user
 from app.services.seed_demo import seed_demo_data
@@ -134,7 +135,7 @@ async def bookmarklet_shortcut():
         return FileResponse(
             BOOKMARKLET_PATH / "recorder.js",
             media_type="application/javascript",
-            headers={"Cache-Control": "no-cache"}
+            headers={"Cache-Control": "no-cache"},
         )
     raise HTTPException(status_code=404, detail="Bookmarklet not found")
 
@@ -157,7 +158,9 @@ async def health_check() -> dict:
 async def debug_users(db: AsyncSession = Depends(get_db)):
     """Debug endpoint to check users in DB."""
     from sqlalchemy import select
+
     from app.models.user import User
+
     result = await db.execute(select(User))
     users = result.scalars().all()
     return {"count": len(users), "usernames": [u.username for u in users]}

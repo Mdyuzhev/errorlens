@@ -4,8 +4,8 @@ import json
 import logging
 from urllib.parse import urlparse
 
-from app.models_pydantic import RecordedHttpExchange
 from app.config import settings
+from app.models_pydantic import RecordedHttpExchange
 
 logger = logging.getLogger(__name__)
 

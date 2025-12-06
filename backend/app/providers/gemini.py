@@ -9,7 +9,9 @@ from app.providers.base import LLMProvider
 class GeminiProvider(LLMProvider):
     """Gemini API provider using REST API."""
 
-    API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+    API_URL = (
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+    )
 
     @property
     def name(self) -> str:

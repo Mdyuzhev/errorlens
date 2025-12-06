@@ -1,16 +1,16 @@
 """Tests for error analyzer service."""
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from app.analyzer import (
-    _format_context,
-    _parse_llm_response,
-    _get_provider,
-    analyze_errors,
     SYSTEM_PROMPT,
+    _format_context,
+    _get_provider,
+    _parse_llm_response,
+    analyze_errors,
 )
-from app.models_pydantic import AnalyzeRequest, ConsoleLogEntry, NetworkError, JSException
+from app.models_pydantic import AnalyzeRequest, ConsoleLogEntry, JSException, NetworkError
 
 
 class TestFormatContext:
@@ -45,7 +45,7 @@ class TestFormatContext:
     def test_includes_recording_duration(self, basic_request):
         """Context should include recording duration."""
         context = _format_context(basic_request)
-        assert "5000ms" in context
+        assert "5000" in context  # Duration in ms (Russian: мс)
 
     def test_formats_console_logs(self):
         """Should format console logs with timestamp and level."""
@@ -63,7 +63,7 @@ class TestFormatContext:
             recording_duration_ms=1000,
         )
         context = _format_context(request)
-        assert "Console Logs" in context
+        assert "Логи консоли" in context  # Russian header
         assert "[ERROR]" in context
         assert "Test error message" in context
         assert "at foo (app.js:42)" in context
@@ -85,7 +85,7 @@ class TestFormatContext:
             recording_duration_ms=1000,
         )
         context = _format_context(request)
-        assert "Network Errors" in context
+        assert "Сетевые ошибки" in context  # Russian header
         assert "POST" in context
         assert "https://api.example.com/data" in context
         assert "500" in context
@@ -108,7 +108,7 @@ class TestFormatContext:
             recording_duration_ms=1000,
         )
         context = _format_context(request)
-        assert "JavaScript Exceptions" in context
+        assert "JavaScript исключения" in context  # Russian header
         assert "Uncaught TypeError" in context
         assert "app.js:42:10" in context
 
@@ -165,7 +165,7 @@ class TestParseLLMResponse:
         """Should return fallback structure on invalid JSON."""
         response = "This is not JSON, just plain text analysis"
         result = _parse_llm_response(response)
-        assert result["summary"] == "Analysis completed"
+        assert result["summary"] == "Анализ завершён"  # Russian fallback
         assert result["severity"] == "medium"
         assert "This is not JSON" in result["details"]
 

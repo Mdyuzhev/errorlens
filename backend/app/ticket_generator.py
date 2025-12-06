@@ -1,7 +1,6 @@
 """Generate smart bug tickets from session analysis with auto-steps."""
 
 from datetime import datetime
-from typing import Optional
 from urllib.parse import urlparse
 
 
@@ -30,7 +29,7 @@ def generate_smart_ticket(
     console_logs: list[dict] = None,
     js_exceptions: list[dict] = None,
     additional_info: str = "",
-    format: str = "jira"
+    format: str = "jira",
 ) -> dict:
     """Generate smart ticket with auto-steps from recorded session."""
 
@@ -57,14 +56,41 @@ def generate_smart_ticket(
     request_chain = _generate_request_chain(recorded_requests)
 
     if format == "jira":
-        return _format_jira_smart(analysis, url, user_agent, additional_info, sev,
-                                   auto_steps, timeline, problem_request, request_chain)
+        return _format_jira_smart(
+            analysis,
+            url,
+            user_agent,
+            additional_info,
+            sev,
+            auto_steps,
+            timeline,
+            problem_request,
+            request_chain,
+        )
     elif format == "github":
-        return _format_github_smart(analysis, url, user_agent, additional_info, sev,
-                                     auto_steps, timeline, problem_request, request_chain)
+        return _format_github_smart(
+            analysis,
+            url,
+            user_agent,
+            additional_info,
+            sev,
+            auto_steps,
+            timeline,
+            problem_request,
+            request_chain,
+        )
     else:
-        return _format_markdown_smart(analysis, url, user_agent, additional_info, sev,
-                                       auto_steps, timeline, problem_request, request_chain)
+        return _format_markdown_smart(
+            analysis,
+            url,
+            user_agent,
+            additional_info,
+            sev,
+            auto_steps,
+            timeline,
+            problem_request,
+            request_chain,
+        )
 
 
 def _generate_auto_steps(recorded_requests: list[dict]) -> list[str]:
@@ -75,42 +101,42 @@ def _generate_auto_steps(recorded_requests: list[dict]) -> list[str]:
     steps = []
     steps.append("Открыть страницу в браузере")
 
-    for i, req in enumerate(recorded_requests):
-        request = req.get('request', req)
-        method = request.get('method', 'GET')
-        url = request.get('url', '')
+    for _i, req in enumerate(recorded_requests):
+        request = req.get("request", req)
+        method = request.get("method", "GET")
+        url = request.get("url", "")
 
-        path = urlparse(url).path or '/'
+        path = urlparse(url).path or "/"
 
-        response = req.get('response', {})
-        status = response.get('status', 0)
+        response = req.get("response", {})
+        status = response.get("status", 0)
 
         if status >= 400:
             steps.append(f"⚠️ {method} {path} → **{status} ошибка**")
         else:
             # Simplify common patterns
             path_lower = path.lower()
-            if '/login' in path_lower or '/auth' in path_lower:
+            if "/login" in path_lower or "/auth" in path_lower:
                 steps.append("Авторизоваться в системе")
-            elif '/logout' in path_lower:
+            elif "/logout" in path_lower:
                 steps.append("Выйти из системы")
-            elif '/register' in path_lower or '/signup' in path_lower:
+            elif "/register" in path_lower or "/signup" in path_lower:
                 steps.append("Зарегистрироваться")
-            elif '/cart' in path_lower:
+            elif "/cart" in path_lower:
                 steps.append("Открыть корзину")
-            elif '/checkout' in path_lower:
+            elif "/checkout" in path_lower:
                 steps.append("Перейти к оформлению заказа")
-            elif '/order' in path_lower:
-                if method == 'POST':
+            elif "/order" in path_lower:
+                if method == "POST":
                     steps.append("Создать заказ")
                 else:
                     steps.append("Просмотреть заказ")
-            elif '/product' in path_lower:
-                if method == 'POST':
+            elif "/product" in path_lower:
+                if method == "POST":
                     steps.append("Добавить товар")
                 else:
                     steps.append("Просмотреть товар")
-            elif '/api/' in path:
+            elif "/api/" in path:
                 steps.append(f"Система выполняет {method} запрос на {path[:40]}")
             else:
                 if len(steps) < 10:  # Limit steps
@@ -119,67 +145,74 @@ def _generate_auto_steps(recorded_requests: list[dict]) -> list[str]:
     return steps[:15]  # Max 15 steps
 
 
-def _generate_timeline(recorded_requests: list[dict], console_logs: list[dict],
-                       js_exceptions: list[dict]) -> list[dict]:
+def _generate_timeline(
+    recorded_requests: list[dict], console_logs: list[dict], js_exceptions: list[dict]
+) -> list[dict]:
     """Generate unified timeline of events."""
     events = []
 
     # Add requests
     if recorded_requests:
         for req in recorded_requests:
-            timestamp = req.get('timestamp', '')
-            request = req.get('request', req)
-            response = req.get('response', {})
-            events.append({
-                'time': timestamp,
-                'type': 'request',
-                'method': request.get('method', ''),
-                'url': request.get('url', ''),
-                'status': response.get('status', 0),
-                'is_error': response.get('status', 0) >= 400
-            })
+            timestamp = req.get("timestamp", "")
+            request = req.get("request", req)
+            response = req.get("response", {})
+            events.append(
+                {
+                    "time": timestamp,
+                    "type": "request",
+                    "method": request.get("method", ""),
+                    "url": request.get("url", ""),
+                    "status": response.get("status", 0),
+                    "is_error": response.get("status", 0) >= 400,
+                }
+            )
 
     # Add console errors
     if console_logs:
         for log in console_logs:
-            if log.get('level') in ('error', 'warn'):
-                events.append({
-                    'time': log.get('timestamp', ''),
-                    'type': 'console',
-                    'level': log.get('level'),
-                    'message': log.get('message', '')[:100]
-                })
+            if log.get("level") in ("error", "warn"):
+                events.append(
+                    {
+                        "time": log.get("timestamp", ""),
+                        "type": "console",
+                        "level": log.get("level"),
+                        "message": log.get("message", "")[:100],
+                    }
+                )
 
     # Add JS exceptions
     if js_exceptions:
         for exc in js_exceptions:
-            events.append({
-                'time': exc.get('timestamp', ''),
-                'type': 'exception',
-                'message': exc.get('message', '')[:100]
-            })
+            events.append(
+                {
+                    "time": exc.get("timestamp", ""),
+                    "type": "exception",
+                    "message": exc.get("message", "")[:100],
+                }
+            )
 
     # Sort by time
-    events.sort(key=lambda x: x.get('time', ''))
+    events.sort(key=lambda x: x.get("time", ""))
 
     return events
 
 
-def _find_problem_request(recorded_requests: list[dict]) -> Optional[dict]:
+def _find_problem_request(recorded_requests: list[dict]) -> dict | None:
     """Find the request that likely caused the error."""
     if not recorded_requests:
         return None
 
     # First look for 5xx errors
     for req in recorded_requests:
-        response = req.get('response', {})
-        if 500 <= response.get('status', 0) < 600:
+        response = req.get("response", {})
+        if 500 <= response.get("status", 0) < 600:
             return req
 
     # Then 4xx errors
     for req in recorded_requests:
-        response = req.get('response', {})
-        if 400 <= response.get('status', 0) < 500:
+        response = req.get("response", {})
+        if 400 <= response.get("status", 0) < 500:
             return req
 
     return None
@@ -190,39 +223,50 @@ def _generate_request_chain(recorded_requests: list[dict]) -> str:
     if not recorded_requests:
         return ""
 
-    lines = ["| # | Method | Path | Status | Duration |",
-             "|---|--------|------|--------|----------|"]
+    lines = [
+        "| # | Method | Path | Status | Duration |",
+        "|---|--------|------|--------|----------|",
+    ]
 
     for i, req in enumerate(recorded_requests[:20]):  # Max 20 rows
-        request = req.get('request', req)
-        response = req.get('response', {})
+        request = req.get("request", req)
+        response = req.get("response", {})
 
-        method = request.get('method', 'GET')
-        url = request.get('url', '')
-        path = urlparse(url).path or '/'
+        method = request.get("method", "GET")
+        url = request.get("url", "")
+        path = urlparse(url).path or "/"
         if len(path) > 40:
-            path = path[:37] + '...'
+            path = path[:37] + "..."
 
-        status = response.get('status', 0)
-        duration = response.get('duration_ms', 0)
+        status = response.get("status", 0)
+        duration = response.get("duration_ms", 0)
 
         # Mark errors
         status_str = f"**{status}** ⚠️" if status >= 400 else str(status)
 
         lines.append(f"| {i+1} | {method} | {path} | {status_str} | {duration}ms |")
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def _format_headers(headers: dict) -> str:
     """Format headers as text."""
     if not headers:
         return "(нет заголовков)"
-    return '\n'.join(f"{k}: {v}" for k, v in list(headers.items())[:10])
+    return "\n".join(f"{k}: {v}" for k, v in list(headers.items())[:10])
 
 
-def _format_jira_smart(analysis, url, user_agent, additional_info, sev,
-                        auto_steps, timeline, problem_request, request_chain) -> dict:
+def _format_jira_smart(
+    analysis,
+    url,
+    user_agent,
+    additional_info,
+    sev,
+    auto_steps,
+    timeline,
+    problem_request,
+    request_chain,
+) -> dict:
     """Format as Jira ticket with smart features."""
     summary = analysis.get("summary", "Ошибка на странице")
     probable_cause = analysis.get("probable_cause", "Требует анализа")
@@ -239,12 +283,16 @@ def _format_jira_smart(analysis, url, user_agent, additional_info, sev,
     if timeline:
         timeline_text = "\nh2. Timeline событий\n||Время||Тип||Описание||\n"
         for event in timeline[-10:]:  # Last 10 events
-            time_short = event['time'].split('T')[1][:8] if 'T' in str(event.get('time', '')) else str(event.get('time', ''))[:8]
-            if event['type'] == 'request':
-                status_icon = "❌" if event['is_error'] else "✅"
-                url_short = event['url'][-30:] if len(event['url']) > 30 else event['url']
+            time_short = (
+                event["time"].split("T")[1][:8]
+                if "T" in str(event.get("time", ""))
+                else str(event.get("time", ""))[:8]
+            )
+            if event["type"] == "request":
+                status_icon = "❌" if event["is_error"] else "✅"
+                url_short = event["url"][-30:] if len(event["url"]) > 30 else event["url"]
                 desc = f"{status_icon} {event['method']} ...{url_short} → {event['status']}"
-            elif event['type'] == 'console':
+            elif event["type"] == "console":
                 desc = f"📋 [{event['level']}] {event['message'][:50]}"
             else:
                 desc = f"💥 {event['message'][:50]}"
@@ -253,8 +301,8 @@ def _format_jira_smart(analysis, url, user_agent, additional_info, sev,
     # Build problem request section
     problem_text = ""
     if problem_request:
-        req = problem_request.get('request', problem_request)
-        resp = problem_request.get('response', {})
+        req = problem_request.get("request", problem_request)
+        resp = problem_request.get("response", {})
         problem_text = f"""
 h2. Проблемный запрос
 
@@ -315,12 +363,21 @@ _Создано с помощью ErrorLens_
         "description": description,
         "priority": sev["jira"],
         "labels": ["bug", "errorlens"],
-        "format": "jira"
+        "format": "jira",
     }
 
 
-def _format_github_smart(analysis, url, user_agent, additional_info, sev,
-                          auto_steps, timeline, problem_request, request_chain) -> dict:
+def _format_github_smart(
+    analysis,
+    url,
+    user_agent,
+    additional_info,
+    sev,
+    auto_steps,
+    timeline,
+    problem_request,
+    request_chain,
+) -> dict:
     """Format as GitHub issue with smart features."""
     summary = analysis.get("summary", "Ошибка на странице")
     probable_cause = analysis.get("probable_cause", "Требует анализа")
@@ -336,13 +393,19 @@ def _format_github_smart(analysis, url, user_agent, additional_info, sev,
     # Build timeline
     timeline_md = ""
     if timeline:
-        timeline_md = "\n### Timeline событий\n\n| Время | Тип | Описание |\n|-------|-----|----------|\n"
+        timeline_md = (
+            "\n### Timeline событий\n\n| Время | Тип | Описание |\n|-------|-----|----------|\n"
+        )
         for event in timeline[-10:]:
-            time_short = event['time'].split('T')[1][:8] if 'T' in str(event.get('time', '')) else str(event.get('time', ''))[:8]
-            if event['type'] == 'request':
-                status_icon = "❌" if event['is_error'] else "✅"
+            time_short = (
+                event["time"].split("T")[1][:8]
+                if "T" in str(event.get("time", ""))
+                else str(event.get("time", ""))[:8]
+            )
+            if event["type"] == "request":
+                status_icon = "❌" if event["is_error"] else "✅"
                 desc = f"{status_icon} {event['method']} → {event['status']}"
-            elif event['type'] == 'console':
+            elif event["type"] == "console":
                 desc = f"📋 [{event['level']}] {event['message'][:40]}"
             else:
                 desc = f"💥 {event['message'][:40]}"
@@ -351,8 +414,8 @@ def _format_github_smart(analysis, url, user_agent, additional_info, sev,
     # Build problem request details
     problem_md = ""
     if problem_request:
-        req = problem_request.get('request', problem_request)
-        resp = problem_request.get('response', {})
+        req = problem_request.get("request", problem_request)
+        resp = problem_request.get("response", {})
         problem_md = f"""
 ### Проблемный запрос
 
@@ -419,19 +482,32 @@ def _format_github_smart(analysis, url, user_agent, additional_info, sev,
         "title": f"🐛 {summary[:80]}",
         "body": body,
         "labels": ["bug", sev["github"]],
-        "format": "github"
+        "format": "github",
     }
 
 
-def _format_markdown_smart(analysis, url, user_agent, additional_info, sev,
-                            auto_steps, timeline, problem_request, request_chain) -> dict:
+def _format_markdown_smart(
+    analysis,
+    url,
+    user_agent,
+    additional_info,
+    sev,
+    auto_steps,
+    timeline,
+    problem_request,
+    request_chain,
+) -> dict:
     """Format as plain markdown with smart features."""
     summary = analysis.get("summary", "Ошибка на странице")
     probable_cause = analysis.get("probable_cause", "Требует анализа")
     suggested_fix = analysis.get("suggested_fix", "Требует анализа")
     severity = analysis.get("severity", "medium")
 
-    steps_md = "\n".join(f"{i}. {step}" for i, step in enumerate(auto_steps, 1)) if auto_steps else "1. Открыть страницу"
+    steps_md = (
+        "\n".join(f"{i}. {step}" for i, step in enumerate(auto_steps, 1))
+        if auto_steps
+        else "1. Открыть страницу"
+    )
 
     # Build request chain
     chain_md = ""
@@ -463,8 +539,4 @@ def _format_markdown_smart(analysis, url, user_agent, additional_info, sev,
 *Создано с помощью ErrorLens*
 """
 
-    return {
-        "title": f"🐛 {summary[:80]}",
-        "content": content,
-        "format": "markdown"
-    }
+    return {"title": f"🐛 {summary[:80]}", "content": content, "format": "markdown"}

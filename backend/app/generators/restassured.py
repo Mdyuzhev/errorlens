@@ -1,18 +1,18 @@
 """Generate REST Assured (Java) test files from recorded HTTP sessions."""
 
 import json
-from urllib.parse import urlparse
 
 from app.models_pydantic import RecordedHttpExchange
+
 from .base import (
     BaseGenerator,
-    is_auth_endpoint,
-    has_auth_header_in_request,
-    filter_headers,
-    extract_path,
-    parse_json_body,
     escape_string,
+    extract_path,
+    filter_headers,
     generate_method_name,
+    has_auth_header_in_request,
+    is_auth_endpoint,
+    parse_json_body,
 )
 
 
@@ -43,7 +43,7 @@ class RestAssuredGenerator(BaseGenerator):
         lines = self._generate_header()
         lines.extend(self._generate_class_body())
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def _generate_header(self) -> list[str]:
         """Generate Java file header with imports."""
@@ -76,20 +76,24 @@ class RestAssuredGenerator(BaseGenerator):
 
         # Add shared token field if auth flow detected
         if self.has_auth_flow:
-            lines.extend([
-                "    // Shared auth token extracted from login response",
-                "    private static String authToken;",
-                "",
-            ])
+            lines.extend(
+                [
+                    "    // Shared auth token extracted from login response",
+                    "    private static String authToken;",
+                    "",
+                ]
+            )
 
         # Setup method
-        lines.extend([
-            "    @BeforeAll",
-            "    public static void setup() {",
-            f'        RestAssured.baseURI = "{self.base_url}";',
-            "    }",
-            "",
-        ])
+        lines.extend(
+            [
+                "    @BeforeAll",
+                "    public static void setup() {",
+                f'        RestAssured.baseURI = "{self.base_url}";',
+                "    }",
+                "",
+            ]
+        )
 
         # Generate test methods
         for i, exchange in enumerate(self.requests):
@@ -155,25 +159,29 @@ class RestAssuredGenerator(BaseGenerator):
 
         # For auth endpoint, use extract() to get response
         if is_auth and self.has_auth_flow:
-            lines.extend([
-                f'            .{req.method.lower()}("{path}")',
-                "        .then()",
-                f"            .statusCode({resp.status})",
-                "            .extract().response();",
-                "",
-                "        // Extract auth token from response",
-                '        authToken = response.jsonPath().getString("token");',
-                "        if (authToken == null) {",
-                '            authToken = response.jsonPath().getString("access_token");',
-                "        }",
-                '        assertNotNull(authToken, "Auth token not found in login response");',
-            ])
+            lines.extend(
+                [
+                    f'            .{req.method.lower()}("{path}")',
+                    "        .then()",
+                    f"            .statusCode({resp.status})",
+                    "            .extract().response();",
+                    "",
+                    "        // Extract auth token from response",
+                    '        authToken = response.jsonPath().getString("token");',
+                    "        if (authToken == null) {",
+                    '            authToken = response.jsonPath().getString("access_token");',
+                    "        }",
+                    '        assertNotNull(authToken, "Auth token not found in login response");',
+                ]
+            )
         else:
-            lines.extend([
-                f'            .{req.method.lower()}("{path}")',
-                "        .then()",
-                f"            .statusCode({resp.status})",
-            ])
+            lines.extend(
+                [
+                    f'            .{req.method.lower()}("{path}")',
+                    "        .then()",
+                    f"            .statusCode({resp.status})",
+                ]
+            )
 
             # Response body assertions
             resp_body = parse_json_body(resp.body)
@@ -207,10 +215,7 @@ public class {self.class_name} {{
 """
 
 
-def generate_pom_xml(
-    group_id: str = "com.errorlens",
-    artifact_id: str = "session-tests"
-) -> str:
+def generate_pom_xml(group_id: str = "com.errorlens", artifact_id: str = "session-tests") -> str:
     """Generate Maven pom.xml for running tests."""
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -270,10 +275,11 @@ def generate_pom_xml(
 # Public API (backward compatible)
 # =============================================================================
 
+
 def generate_restassured_file(
     recorded_requests: list[RecordedHttpExchange],
     class_name: str = "SessionTest",
-    package_name: str = "com.errorlens.tests"
+    package_name: str = "com.errorlens.tests",
 ) -> str:
     """Generate a REST Assured Java test file from recorded requests."""
     generator = RestAssuredGenerator(

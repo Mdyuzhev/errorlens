@@ -1,10 +1,10 @@
 """Tests for TaskService."""
 
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
-from app.services.task_service import TaskService, VALID_STATUSES, VALID_PRIORITIES
+import pytest
+from app.services.task_service import VALID_PRIORITIES, VALID_STATUSES, TaskService
 
 
 class TestTaskServiceConstants:
@@ -60,10 +60,7 @@ class TestTaskService:
         mock_repo.create.return_value = mock_task
 
         # Act
-        result = await task_service.create_task(
-            title="Test Task",
-            description="Test description"
-        )
+        result = await task_service.create_task(title="Test Task", description="Test description")
 
         # Assert
         assert result.id == "task-123"
@@ -94,10 +91,7 @@ class TestTaskService:
         mock_repo.create.return_value = mock_task
 
         # Act
-        await task_service.create_task(
-            title="Test Task",
-            status="invalid_status"
-        )
+        await task_service.create_task(title="Test Task", status="invalid_status")
 
         # Assert
         call_args = mock_repo.create.call_args[0][0]
@@ -111,10 +105,7 @@ class TestTaskService:
         mock_repo.create.return_value = mock_task
 
         # Act
-        await task_service.create_task(
-            title="Test Task",
-            priority="critical"  # invalid
-        )
+        await task_service.create_task(title="Test Task", priority="critical")  # invalid
 
         # Assert
         call_args = mock_repo.create.call_args[0][0]
@@ -138,7 +129,7 @@ class TestTaskService:
             labels=["bug", "urgent"],
             due_date=due_date,
             session_id="session-123",
-            testcase_id="tc-456"
+            testcase_id="tc-456",
         )
 
         # Assert
@@ -215,19 +206,14 @@ class TestTaskService:
 
         # Act
         result = await task_service.list_tasks(
-            status="todo",
-            priority="high",
-            assignee="user@example.com"
+            status="todo", priority="high", assignee="user@example.com"
         )
 
         # Assert
         assert len(result) == 1
         assert result[0]["id"] == "task-1"
         mock_repo.list_with_filters.assert_called_once_with(
-            status="todo",
-            priority="high",
-            assignee="user@example.com",
-            session_id=None
+            status="todo", priority="high", assignee="user@example.com", session_id=None
         )
 
     # ========== Kanban Board Tests ==========
@@ -242,12 +228,7 @@ class TestTaskService:
         result = await task_service.get_board()
 
         # Assert
-        assert result == {
-            "todo": [],
-            "in_progress": [],
-            "review": [],
-            "done": []
-        }
+        assert result == {"todo": [], "in_progress": [], "review": [], "done": []}
 
     @pytest.mark.asyncio
     async def test_get_board_groups_by_status(self, task_service, mock_repo):
@@ -363,11 +344,7 @@ class TestTaskService:
         mock_repo.get_by_id.return_value = mock_task
 
         # Act
-        result = await task_service.update_task(
-            "task-123",
-            title="Updated Title",
-            priority="high"
-        )
+        result = await task_service.update_task("task-123", title="Updated Title", priority="high")
 
         # Assert
         assert result == mock_task
@@ -425,7 +402,7 @@ class TestTaskService:
             "todo": 5,
             "in_progress": 3,
             "review": 2,
-            "done": 10
+            "done": 10,
         }
 
         # Act

@@ -5,13 +5,14 @@ import logging
 from urllib.parse import urlparse
 
 from app.models_pydantic import RecordedHttpExchange
+
 from .base import (
     BaseGenerator,
-    is_auth_endpoint,
-    filter_headers,
     extract_path,
-    parse_json_body,
+    filter_headers,
     get_token_field_names,
+    is_auth_endpoint,
+    parse_json_body,
 )
 from .llm_comments import generate_llm_comments
 
@@ -79,11 +80,11 @@ class PytestGenerator(BaseGenerator):
                 continue
 
             path = urlparse(exchange.request.url).path.lower()
-            public_patterns = ['health', 'ping', 'status', 'public', 'version']
+            public_patterns = ["health", "ping", "status", "public", "version"]
             if any(p in path for p in public_patterns):
                 continue
 
-            if '/api/' in path or exchange.request.method in ['POST', 'PUT', 'DELETE', 'PATCH']:
+            if "/api/" in path or exchange.request.method in ["POST", "PUT", "DELETE", "PATCH"]:
                 needs_auth.add(i)
 
         return needs_auth
@@ -117,8 +118,8 @@ class PytestGenerator(BaseGenerator):
             '"""',
             "Auto-generated pytest tests from ErrorLens session.",
             "",
-            "Run with: pytest {}.py -v".format(self.test_name),
-            "Or simply: python {}.py".format(self.test_name),
+            f"Run with: pytest {self.test_name}.py -v",
+            f"Or simply: python {self.test_name}.py",
             "",
             "Environment variables:",
             "  BASE_URL - Override base URL (default: recorded URL)",
@@ -233,17 +234,19 @@ class PytestGenerator(BaseGenerator):
             lines.append(f"        {self.llm_comments[index + 1]}")
             lines.append("")
 
-        lines.extend([
-            f"        {req.method} {path}",
-            f"        Expected: {resp.status} {resp.status_text or ''}",
-            '        """',
-            f'        url = BASE_URL + "{full_path}"',
-        ])
+        lines.extend(
+            [
+                f"        {req.method} {path}",
+                f"        Expected: {resp.status} {resp.status_text or ''}",
+                '        """',
+                f'        url = BASE_URL + "{full_path}"',
+            ]
+        )
 
         # Headers
         safe_headers = filter_headers(req.headers, exclude_auth=True)
-        if req.body and self._is_json(req.body) and 'Content-Type' not in safe_headers:
-            safe_headers['Content-Type'] = 'application/json'
+        if req.body and self._is_json(req.body) and "Content-Type" not in safe_headers:
+            safe_headers["Content-Type"] = "application/json"
 
         if safe_headers:
             headers_str = json.dumps(safe_headers, indent=12, ensure_ascii=False)
@@ -253,60 +256,74 @@ class PytestGenerator(BaseGenerator):
 
         # Add auth token if needed
         if index in self.needs_auth_indices and self.token_field:
-            lines.extend([
-                "",
-                "        # Add auth token if available",
-                "        if TestSession.token:",
-                "            headers['Authorization'] = f'Bearer {TestSession.token}'",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "        # Add auth token if available",
+                    "        if TestSession.token:",
+                    "            headers['Authorization'] = f'Bearer {TestSession.token}'",
+                ]
+            )
 
         # Body
         if req.body:
             body_dict = parse_json_body(req.body)
             if body_dict:
                 body_str = json.dumps(body_dict, indent=12, ensure_ascii=False)
-                lines.extend([
-                    "",
-                    f"        json_body = {body_str}",
-                ])
-                request_call = f"requests.{req.method.lower()}(url, headers=headers, json=json_body)"
+                lines.extend(
+                    [
+                        "",
+                        f"        json_body = {body_str}",
+                    ]
+                )
+                request_call = (
+                    f"requests.{req.method.lower()}(url, headers=headers, json=json_body)"
+                )
             else:
                 escaped_body = req.body.replace('"""', '\\"\\"\\"')
-                lines.extend([
-                    "",
-                    f'        data = """{escaped_body}"""',
-                ])
+                lines.extend(
+                    [
+                        "",
+                        f'        data = """{escaped_body}"""',
+                    ]
+                )
                 request_call = f"requests.{req.method.lower()}(url, headers=headers, data=data)"
         else:
             request_call = f"requests.{req.method.lower()}(url, headers=headers)"
 
-        lines.extend([
-            "",
-            f"        response = {request_call}",
-            "",
-            "        # Assertions",
-            f"        assert response.status_code == {resp.status}, \\",
-            f'            f"Expected {resp.status}, got {{response.status_code}}: {{response.text[:200]}}"',
-        ])
+        lines.extend(
+            [
+                "",
+                f"        response = {request_call}",
+                "",
+                "        # Assertions",
+                f"        assert response.status_code == {resp.status}, \\",
+                f'            f"Expected {resp.status}, got {{response.status_code}}: {{response.text[:200]}}"',
+            ]
+        )
 
         # Extract token if auth request
         if index == self.auth_index and self.token_field:
-            lines.extend([
-                "",
-                "        # Extract auth token for subsequent requests",
-                "        data = assert_json_response(response, 'Login failed: ')",
-                f"        TestSession.token = data.get('{self.token_field}')",
-                "        assert TestSession.token, 'Token not found in login response'",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "        # Extract auth token for subsequent requests",
+                    "        data = assert_json_response(response, 'Login failed: ')",
+                    f"        TestSession.token = data.get('{self.token_field}')",
+                    "        assert TestSession.token, 'Token not found in login response'",
+                ]
+            )
         elif resp.body:
             resp_body = parse_json_body(resp.body)
             if resp_body and isinstance(resp_body, dict):
                 keys = list(resp_body.keys())[:5]
-                lines.extend([
-                    "",
-                    "        # Verify response structure",
-                    "        data = assert_json_response(response)",
-                ])
+                lines.extend(
+                    [
+                        "",
+                        "        # Verify response structure",
+                        "        data = assert_json_response(response)",
+                    ]
+                )
                 for key in keys:
                     lines.append(f'        assert "{key}" in data, "Missing key: {key}"')
 
@@ -354,6 +371,7 @@ if __name__ == "__main__":
 # =============================================================================
 # Public API (backward compatible)
 # =============================================================================
+
 
 def generate_pytest_file(
     recorded_requests: list[RecordedHttpExchange],

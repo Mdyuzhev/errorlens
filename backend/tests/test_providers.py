@@ -1,8 +1,8 @@
 """Tests for LLM providers."""
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from app.providers.base import LLMProvider
 from app.providers.gemini import GeminiProvider
 from app.providers.groq import GroqProvider
@@ -163,5 +163,5 @@ class TestGroqProvider:
                     await provider.analyze("test context")
 
     def test_groq_uses_correct_model(self, provider):
-        """Should use llama-3.1-70b-versatile model."""
-        assert provider.MODEL == "llama-3.1-70b-versatile"
+        """Should use llama-3.3-70b-versatile model."""
+        assert provider.MODEL == "llama-3.3-70b-versatile"

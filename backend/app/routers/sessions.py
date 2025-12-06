@@ -5,34 +5,33 @@ Users can only access sessions in projects they own or are members of.
 """
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-
-logger = logging.getLogger(__name__)
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.jwt_auth import (
-    require_auth,
-    get_current_user,
     check_project_access,
     get_default_project,
+    require_auth,
 )
 from app.models.user import User
-from app.services.session_service import SessionService
 from app.services.export_service import ExportService
+from app.services.session_service import SessionService
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 
 # === Pydantic schemas for API ===
 
+
 class SessionCreateRequest(BaseModel):
     """Request to create a new session."""
+
     url: str
     user_agent: str
     recording_duration_ms: int = 0
@@ -41,12 +40,13 @@ class SessionCreateRequest(BaseModel):
     network_errors: list[dict] = Field(default_factory=list)
     js_exceptions: list[dict] = Field(default_factory=list)
     recorded_requests: list[dict] = Field(default_factory=list)
-    screenshot: Optional[str] = None
-    project_id: Optional[str] = None
+    screenshot: str | None = None
+    project_id: str | None = None
 
 
 class SessionResponse(BaseModel):
     """Session response."""
+
     id: str
     url: str
     user_agent: str
@@ -57,12 +57,13 @@ class SessionResponse(BaseModel):
     has_errors: bool
     has_requests: bool
     events_count: int
-    testit_url: Optional[str] = None
-    testit_id: Optional[int] = None
+    testit_url: str | None = None
+    testit_id: int | None = None
 
 
 class SessionDetailResponse(BaseModel):
     """Detailed session response with data and analysis."""
+
     id: str
     url: str
     user_agent: str
@@ -73,14 +74,15 @@ class SessionDetailResponse(BaseModel):
     network_errors: list[dict]
     js_exceptions: list[dict]
     recorded_requests: list[dict]
-    screenshot: Optional[str]
-    analysis: Optional[dict]
-    testit_url: Optional[str] = None
-    testit_id: Optional[int] = None
+    screenshot: str | None
+    analysis: dict | None
+    testit_url: str | None = None
+    testit_id: int | None = None
 
 
 class SessionListResponse(BaseModel):
     """Paginated list of sessions."""
+
     items: list[SessionResponse]
     total: int
     limit: int
@@ -89,11 +91,13 @@ class SessionListResponse(BaseModel):
 
 class SessionCreateResponse(BaseModel):
     """Response after creating session."""
+
     session_id: str
-    analysis: Optional[dict] = None
+    analysis: dict | None = None
 
 
 # === API Endpoints ===
+
 
 @router.post("", response_model=SessionCreateResponse)
 async def create_session(
@@ -102,43 +106,50 @@ async def create_session(
 ) -> SessionCreateResponse:
     """Create a new session and trigger AI analysis."""
     logger.info(f"[SESSIONS] POST /sessions received - URL: {request.url}")
-    logger.info(f"[SESSIONS] Payload: console_logs={len(request.console_logs)}, "
-                f"network_errors={len(request.network_errors)}, "
-                f"js_exceptions={len(request.js_exceptions)}, "
-                f"recorded_requests={len(request.recorded_requests)}")
+    logger.info(
+        f"[SESSIONS] Payload: console_logs={len(request.console_logs)}, "
+        f"network_errors={len(request.network_errors)}, "
+        f"js_exceptions={len(request.js_exceptions)}, "
+        f"recorded_requests={len(request.recorded_requests)}"
+    )
 
     # Validate that session has at least one event
     has_events = (
-        request.console_logs or
-        request.network_errors or
-        request.js_exceptions or
-        request.recorded_requests
+        request.console_logs
+        or request.network_errors
+        or request.js_exceptions
+        or request.recorded_requests
     )
     if not has_events:
         raise HTTPException(
             status_code=400,
-            detail="Session must contain at least one event (console_logs, network_errors, js_exceptions, or recorded_requests)"
+            detail="Session must contain at least one event (console_logs, network_errors, js_exceptions, or recorded_requests)",
         )
 
     service = SessionService(db)
-    result = await service.create_session(
-        url=request.url,
-        user_agent=request.user_agent,
-        recording_duration_ms=request.recording_duration_ms,
-        record_mode=request.record_mode,
-        console_logs=request.console_logs,
-        network_errors=request.network_errors,
-        js_exceptions=request.js_exceptions,
-        recorded_requests=request.recorded_requests,
-        screenshot=request.screenshot,
-        project_id=request.project_id,
-    )
-    return SessionCreateResponse(**result)
+    try:
+        result = await service.create_session(
+            url=request.url,
+            user_agent=request.user_agent,
+            recording_duration_ms=request.recording_duration_ms,
+            record_mode=request.record_mode,
+            console_logs=request.console_logs,
+            network_errors=request.network_errors,
+            js_exceptions=request.js_exceptions,
+            recorded_requests=request.recorded_requests,
+            screenshot=request.screenshot,
+            project_id=request.project_id,
+        )
+        logger.info(f"[SESSIONS] Session created: {result.get('session_id')}")
+        return SessionCreateResponse(**result)
+    except Exception as e:
+        logger.error(f"[SESSIONS] Failed to create session: {e}")
+        raise
 
 
 @router.get("", response_model=SessionListResponse)
 async def list_sessions(
-    project_id: Optional[str] = Query(default=None, description="Filter by project ID"),
+    project_id: str | None = Query(default=None, description="Filter by project ID"),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -162,11 +173,7 @@ async def list_sessions(
         filter_project_id = default_project.id if default_project else None
 
     service = SessionService(db)
-    result = await service.list_sessions(
-        limit=limit,
-        offset=offset,
-        project_id=filter_project_id
-    )
+    result = await service.list_sessions(limit=limit, offset=offset, project_id=filter_project_id)
     return SessionListResponse(**result)
 
 
@@ -215,9 +222,7 @@ async def delete_session(
 
     # Check project access with member role required
     if session.project_id:
-        await check_project_access(
-            session.project_id, current_user, db, required_role="member"
-        )
+        await check_project_access(session.project_id, current_user, db, required_role="member")
 
     deleted = await service.delete_session(session_id)
     if not deleted:
@@ -257,6 +262,7 @@ async def export_session(
             content = export_service.export_markdown(session)
         elif format == "postman":
             import json
+
             content = json.dumps(export_service.export_postman(session), indent=2)
         elif format == "pytest":
             content = export_service.export_pytest(session)

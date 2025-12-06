@@ -5,6 +5,7 @@ from sample session data.
 """
 
 import json
+
 import pytest
 from tests.fixtures import get_sample_exchanges, get_sample_raw
 
@@ -175,8 +176,7 @@ class TestPostmanGenerator:
 
         exchanges = get_sample_exchanges()
         request = ExportPostmanRequest(
-            recorded_requests=exchanges,
-            collection_name="Test Collection"
+            recorded_requests=exchanges, collection_name="Test Collection"
         )
 
         result = generate_postman_collection(request)
@@ -202,10 +202,7 @@ class TestPostmanGenerator:
         from app.models_pydantic import ExportPostmanRequest
 
         exchanges = get_sample_exchanges()
-        request = ExportPostmanRequest(
-            recorded_requests=exchanges,
-            base_url_variable=True
-        )
+        request = ExportPostmanRequest(recorded_requests=exchanges, base_url_variable=True)
 
         result = generate_postman_collection(request)
 
@@ -219,9 +216,11 @@ class TestGeneratorsIntegration:
 
     def test_all_generators_handle_same_input(self):
         """All generators should handle the same sample data without errors."""
-        from app.generators import generate_pytest_file
-        from app.generators import generate_restassured_file
-        from app.generators import generate_postman_collection
+        from app.generators import (
+            generate_postman_collection,
+            generate_pytest_file,
+            generate_restassured_file,
+        )
         from app.models_pydantic import ExportPostmanRequest
 
         exchanges = get_sample_exchanges()
@@ -239,8 +238,7 @@ class TestGeneratorsIntegration:
 
     def test_generators_preserve_request_order(self):
         """All generators should preserve the order of requests."""
-        from app.generators import generate_pytest_file
-        from app.generators import generate_restassured_file
+        from app.generators import generate_pytest_file, generate_restassured_file
 
         exchanges = get_sample_exchanges()
 

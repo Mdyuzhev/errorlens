@@ -1,12 +1,10 @@
 """Run tests (pytest or REST Assured) and track results."""
 
 import asyncio
-import subprocess
 import tempfile
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 # In-memory storage for test runs
 test_runs: dict[str, dict] = {}
@@ -47,8 +45,8 @@ async def run_restassured(java_code: str, pom_xml: str, test_id: str) -> dict:
         output = stdout.decode("utf-8", errors="replace")
 
         # Parse results (simple parsing)
-        passed = output.count("Tests run:") and "Failures: 0" in output
-        failed_match = output.count("Failures:")
+        output.count("Tests run:") and "Failures: 0" in output
+        output.count("Failures:")
 
         status = "passed" if process.returncode == 0 else "failed"
 
@@ -82,6 +80,7 @@ async def run_restassured(java_code: str, pom_xml: str, test_id: str) -> dict:
     finally:
         # Cleanup
         import shutil
+
         try:
             shutil.rmtree(temp_dir, ignore_errors=True)
         except Exception:
@@ -168,7 +167,7 @@ async def run_pytest(test_code: str, test_id: str) -> dict:
             pass
 
 
-def get_test_run(test_id: str) -> Optional[dict]:
+def get_test_run(test_id: str) -> dict | None:
     """Get test run status."""
     return test_runs.get(test_id)
 

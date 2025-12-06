@@ -1,7 +1,6 @@
 """Analysis and ticket generation endpoints - thin controller."""
 
 import logging
-from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
@@ -23,21 +22,21 @@ router = APIRouter(tags=["analysis"])
 class AnalyzeRequest(BaseModel):
     url: str
     user_agent: str
-    console_logs: List[dict] = []
-    js_exceptions: List[dict] = []
-    network_errors: List[dict] = []
-    screenshot: Optional[str] = None
+    console_logs: list[dict] = []
+    js_exceptions: list[dict] = []
+    network_errors: list[dict] = []
+    screenshot: str | None = None
     recording_duration_ms: int = 0
 
 
 class SessionAnalysisRequest(BaseModel):
-    recorded_requests: List[dict]
+    recorded_requests: list[dict]
 
 
 class GenerateTicketRequest(BaseModel):
     session_id: str
     format: str = "markdown"
-    additional_info: Optional[str] = None
+    additional_info: str | None = None
 
 
 class ReanalyzeRequest(BaseModel):

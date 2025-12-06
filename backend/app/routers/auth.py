@@ -16,7 +16,6 @@ from app.services.auth import (
     get_user_by_id,
 )
 
-
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
@@ -55,12 +54,8 @@ async def login(
     if not user:
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
-    access_token = create_access_token(
-        data={"sub": user.username, "user_id": user.id}
-    )
-    refresh_token = create_refresh_token(
-        data={"sub": user.username, "user_id": user.id}
-    )
+    access_token = create_access_token(data={"sub": user.username, "user_id": user.id})
+    refresh_token = create_refresh_token(data={"sub": user.username, "user_id": user.id})
 
     return Token(access_token=access_token, refresh_token=refresh_token)
 
@@ -80,12 +75,8 @@ async def refresh_token(
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")
 
-    access_token = create_access_token(
-        data={"sub": user.username, "user_id": user.id}
-    )
-    new_refresh_token = create_refresh_token(
-        data={"sub": user.username, "user_id": user.id}
-    )
+    access_token = create_access_token(data={"sub": user.username, "user_id": user.id})
+    new_refresh_token = create_refresh_token(data={"sub": user.username, "user_id": user.id})
 
     return Token(access_token=access_token, refresh_token=new_refresh_token)
 
