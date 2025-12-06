@@ -7,7 +7,7 @@ build_backend:
   only: [main]
   script:
     - docker build -t errorlens-backend:latest ./backend
-    - docker tag errorlens-backend:latest $STAGE_REGISTRY_PATH/backend:latest || true
+    - docker save errorlens-backend:latest | sudo k3s ctr images import -
   tags: [k8s]
 
 build_frontend:
@@ -15,7 +15,7 @@ build_frontend:
   only: [main]
   script:
     - docker build -t errorlens-frontend:latest ./dashboard-vue
-    - docker tag errorlens-frontend:latest $STAGE_REGISTRY_PATH/frontend:latest || true
+    - docker save errorlens-frontend:latest | sudo k3s ctr images import -
   tags: [k8s]
 
 deploy_stage:
