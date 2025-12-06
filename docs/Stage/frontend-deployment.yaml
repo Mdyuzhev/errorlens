@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: registry.gitlab.com/your-group/errorlens/frontend:latest
+        image: errorlens-frontend:latest
+        imagePullPolicy: Never
         ports:
         - containerPort: 80
         envFrom:
