@@ -127,11 +127,32 @@ bookmarklet/
 3. **Frontend** ✅ — split DashboardView (-71%), ResultsView (-79%)
 4. **Tests & Docs** ✅ — 42 unit tests, architecture docs
 
+### WAVE 3.3: QA Infrastructure ✅ DONE
+
+Цель: автоматизация тестирования и изоляция multi-tenancy.
+
+Результаты:
+1. **Auto-seed test users** ✅ — 7 тестовых пользователей + 2 проекта при старте
+2. **Post-Deploy Tests webhook** ✅ — автозапуск после push в main
+3. **Multi-tenancy isolation fix** ✅ — articles теперь фильтруются по project_id
+4. **Concurrency control** ✅ — дубликаты workflow отменяются
+
+Тестовые пользователи:
+| User | Password | Project | Role |
+|------|----------|---------|------|
+| owner1 | Test123! | Alpha | owner |
+| owner2 | Test123! | Beta | owner |
+| admin1 | Test123! | Alpha | admin |
+| member1 | Test123! | Alpha | member |
+| member2 | Test123! | Beta | member |
+| viewer1 | Test123! | Alpha | viewer |
+| viewer2 | Test123! | Beta | viewer |
+
 ---
 
 ## Следующий Wave
 
-**WAVE 3.3+:** TBD — см. ROADMAP.md для backlog
+**WAVE 3.4:** См. ROADMAP.md для backlog
 
 ---
 
@@ -263,4 +284,4 @@ const items = ref([])
 
 ---
 
-*Последнее обновление: 2025-12-05 (Wave 3.2 complete)*
+*Последнее обновление: 2025-12-06 (Wave 3.3 complete)*
