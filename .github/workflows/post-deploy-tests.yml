@@ -1,0 +1,144 @@
+name: Post-Deploy Tests
+
+on:
+  repository_dispatch:
+    types: [deployment-complete]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  PROD_URL: https://errorlens-production.up.railway.app
+
+jobs:
+  verify-deployment:
+    name: Verify Production Deployment
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: |
+          pip install httpx pytest pytest-asyncio
+
+      - name: Wait for deployment to be ready
+        run: |
+          echo "Waiting for deployment to stabilize..."
+          for i in {1..10}; do
+            if curl -s ${{ env.PROD_URL }}/health | grep -q "ok"; then
+              echo "Health check passed!"
+              break
+            fi
+            echo "Attempt $i: waiting..."
+            sleep 5
+          done
+
+      - name: Run health check
+        run: |
+          response=$(curl -s ${{ env.PROD_URL }}/health)
+          echo "Health response: $response"
+          echo "$response" | grep -q "ok" || exit 1
+
+      - name: Test authentication
+        run: |
+          # Test demo login
+          response=$(curl -s -X POST ${{ env.PROD_URL }}/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"username":"demo","password":"ErrorLenseTest"}')
+          echo "Login response: ${response:0:100}..."
+          echo "$response" | grep -q "access_token" || exit 1
+          echo "Demo login: PASS"
+
+      - name: Test debug echo endpoint
+        run: |
+          response=$(curl -s -X POST ${{ env.PROD_URL }}/debug/echo \
+            -H "Content-Type: application/json" \
+            -d '{"test":"post-deploy-verification"}')
+          echo "Echo response: $response"
+          echo "$response" | grep -q "received" || exit 1
+          echo "Debug echo: PASS"
+
+      - name: Seed test users (if needed)
+        run: |
+          # Login as demo
+          token=$(curl -s -X POST ${{ env.PROD_URL }}/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"username":"demo","password":"ErrorLenseTest"}' | \
+            python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+          # Seed test users
+          response=$(curl -s -X POST ${{ env.PROD_URL }}/admin/seed-test-users \
+            -H "Authorization: Bearer $token")
+          echo "Seed response: $response"
+
+      - name: Test multi-tenancy isolation
+        run: |
+          # Login as owner1
+          owner1_token=$(curl -s -X POST ${{ env.PROD_URL }}/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"username":"owner1","password":"Test123!"}' | \
+            python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+          # Get owner1's project
+          project_id=$(curl -s ${{ env.PROD_URL }}/projects \
+            -H "Authorization: Bearer $owner1_token" | \
+            python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])")
+          echo "Project Alpha ID: $project_id"
+
+          # Create session in owner1's project
+          session_response=$(curl -s -X POST ${{ env.PROD_URL }}/sessions \
+            -H "Authorization: Bearer $owner1_token" \
+            -H "Content-Type: application/json" \
+            -d "{\"url\":\"https://ci-test.com\",\"user_agent\":\"CI Agent\",\"project_id\":\"$project_id\",\"console_logs\":[{\"level\":\"error\",\"message\":\"CI test\",\"timestamp\":1234567890}]}")
+          session_id=$(echo "$session_response" | python3 -c "import sys,json; print(json.load(sys.stdin)['session_id'])")
+          echo "Created session: $session_id"
+
+          # Login as owner2
+          owner2_token=$(curl -s -X POST ${{ env.PROD_URL }}/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"username":"owner2","password":"Test123!"}' | \
+            python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+          # owner2 tries to access owner1's session - should fail
+          isolation_response=$(curl -s ${{ env.PROD_URL }}/sessions/$session_id \
+            -H "Authorization: Bearer $owner2_token")
+          echo "Isolation test response: $isolation_response"
+
+          if echo "$isolation_response" | grep -q "Access denied"; then
+            echo "Multi-tenancy isolation: PASS"
+          else
+            echo "Multi-tenancy isolation: FAIL - owner2 could access owner1's session!"
+            exit 1
+          fi
+
+      - name: Run unit tests
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pytest tests/ -v --tb=short 2>&1 | tail -30
+        env:
+          GEMINI_API_KEY: ""
+          GROQ_API_KEY: ""
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "================================"
+          echo "Post-Deploy Verification Complete"
+          echo "================================"
+          echo "Environment: ${{ github.event.client_payload.environment || inputs.environment || 'production' }}"
+          echo "Commit: ${{ github.event.client_payload.commit || github.sha }}"
+          echo "================================"

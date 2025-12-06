@@ -26,6 +26,16 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
+      - name: Wait for deployment to stabilize
+        run: sleep 30
+
+      - name: Trigger post-deploy tests
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: deployment-complete
+          client-payload: '{"environment": "production", "commit": "${{ github.sha }}", "ref": "${{ github.ref }}"}'
+
 # =============================================================================
 # SETUP INSTRUCTIONS:
 # =============================================================================
