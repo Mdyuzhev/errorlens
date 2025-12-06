@@ -137,6 +137,15 @@ bookmarklet/
 3. **Multi-tenancy isolation fix** ✅ — articles теперь фильтруются по project_id
 4. **Concurrency control** ✅ — дубликаты workflow отменяются
 
+### WAVE 3.4: CI/CD Fix ✅ DONE
+
+Цель: исправить CI pipeline, все тесты зелёные.
+
+Результаты:
+1. **black/isort/ruff formatting** ✅ — 54 файла отформатировано
+2. **145/145 tests passing** ✅ — все тесты зелёные
+3. **Logging improvements** ✅ — добавлен logging в POST /sessions
+
 Тестовые пользователи:
 | User | Password | Project | Role |
 |------|----------|---------|------|
@@ -150,9 +159,9 @@ bookmarklet/
 
 ---
 
-## Следующий Wave
+## Backlog
 
-**WAVE 3.4:** См. ROADMAP.md для backlog
+См. ROADMAP.md
 
 ---
 
@@ -204,7 +213,6 @@ cd dashboard-vue && npm run test
 
 | Задача | Файлы |
 |--------|-------|
-| Backend refactoring | `docs/TECHNICAL_AUDIT_2025-12-05.md` |
 | Bookmarklet | `bookmarklet/src/`, legacy `bookmarklet/recorder.js` |
 | Новый роутер | Образец: `routers/sessions.py` + `services/session_service.py` |
 | Новый сервис | Образец: `services/session_service.py` + `repositories/session_repo.py` |
@@ -284,4 +292,4 @@ const items = ref([])
 
 ---
 
-*Последнее обновление: 2025-12-06 (Wave 3.3 complete)*
+*Последнее обновление: 2025-12-06 (Wave 3.4 complete)*
