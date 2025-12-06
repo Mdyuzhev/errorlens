@@ -6,18 +6,16 @@ build_backend:
   stage: build
   only: [main]
   script:
-    - docker build -t $CI_REGISTRY_IMAGE/backend:latest ./backend
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker push $CI_REGISTRY_IMAGE/backend:latest
+    - docker build -t errorlens-backend:latest ./backend
+    - docker tag errorlens-backend:latest $STAGE_REGISTRY_PATH/backend:latest || true
   tags: [k8s]
 
 build_frontend:
   stage: build
   only: [main]
   script:
-    - docker build -t $CI_REGISTRY_IMAGE/frontend:latest ./dashboard-vue
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker push $CI_REGISTRY_IMAGE/frontend:latest
+    - docker build -t errorlens-frontend:latest ./dashboard-vue
+    - docker tag errorlens-frontend:latest $STAGE_REGISTRY_PATH/frontend:latest || true
   tags: [k8s]
 
 deploy_stage:
