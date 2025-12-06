@@ -18,6 +18,7 @@ TEST_USERS: List[Dict[str, Any]] = [
     {"username": "owner2", "password": "Test123!", "is_admin": False},
     {"username": "admin1", "password": "Test123!", "is_admin": False},
     {"username": "member1", "password": "Test123!", "is_admin": False},
+    {"username": "member2", "password": "Test123!", "is_admin": False},
     {"username": "viewer1", "password": "Test123!", "is_admin": False},
     {"username": "viewer2", "password": "Test123!", "is_admin": False},
 ]
@@ -35,6 +36,7 @@ PROJECT_MEMBERSHIPS = [
     {"project_slug": "project-alpha", "username": "member1", "role": "member"},
     {"project_slug": "project-alpha", "username": "viewer1", "role": "viewer"},
     # Project Beta members
+    {"project_slug": "project-beta", "username": "member2", "role": "member"},
     {"project_slug": "project-beta", "username": "viewer2", "role": "viewer"},
 ]
 
