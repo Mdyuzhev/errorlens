@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: errorlens-backend
+  namespace: errorlens-stage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: errorlens-backend
+  template:
+    metadata:
+      labels:
+        app: errorlens-backend
+    spec:
+      containers:
+      - name: backend
+        image: registry.gitlab.com/your-group/errorlens/backend:latest
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: errorlens-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
