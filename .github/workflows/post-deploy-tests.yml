@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'backend/**'
+      - 'dashboard-vue/**'
   workflow_dispatch:
     inputs:
       skip_wait:
@@ -13,6 +14,11 @@ on:
         default: 'false'
         type: boolean
 
+# Prevent duplicate runs - cancel previous if new push arrives
+concurrency:
+  group: post-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   PROD_URL: https://errorlens-production.up.railway.app
 
@@ -20,8 +26,6 @@ jobs:
   post-deploy-verify:
     name: Verify Production Deployment
     runs-on: ubuntu-latest
-    # Run after CI completes
-    needs: []
 
     steps:
       - uses: actions/checkout@v4
