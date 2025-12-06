@@ -30,6 +30,7 @@ from app.routers import (
 )
 from app.services.auth import init_admin_user
 from app.services.seed_demo import seed_demo_data
+from app.services.seed_test_users import seed_test_users
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -55,6 +56,15 @@ async def lifespan(app: FastAPI):
         logger.info("Demo data seeded")
     except Exception as e:
         logger.error(f"Failed to seed demo data: {e}")
+
+    # Seed test users (owner1, owner2, member1, member2, etc.) for QA testing
+    async with async_session_maker() as db:
+        try:
+            result = await seed_test_users(db)
+            logger.info(f"Test users seeded: {result['users_created'] or 'all exist'}")
+            logger.info(f"Test projects seeded: {result['projects_created'] or 'all exist'}")
+        except Exception as e:
+            logger.error(f"Failed to seed test users: {e}")
 
     yield
     logger.info("Shutting down...")
