@@ -1,0 +1,37 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  DOCKER_TLS_CERTDIR: ""
+
+build_backend:
+  stage: build
+  image: docker:24-dind
+  only: [main]
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE/backend:latest ./backend
+    - docker push $CI_REGISTRY_IMAGE/backend:latest
+  tags: [docker]
+
+build_frontend:
+  stage: build
+  image: docker:24-dind
+  only: [main]
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE/frontend:latest ./dashboard-vue
+    - docker push $CI_REGISTRY_IMAGE/frontend:latest
+  tags: [docker]
+
+deploy_stage:
+  stage: deploy
+  only: [main]
+  script:
+    - kubectl create secret generic db-secret --from-literal=password=$STAGE_DB_PASSWORD -n errorlens-stage --dry-run=client -o yaml | kubectl apply -f -
+    - sed -i "s|your-group|$STAGE_REGISTRY_PATH|g" docs/Stage/*-deployment.yaml
+    - kubectl apply -f docs/Stage/
+    - kubectl rollout status deployment/errorlens-backend -n errorlens-stage
+    - kubectl rollout status deployment/errorlens-frontend -n errorlens-stage
+  after_script:
+    - curl -X POST https://test-project.url/webhook -d '{"environment":"stage","target":"http://192.168.1.74:31200"}'
+  tags: [k8s]
