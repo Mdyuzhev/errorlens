@@ -22,11 +22,10 @@ deploy_stage:
   stage: deploy
   only: [main]
   script:
+    - kubectl apply -f docs/Stage/namespace.yaml
     - kubectl create secret generic db-secret --from-literal=password=$STAGE_DB_PASSWORD -n errorlens-stage --dry-run=client -o yaml | kubectl apply -f -
-    - sed -i "s|your-group|$STAGE_REGISTRY_PATH|g" docs/Stage/*-deployment.yaml
+    - sed -i "s|your-group|errorlens|g" docs/Stage/*-deployment.yaml
     - kubectl apply -f docs/Stage/
-    - kubectl rollout status deployment/errorlens-backend -n errorlens-stage
-    - kubectl rollout status deployment/errorlens-frontend -n errorlens-stage
-  after_script:
-    - curl -X POST https://test-project.url/webhook -d '{"environment":"stage","target":"http://192.168.1.74:31200"}'
+    - kubectl rollout status deployment/errorlens-backend -n errorlens-stage --timeout=120s
+    - kubectl rollout status deployment/errorlens-frontend -n errorlens-stage --timeout=120s
   tags: [k8s]

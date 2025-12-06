@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
       - name: backend
-        image: registry.gitlab.com/your-group/errorlens/backend:latest
+        image: errorlens-backend:latest
+        imagePullPolicy: Never
         ports:
         - containerPort: 8000
         envFrom:
