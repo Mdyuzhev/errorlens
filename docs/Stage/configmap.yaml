@@ -5,7 +5,7 @@ metadata:
   namespace: errorlens-stage
 data:
   ENVIRONMENT: "stage"
-  DATABASE_URL: "postgresql://errorlens:PLACEHOLDER@192.168.1.74:5432/errorlens_stage"
+  DATABASE_URL: "postgresql://errorlens:stage_password_2024@192.168.1.74:5432/errorlens_stage"
   REDIS_URL: "redis://192.168.1.74:6379/1"
   API_URL: "http://192.168.1.74:31200"
   FRONTEND_URL: "http://192.168.1.74:31201"
