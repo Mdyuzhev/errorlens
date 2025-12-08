@@ -67,6 +67,12 @@ const routes = [
     name: 'settings',
     component: () => import('@/views/SettingsView.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/generator',
+    name: 'generator',
+    component: () => import('@/views/GeneratorView.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 
