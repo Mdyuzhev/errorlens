@@ -1,38 +1,55 @@
 <template>
   <div class="code-preview">
-    <div class="code-preview-header">
-      <h3>{{ title }}</h3>
-      <button
-        v-if="code"
-        @click="copyToClipboard"
-        class="copy-btn"
-        :class="{ copied: isCopied }"
-      >
-        {{ isCopied ? '✓' : '📋' }}
-      </button>
+    <div class="preview-header">
+      <span class="title">{{ title }}</span>
+      <div class="header-actions">
+        <button class="copy-btn" @click="copyToClipboard" :disabled="!code">
+          {{ isCopied ? '✓ Скопировано' : '📋 Copy' }}
+        </button>
+      </div>
     </div>
-    <pre v-if="code" class="code-content"><code>{{ code }}</code></pre>
-    <div v-else class="code-empty">Код не сгенерирован</div>
+    <div class="preview-body">
+      <pre v-if="code" class="code-block"><code :class="`language-${language}`">{{ formattedCode }}</code></pre>
+      <div v-else class="empty-preview">
+        <div style="font-size:48px">📄</div>
+        <p>Код появится после генерации</p>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const props = defineProps({
   title: {
     type: String,
-    required: true
+    default: 'Generated Code'
   },
   code: {
     type: String,
     default: ''
+  },
+  language: {
+    type: String,
+    default: 'python',
+    validator: (v) => ['python', 'java', 'javascript', 'json'].includes(v)
   }
 })
 
 const isCopied = ref(false)
 
-const copyToClipboard = async () => {
+const formattedCode = computed(() => {
+  if (!props.code) return ''
+  return props.code
+    .split('\n')
+    .map((line, i) => `${String(i + 1).padStart(4, ' ')} ${line}`)
+    .join('\n')
+})
+
+async function copyToClipboard() {
+  if (!props.code) return
+
   try {
     await navigator.clipboard.writeText(props.code)
     isCopied.value = true
@@ -47,76 +64,109 @@ const copyToClipboard = async () => {
 
 <style scoped>
 .code-preview {
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  height: 100%;
 }
 
-.code-preview-header {
+.preview-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: var(--bg-tertiary);
+  background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
 }
 
-.code-preview-header h3 {
-  margin: 0;
-  font-size: 14px;
+.title {
   font-weight: 600;
+  font-size: 14px;
   color: var(--text-primary);
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .copy-btn {
   padding: 6px 12px;
-  background: var(--bg-primary);
+  background: transparent;
   border: 1px solid var(--border-color);
   border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
   cursor: pointer;
-  font-size: 14px;
   transition: all 0.2s;
 }
 
-.copy-btn:hover {
-  background: var(--bg-secondary);
-  border-color: var(--primary-color);
+.copy-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(102, 126, 234, 0.05);
 }
 
-.copy-btn.copied {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
-  border-color: transparent;
+.copy-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
-.code-content {
+.preview-body {
+  flex: 1;
+  overflow: auto;
+  max-height: 600px;
+}
+
+.code-block {
   margin: 0;
   padding: 16px;
+  background: var(--bg-card);
   overflow-x: auto;
+}
+
+.code-block code {
+  display: block;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 13px;
   line-height: 1.6;
   color: var(--text-primary);
-  background: var(--bg-secondary);
-}
-
-.code-content code {
-  display: block;
   white-space: pre;
 }
 
-.code-empty {
-  padding: 32px;
-  text-align: center;
+.empty-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
   color: var(--text-secondary);
-  font-style: italic;
+  text-align: center;
 }
 
-@media (max-width: 768px) {
-  .code-content {
-    font-size: 12px;
-    padding: 12px;
-  }
+.empty-preview p {
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+.preview-body::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.preview-body::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+.preview-body::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.preview-body::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
 }
 </style>
