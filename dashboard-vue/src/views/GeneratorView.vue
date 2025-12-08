@@ -1,83 +1,116 @@
 <template>
   <div class="generator-page">
-    <h1>🔧 Генератор тестов</h1>
+    <h1>Генератор тестов</h1>
 
     <div class="generator-layout">
-      <!-- Left + Center: Main Content -->
-      <div class="generator-main">
-        <!-- Left: Input Section -->
-        <div class="input-section">
-          <InputTabs
-            v-model="inputType"
-            @input-ready="onInputReady"
-            @input-cleared="onInputCleared"
-          />
+      <!-- Left Panel: Settings -->
+      <div class="settings-panel">
+        <h2>Настройки генерации</h2>
 
-          <FrameworkSelector v-model="framework" />
+        <InputTabs
+          v-model="inputType"
+          @input-ready="onInputReady"
+          @input-cleared="onInputCleared"
+        />
 
-          <ProviderSelector
-            v-model="provider"
-            v-model:model="model"
-          />
+        <FrameworkSelector v-model="framework" />
 
-          <button
-            class="generate-btn"
-            :disabled="!canGenerate"
-            @click="startGeneration"
-          >
-            🚀 Генерировать
-          </button>
-        </div>
+        <ProviderSelector
+          v-model="provider"
+          v-model:model="model"
+        />
 
-        <!-- Center: Output Section -->
-        <div class="output-section">
+        <button
+          class="generate-btn"
+          :disabled="!canGenerate || isGenerating"
+          @click="startGeneration"
+        >
+          <span v-if="isGenerating">Генерация...</span>
+          <span v-else>Генерировать тесты</span>
+        </button>
+      </div>
+
+      <!-- Right Panel: Status & History -->
+      <div class="status-panel">
+        <!-- Current Generation Status -->
+        <div v-if="step === 'progress'" class="status-section">
+          <h2>Статус генерации</h2>
           <GenerationProgress
-            v-if="step === 'progress'"
             :progress="socket?.progress.value"
             :total="socket?.total.value"
             :current-endpoint="socket?.currentEndpoint.value"
             :logs="socket?.logs.value"
             :status="socket?.status.value"
           />
+        </div>
 
-          <div v-else-if="step === 'results'" class="results-container">
-            <div class="results-stats">
-              <div class="stat-card">
-                <span class="stat-value">{{ store.result?.total_endpoints }}</span>
-                <span class="stat-label">Эндпоинтов</span>
-              </div>
-              <div class="stat-card">
-                <span class="stat-value success">{{ store.result?.successful }}</span>
-                <span class="stat-label">Успешно</span>
-              </div>
+        <!-- Results -->
+        <div v-else-if="step === 'results'" class="status-section">
+          <h2>Результаты</h2>
+          <div class="results-stats">
+            <div class="stat-card">
+              <span class="stat-value">{{ store.result?.total_endpoints || 0 }}</span>
+              <span class="stat-label">Эндпоинтов</span>
             </div>
-
-            <CodePreview
-              title="Сгенерированные тесты"
-              :code="generatedCode"
-              :language="getCodeLanguage(framework)"
-            />
-
-            <div class="results-actions">
-              <a :href="downloadUrl" class="download-btn" download>📥 Скачать ZIP</a>
-              <button class="reset-btn" @click="reset">Новая генерация</button>
+            <div class="stat-card success">
+              <span class="stat-value">{{ store.result?.successful || 0 }}</span>
+              <span class="stat-label">Успешно</span>
+            </div>
+            <div class="stat-card" v-if="store.result?.failed">
+              <span class="stat-value error">{{ store.result?.failed }}</span>
+              <span class="stat-label">Ошибок</span>
             </div>
           </div>
 
-          <div v-else class="empty-output">
-            <div style="font-size:64px">🚀</div>
-            <p>Выберите входные данные и нажмите "Генерировать"</p>
+          <CodePreview
+            title="Сгенерированный код"
+            :code="generatedCode"
+            :language="getCodeLanguage(framework)"
+          />
+
+          <div class="results-actions">
+            <a :href="downloadUrl" class="btn btn-primary" download>
+              Скачать ZIP
+            </a>
+            <button class="btn btn-secondary" @click="reset">
+              Новая генерация
+            </button>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else class="empty-status">
+          <p>Выберите входные данные и нажмите "Генерировать"</p>
+        </div>
+
+        <!-- Generation History -->
+        <div class="history-section">
+          <h2>История генераций</h2>
+          <div v-if="history.length === 0" class="empty-history">
+            Нет сохраненных генераций
+          </div>
+          <div v-else class="history-list">
+            <div
+              v-for="item in history"
+              :key="item.id"
+              class="history-item"
+            >
+              <div class="history-info">
+                <span class="history-framework">{{ item.framework }}</span>
+                <span class="history-date">{{ formatDate(item.timestamp) }}</span>
+              </div>
+              <div class="history-meta">
+                {{ item.endpoints }} endpoints
+              </div>
+              <div class="history-actions">
+                <button class="btn-icon" @click="downloadHistory(item)" title="Скачать">
+                  📥
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      <!-- Right: History Sidebar -->
-      <GenerationHistory
-        ref="historyRef"
-        class="history-sidebar"
-        @regenerate="onRegenerate"
-        @redownload="onRedownload"
-      />
     </div>
   </div>
 </template>
@@ -91,7 +124,6 @@ import FrameworkSelector from '@/components/generator/FrameworkSelector.vue'
 import ProviderSelector from '@/components/generator/ProviderSelector.vue'
 import GenerationProgress from '@/components/generator/GenerationProgress.vue'
 import CodePreview from '@/components/generator/CodePreview.vue'
-import GenerationHistory from '@/components/generator/GenerationHistory.vue'
 
 const props = defineProps({
   sessionId: {
@@ -101,7 +133,6 @@ const props = defineProps({
 })
 
 const store = useGenerationStore()
-const historyRef = ref(null)
 
 const step = ref('input')
 const inputType = ref('swagger')
@@ -110,7 +141,11 @@ const framework = ref('pytest')
 const provider = ref('ollama')
 const model = ref('')
 const generatedCode = ref('')
+const isGenerating = ref(false)
+const history = ref([])
 let socket = null
+
+const HISTORY_KEY = 'errorlens_generation_history'
 
 const canGenerate = computed(() => {
   return inputData.value !== null && framework.value && provider.value
@@ -121,10 +156,44 @@ const downloadUrl = computed(() =>
 )
 
 onMounted(async () => {
+  loadHistory()
   if (props.sessionId) {
     await startFromSession(props.sessionId)
   }
 })
+
+function loadHistory() {
+  try {
+    const saved = localStorage.getItem(HISTORY_KEY)
+    if (saved) {
+      history.value = JSON.parse(saved)
+    }
+  } catch (e) {
+    console.error('Failed to load history:', e)
+  }
+}
+
+function saveHistory() {
+  try {
+    // Keep max 20 items
+    const toSave = history.value.slice(0, 20)
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(toSave))
+  } catch (e) {
+    console.error('Failed to save history:', e)
+  }
+}
+
+function addToHistory(item) {
+  const newItem = {
+    id: Date.now().toString(),
+    timestamp: new Date().toISOString(),
+    framework: item.framework,
+    endpoints: item.endpoints,
+    result_id: item.result_id
+  }
+  history.value.unshift(newItem)
+  saveHistory()
+}
 
 function onInputReady(data) {
   inputData.value = data
@@ -135,7 +204,9 @@ function onInputCleared() {
 }
 
 async function startGeneration() {
-  if (!canGenerate.value) return
+  if (!canGenerate.value || isGenerating.value) return
+
+  isGenerating.value = true
 
   try {
     let response
@@ -165,10 +236,12 @@ async function startGeneration() {
     socket.connect()
   } catch (err) {
     console.error('Generation failed:', err)
+    isGenerating.value = false
   }
 }
 
 async function startFromSession(sessionId) {
+  isGenerating.value = true
   try {
     const response = await store.startFromSession(sessionId, {
       framework: framework.value,
@@ -180,6 +253,7 @@ async function startFromSession(sessionId) {
     socket.connect()
   } catch (err) {
     console.error('Generation from session failed:', err)
+    isGenerating.value = false
   }
 }
 
@@ -188,15 +262,16 @@ watch(() => socket?.status.value, async (s) => {
     await store.fetchResult(socket.resultId.value)
     generatedCode.value = store.result?.generated_code || ''
 
-    if (historyRef.value) {
-      historyRef.value.addToHistory({
-        framework: framework.value,
-        endpoints: store.result?.total_endpoints || 0,
-        result_id: socket.resultId.value
-      })
-    }
+    addToHistory({
+      framework: framework.value,
+      endpoints: store.result?.total_endpoints || 0,
+      result_id: socket.resultId.value
+    })
 
     step.value = 'results'
+    isGenerating.value = false
+  } else if (s === 'error') {
+    isGenerating.value = false
   }
 })
 
@@ -206,6 +281,7 @@ function reset() {
   generatedCode.value = ''
   store.reset()
   socket = null
+  isGenerating.value = false
 }
 
 function getCodeLanguage(fw) {
@@ -219,70 +295,59 @@ function getCodeLanguage(fw) {
   return languages[fw] || 'python'
 }
 
-function onRegenerate(item) {
-  framework.value = item.framework
-  startGeneration()
+function formatDate(dateStr) {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
-function onRedownload(resultId) {
-  const url = store.getDownloadUrl(resultId)
-  window.open(url, '_blank')
+function downloadHistory(item) {
+  if (item.result_id) {
+    const url = store.getDownloadUrl(item.result_id)
+    window.open(url, '_blank')
+  }
 }
 </script>
 
 <style scoped>
 .generator-page {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+  padding: 0;
 }
 
 .generator-page h1 {
   margin-bottom: 24px;
+  font-size: 24px;
+  font-weight: 700;
 }
 
 .generator-layout {
-  display: flex;
-  gap: 24px;
-  flex: 1;
-  min-height: 0;
-}
-
-.generator-main {
   display: grid;
   grid-template-columns: 400px 1fr;
   gap: 24px;
-  flex: 1;
+  min-height: calc(100vh - 200px);
 }
 
-.input-section {
+/* Left Panel */
+.settings-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 20px;
   height: fit-content;
 }
 
-.output-section {
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 20px;
-  min-height: 500px;
-}
-
-.history-sidebar {
-  width: 320px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 20px;
-  overflow-y: auto;
+.settings-panel h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--text-primary);
 }
 
 .generate-btn {
@@ -296,6 +361,7 @@ function onRedownload(resultId) {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  margin-top: 8px;
 }
 
 .generate-btn:disabled {
@@ -308,32 +374,43 @@ function onRedownload(resultId) {
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
-.empty-output {
+/* Right Panel */
+.status-panel {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  color: var(--text-secondary);
+  gap: 24px;
+}
+
+.status-section,
+.history-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.status-section h2,
+.history-section h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: var(--text-primary);
+}
+
+.empty-status {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 60px 24px;
   text-align: center;
-  padding: 60px 20px;
+  color: var(--text-secondary);
 }
 
-.empty-output p {
-  margin-top: 20px;
-  font-size: 16px;
-}
-
-.results-container {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  height: 100%;
-}
-
+/* Results */
 .results-stats {
   display: flex;
   gap: 16px;
+  margin-bottom: 20px;
 }
 
 .stat-card {
@@ -343,21 +420,25 @@ function onRedownload(resultId) {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  min-width: 140px;
+  min-width: 120px;
+}
+
+.stat-card.success .stat-value {
+  color: #4CAF50;
 }
 
 .stat-value {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: bold;
   color: var(--text-primary);
 }
 
-.stat-value.success {
-  color: #4CAF50;
+.stat-value.error {
+  color: #f44336;
 }
 
 .stat-label {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-secondary);
   margin-top: 4px;
 }
@@ -365,53 +446,119 @@ function onRedownload(resultId) {
 .results-actions {
   display: flex;
   gap: 12px;
+  margin-top: 20px;
 }
 
-.download-btn {
+.btn {
   padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-block;
+  border: none;
+}
+
+.btn-primary {
   background: linear-gradient(135deg, #667eea, #764ba2);
   color: white;
-  border-radius: 8px;
-  text-decoration: none;
-  font-weight: 600;
-  display: inline-block;
-  transition: all 0.2s;
 }
 
-.download-btn:hover {
+.btn-primary:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
-.reset-btn {
-  padding: 12px 24px;
+.btn-secondary {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent);
+}
+
+/* History */
+.empty-history {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 24px;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  color: var(--text-primary);
+}
+
+.history-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.history-framework {
   font-weight: 600;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.history-date {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.history-meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.history-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  font-size: 18px;
   cursor: pointer;
-  transition: all 0.2s;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s;
 }
 
-.reset-btn:hover {
-  border-color: var(--accent);
-  background: rgba(102, 126, 234, 0.05);
-}
-
-@media (max-width: 1400px) {
-  .generator-layout {
-    flex-direction: column;
-  }
-
-  .history-sidebar {
-    width: 100%;
-  }
+.btn-icon:hover {
+  background: var(--bg-card);
 }
 
 @media (max-width: 1024px) {
-  .generator-main {
+  .generator-layout {
     grid-template-columns: 1fr;
+  }
+
+  .settings-panel {
+    order: 1;
+  }
+
+  .status-panel {
+    order: 2;
   }
 }
 </style>

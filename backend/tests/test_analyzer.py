@@ -63,7 +63,7 @@ class TestFormatContext:
             recording_duration_ms=1000,
         )
         context = _format_context(request)
-        assert "Логи консоли" in context  # Russian header
+        assert "=== CONSOLE LOGS ===" in context
         assert "[ERROR]" in context
         assert "Test error message" in context
         assert "at foo (app.js:42)" in context
@@ -85,7 +85,7 @@ class TestFormatContext:
             recording_duration_ms=1000,
         )
         context = _format_context(request)
-        assert "Сетевые ошибки" in context  # Russian header
+        assert "=== NETWORK ERRORS ===" in context
         assert "POST" in context
         assert "https://api.example.com/data" in context
         assert "500" in context
@@ -108,7 +108,7 @@ class TestFormatContext:
             recording_duration_ms=1000,
         )
         context = _format_context(request)
-        assert "JavaScript исключения" in context  # Russian header
+        assert "=== JS EXCEPTIONS ===" in context
         assert "Uncaught TypeError" in context
         assert "app.js:42:10" in context
 
@@ -225,8 +225,9 @@ class TestGetProvider:
             mock_settings.llm_provider = "gemini"
             mock_settings.gemini_api_key = ""
             mock_settings.groq_api_key = ""
+            mock_settings.ollama_host = ""
 
-            with pytest.raises(ValueError, match="No LLM API key configured"):
+            with pytest.raises(ValueError, match="No LLM configured"):
                 _get_provider()
 
 

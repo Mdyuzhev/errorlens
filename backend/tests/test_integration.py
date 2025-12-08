@@ -384,13 +384,13 @@ class TestExportsEndpoints:
     """Test export endpoints: /exports/*"""
 
     def test_export_postman_requires_auth(self, client):
-        """POST /exports/postman - requires auth."""
-        response = client.post("/exports/postman", json={})
+        """POST /export/postman - requires auth."""
+        response = client.post("/export/postman", json={})
         assert response.status_code == 401
 
     def test_export_pytest_requires_auth(self, client):
-        """POST /exports/pytest - requires auth."""
-        response = client.post("/exports/pytest", json={})
+        """POST /export/pytest - requires auth."""
+        response = client.post("/export/pytest", json={})
         assert response.status_code == 401
 
 
