@@ -245,6 +245,7 @@ async function saveArticle() {
   }
 
   closeEditor()
+  await loadArticles()
 }
 
 async function deleteArticle() {
