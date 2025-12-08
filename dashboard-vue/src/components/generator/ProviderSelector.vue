@@ -35,8 +35,8 @@
     <div>
       <label>Модель</label>
       <select v-model="selectedModel"
-              style="width:100%;padding:10px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px">
-        <option v-for="m in selectedProvider?.models" :key="m.id" :value="m.id">{{ m.name }}</option>
+              style="width:100%;padding:10px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px;color:var(--text-primary)">
+        <option v-for="m in availableModels" :key="m.id" :value="m.id">{{ m.name }}</option>
       </select>
     </div>
 
@@ -48,7 +48,42 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+
+const props = defineProps({
+  modelValue: {
+    type: String,
+    default: 'ollama'
+  },
+  model: {
+    type: String,
+    default: ''
+  }
+})
+
+const emit = defineEmits(['update:modelValue', 'update:model'])
+
+const providerModels = {
+  anthropic: [
+    { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4' },
+    { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5' }
+  ],
+  openai: [
+    { id: 'gpt-4o', name: 'GPT-4o' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini' }
+  ],
+  groq: [
+    { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B' },
+    { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B' }
+  ],
+  gemini: [
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' }
+  ],
+  ollama: [
+    { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B' },
+    { id: 'codellama:7b', name: 'CodeLlama 7B' }
+  ]
+}
 
 const providers = ref([
   {
@@ -57,11 +92,7 @@ const providers = ref([
     icon: '🟣',
     keyPlaceholder: 'sk-ant-...',
     configured: false,
-    isLocal: false,
-    models: [
-      { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4' },
-      { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5' }
-    ]
+    isLocal: false
   },
   {
     id: 'openai',
@@ -69,11 +100,7 @@ const providers = ref([
     icon: '🟢',
     keyPlaceholder: 'sk-...',
     configured: false,
-    isLocal: false,
-    models: [
-      { id: 'gpt-4o', name: 'GPT-4o' },
-      { id: 'gpt-4o-mini', name: 'GPT-4o Mini' }
-    ]
+    isLocal: false
   },
   {
     id: 'groq',
@@ -81,10 +108,7 @@ const providers = ref([
     icon: '🔵',
     keyPlaceholder: 'gsk_...',
     configured: false,
-    isLocal: false,
-    models: [
-      { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B' }
-    ]
+    isLocal: false
   },
   {
     id: 'gemini',
@@ -92,38 +116,59 @@ const providers = ref([
     icon: '🟡',
     keyPlaceholder: 'AIza...',
     configured: false,
-    isLocal: false,
-    models: [
-      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' }
-    ]
+    isLocal: false
   },
   {
     id: 'ollama',
     name: 'Ollama (Local)',
     icon: '🏠',
     configured: true,
-    isLocal: true,
-    models: [
-      { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B' }
-    ]
-  },
+    isLocal: true
+  }
 ])
 
-const activeProvider = ref('ollama')
+const activeProvider = ref(props.modelValue)
 const apiKey = ref('')
 const showKey = ref(false)
-const selectedModel = ref('')
+const selectedModel = ref(props.model)
 const message = ref('')
 
-const selectedProvider = computed(() => providers.value.find(p => p.id === activeProvider.value))
+const selectedProvider = computed(() =>
+  providers.value.find(p => p.id === activeProvider.value)
+)
+
+const availableModels = computed(() =>
+  providerModels[activeProvider.value] || []
+)
+
+watch(activeProvider, (newProvider) => {
+  emit('update:modelValue', newProvider)
+
+  if (availableModels.value.length > 0 && !selectedModel.value) {
+    selectedModel.value = availableModels.value[0].id
+    emit('update:model', selectedModel.value)
+  }
+})
+
+watch(selectedModel, (newModel) => {
+  emit('update:model', newModel)
+})
 
 onMounted(() => {
   const keys = JSON.parse(localStorage.getItem('llm_api_keys') || '{}')
   providers.value.forEach(p => {
     if (!p.isLocal && keys[p.id]) p.configured = true
   })
+
   const saved = localStorage.getItem('llm_default_provider')
-  if (saved) activeProvider.value = saved
+  if (saved) {
+    activeProvider.value = saved
+  }
+
+  if (availableModels.value.length > 0 && !selectedModel.value) {
+    selectedModel.value = availableModels.value[0].id
+    emit('update:model', selectedModel.value)
+  }
 })
 
 function saveApiKey() {
