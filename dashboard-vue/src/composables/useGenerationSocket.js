@@ -1,5 +1,8 @@
 import { ref, onUnmounted } from 'vue'
 
+const MAX_RECONNECT_ATTEMPTS = 5
+const INITIAL_RECONNECT_DELAY = 1000
+
 export function useGenerationSocket(taskId) {
   const progress = ref(0)
   const total = ref(0)
@@ -8,12 +11,20 @@ export function useGenerationSocket(taskId) {
   const status = ref('idle')
   const resultId = ref(null)
   const error = ref(null)
+  const reconnectAttempt = ref(0)
   let ws = null
+  let reconnectTimeout = null
 
   function connect() {
+    if (ws && ws.readyState === WebSocket.OPEN) return
+
     const wsUrl = (import.meta.env.VITE_API_URL || window.location.origin).replace('http', 'ws')
     ws = new WebSocket(`${wsUrl}/ws/generation/${taskId}`)
     status.value = 'connecting'
+
+    ws.onopen = () => {
+      reconnectAttempt.value = 0
+    }
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data)
@@ -39,18 +50,47 @@ export function useGenerationSocket(taskId) {
       }
     }
 
+    ws.onclose = (event) => {
+      // Don't reconnect if completed, error, or intentional close
+      if (status.value === 'completed' || status.value === 'error' || event.wasClean) {
+        return
+      }
+      attemptReconnect()
+    }
+
     ws.onerror = () => {
-      status.value = 'error'
-      error.value = 'Connection error'
+      // onclose will be called after onerror
     }
   }
 
+  function attemptReconnect() {
+    if (reconnectAttempt.value >= MAX_RECONNECT_ATTEMPTS) {
+      status.value = 'error'
+      error.value = 'Connection lost after max reconnect attempts'
+      return
+    }
+
+    reconnectAttempt.value++
+    const delay = INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttempt.value - 1)
+    status.value = 'connecting'
+
+    reconnectTimeout = setTimeout(() => {
+      connect()
+    }, delay)
+  }
+
   function disconnect() {
-    ws?.close()
-    ws = null
+    if (reconnectTimeout) {
+      clearTimeout(reconnectTimeout)
+      reconnectTimeout = null
+    }
+    if (ws) {
+      ws.close()
+      ws = null
+    }
   }
 
   onUnmounted(disconnect)
 
-  return { progress, total, currentEndpoint, logs, status, resultId, error, connect, disconnect }
+  return { progress, total, currentEndpoint, logs, status, resultId, error, reconnectAttempt, connect, disconnect }
 }

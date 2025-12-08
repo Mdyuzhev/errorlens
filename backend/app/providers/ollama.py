@@ -4,7 +4,9 @@ import httpx
 import logging
 
 from app.config import settings
-from app.providers.base import LLMProvider, BaseLLMProvider
+from typing import Any
+
+from app.providers.base import LLMProvider, BaseHTTPProvider
 
 logger = logging.getLogger(__name__)
 
@@ -68,29 +70,30 @@ class OllamaProvider(LLMProvider):
             raise ValueError(f"Cannot connect to Ollama at {settings.ollama_host}")
 
 
-class OllamaGeneratorProvider(BaseLLMProvider):
+class OllamaGeneratorProvider(BaseHTTPProvider):
     """Ollama provider for test generation (Wave 4.0)."""
 
     def __init__(self, api_key: str = "", model: str = "qwen2.5-coder:7b"):
         """Initialize Ollama generator provider."""
-        self.model = model
-        self.host = settings.OLLAMA_HOST
+        super().__init__(
+            api_key=api_key,
+            model=model,
+            base_url=settings.OLLAMA_HOST,
+        )
 
-    async def generate(self, prompt: str, max_tokens: int = 4096) -> str:
-        """Generate completion using Ollama API."""
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(
-                f"{self.host}/api/generate",
-                json={
-                    "model": self.model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {"temperature": 0.3, "num_predict": max_tokens},
-                },
-            )
-            response.raise_for_status()
-            data = response.json()
-            return data.get("response", "")
+    def _build_headers(self) -> dict[str, str]:
+        return {"Content-Type": "application/json"}
 
-    def get_model_name(self) -> str:
-        return self.model
+    def _build_request_body(self, prompt: str, max_tokens: int) -> dict[str, Any]:
+        return {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {"temperature": 0.3, "num_predict": max_tokens},
+        }
+
+    def _extract_response(self, data: dict[str, Any]) -> str:
+        return data.get("response", "")
+
+    def _get_endpoint(self) -> str:
+        return f"{self.base_url}/api/generate"

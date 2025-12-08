@@ -35,9 +35,12 @@ async def generate_from_swagger(background_tasks: BackgroundTasks,
     content = await file.read()
     try:
         spec = json.loads(content)
-    except:
+    except json.JSONDecodeError:
         import yaml
-        spec = yaml.safe_load(content)
+        try:
+            spec = yaml.safe_load(content)
+        except yaml.YAMLError as e:
+            raise HTTPException(400, f"Invalid file format: {e}")
 
     if "paths" not in spec:
         raise HTTPException(400, "Invalid Swagger: missing 'paths'")

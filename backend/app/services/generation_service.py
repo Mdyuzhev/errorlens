@@ -1,11 +1,16 @@
 """Test generation service."""
+import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from app.generators.llm_generator import LLMTestGenerator, GenerationResult
 from app.generators.inputs import SwaggerInput, HARInput
 from app.websocket.manager import manager
+
+
+RESULT_TTL = 3600  # 1 hour
+MAX_RESULTS = 1000
 
 
 @dataclass
@@ -17,8 +22,28 @@ class TaskConfig:
     model: str | None
 
 
+@dataclass
+class StoredResult:
+    result: GenerationResult
+    created_at: float = field(default_factory=time.time)
+
+
 _tasks: dict[str, TaskConfig] = {}
-_results: dict[str, GenerationResult] = {}
+_results: dict[str, StoredResult] = {}
+
+
+def _cleanup_expired_results() -> None:
+    """Remove expired results from cache."""
+    cutoff = time.time() - RESULT_TTL
+    expired = [k for k, v in _results.items() if v.created_at < cutoff]
+    for k in expired:
+        del _results[k]
+    # Also enforce max size
+    if len(_results) > MAX_RESULTS:
+        sorted_items = sorted(_results.items(), key=lambda x: x[1].created_at)
+        to_remove = len(_results) - MAX_RESULTS
+        for k, _ in sorted_items[:to_remove]:
+            del _results[k]
 
 
 class GenerationService:
@@ -63,9 +88,10 @@ class GenerationService:
             # Generate tests
             result = await generator.generate(input_source, progress_cb)
 
-            # Store result
+            # Store result with TTL cleanup
+            _cleanup_expired_results()
             result_id = str(uuid.uuid4())
-            _results[result_id] = result
+            _results[result_id] = StoredResult(result=result)
 
             # Send completion
             await manager.send_completed(task_id, result_id)
@@ -80,4 +106,14 @@ class GenerationService:
     @staticmethod
     def get_result(result_id: str) -> GenerationResult | None:
         """Get stored generation result."""
-        return _results.get(result_id)
+        stored = _results.get(result_id)
+        if stored:
+            return stored.result
+        return None
+
+    @staticmethod
+    def cleanup_results() -> int:
+        """Manual cleanup of expired results. Returns count removed."""
+        before = len(_results)
+        _cleanup_expired_results()
+        return before - len(_results)
