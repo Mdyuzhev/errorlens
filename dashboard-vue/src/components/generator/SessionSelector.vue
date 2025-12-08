@@ -90,7 +90,8 @@ onMounted(async () => {
       return
     }
 
-    const response = await fetch('http://localhost:8000/sessions?limit=100', {
+    const apiUrl = import.meta.env.VITE_API_URL || ''
+    const response = await fetch(`${apiUrl}/sessions?limit=100`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }

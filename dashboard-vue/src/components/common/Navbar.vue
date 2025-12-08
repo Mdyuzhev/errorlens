@@ -20,6 +20,9 @@
       <router-link to="/results" class="nav-link">
         Results
       </router-link>
+      <router-link to="/generator" class="nav-link nav-link-accent">
+        Generator
+      </router-link>
       <router-link to="/settings" class="nav-link">
         Settings
       </router-link>
@@ -107,5 +110,14 @@ async function logout() {
 .btn-logout:hover {
   background: var(--accent);
   color: white;
+}
+
+.nav-link-accent {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white !important;
+}
+
+.nav-link-accent:hover {
+  background: linear-gradient(135deg, #7b8ff0, #8b5db8);
 }
 </style>
