@@ -979,6 +979,8 @@ var ErrorLens = (() => {
   }
   function showResultModal(result) {
     const counts = getEventCounts();
+    const dashboardUrl = getDashboardUrl();
+    const sessionUrl = result.id ? `${dashboardUrl}/#/sessions/${result.id}` : dashboardUrl;
     const modal = document.createElement("div");
     modal.className = "el-modal";
     modal.innerHTML = `
@@ -987,8 +989,8 @@ var ErrorLens = (() => {
       <p><strong>ID:</strong> ${result.id?.substring(0, 8) || "N/A"}...</p>
       <p><strong>\u0421\u043E\u0431\u044B\u0442\u0438\u044F:</strong> ${counts.total} (\u043E\u0448\u0438\u0431\u043E\u043A: ${counts.errors}, \u0437\u0430\u043F\u0440\u043E\u0441\u043E\u0432: ${counts.requests})</p>
       <div class="el-modal-actions">
-        <button class="el-modal-btn" onclick="window.open('${getDashboardUrl()}', '_blank'); this.closest('.el-modal').remove();">
-          \u{1F4CA} \u041E\u0442\u043A\u0440\u044B\u0442\u044C Dashboard
+        <button class="el-modal-btn" onclick="window.open('${sessionUrl}', '_blank'); this.closest('.el-modal').remove();">
+          \u{1F4CA} \u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0441\u0435\u0441\u0441\u0438\u044E
         </button>
         <button class="el-modal-btn secondary" onclick="this.closest('.el-modal').remove();">
           \u0417\u0430\u043A\u0440\u044B\u0442\u044C
