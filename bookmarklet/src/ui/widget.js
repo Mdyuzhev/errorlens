@@ -312,6 +312,8 @@ function stopCounterUpdate() {
  */
 function showResultModal(result) {
   const counts = getEventCounts();
+  const dashboardUrl = getDashboardUrl();
+  const sessionUrl = result.id ? `${dashboardUrl}/#/sessions/${result.id}` : dashboardUrl;
 
   const modal = document.createElement('div');
   modal.className = 'el-modal';
@@ -321,8 +323,8 @@ function showResultModal(result) {
       <p><strong>ID:</strong> ${result.id?.substring(0, 8) || 'N/A'}...</p>
       <p><strong>События:</strong> ${counts.total} (ошибок: ${counts.errors}, запросов: ${counts.requests})</p>
       <div class="el-modal-actions">
-        <button class="el-modal-btn" onclick="window.open('${getDashboardUrl()}', '_blank'); this.closest('.el-modal').remove();">
-          📊 Открыть Dashboard
+        <button class="el-modal-btn" onclick="window.open('${sessionUrl}', '_blank'); this.closest('.el-modal').remove();">
+          📊 Открыть сессию
         </button>
         <button class="el-modal-btn secondary" onclick="this.closest('.el-modal').remove();">
           Закрыть
