@@ -1,0 +1,98 @@
+{
+  "testUser": {
+    "username": "owner1",
+    "password": "Test123!"
+  },
+  "testArticle": {
+    "title": "Test Article",
+    "content": "This is test content",
+    "category": "testing",
+    "status": "draft"
+  },
+  "testTestCase": {
+    "title": "Test Case 1",
+    "steps": ["Step 1", "Step 2", "Step 3"],
+    "expected": "Expected result",
+    "priority": "high"
+  },
+  "testTask": {
+    "title": "Test Task",
+    "description": "Task description",
+    "status": "todo",
+    "assignee": "owner1"
+  },
+  "testSwagger": {
+    "openapi": "3.0.0",
+    "info": {
+      "title": "Test API",
+      "version": "1.0.0"
+    },
+    "paths": {
+      "/api/users": {
+        "get": {
+          "summary": "Get users",
+          "responses": {
+            "200": {
+              "description": "Success"
+            }
+          }
+        }
+      },
+      "/api/users/{id}": {
+        "get": {
+          "summary": "Get user by ID",
+          "parameters": [{
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "string"}
+          }],
+          "responses": {
+            "200": {
+              "description": "Success"
+            }
+          }
+        }
+      },
+      "/api/users": {
+        "post": {
+          "summary": "Create user",
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {"type": "string"}
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Created"
+            }
+          }
+        }
+      }
+    }
+  },
+  "testSession": {
+    "url": "https://example.com",
+    "console_logs": [
+      {
+        "timestamp": "2025-01-15T10:30:00Z",
+        "level": "error",
+        "message": "Test error"
+      }
+    ],
+    "recorded_requests": [
+      {
+        "method": "GET",
+        "url": "https://api.example.com/data",
+        "status": 200
+      }
+    ]
+  }
+}
