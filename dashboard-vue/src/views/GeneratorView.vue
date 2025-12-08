@@ -67,11 +67,18 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useGenerationStore } from '@/stores/generation'
 import { useGenerationSocket } from '@/composables/useGenerationSocket'
 import SwaggerUpload from '@/components/generator/SwaggerUpload.vue'
 import GenerationProgress from '@/components/generator/GenerationProgress.vue'
+
+const props = defineProps({
+  sessionId: {
+    type: String,
+    default: null
+  }
+})
 
 const store = useGenerationStore()
 const step = ref('upload')
@@ -84,6 +91,12 @@ const downloadUrl = computed(() =>
   socket?.resultId.value ? store.getDownloadUrl(socket.resultId.value) : ''
 )
 
+onMounted(async () => {
+  if (props.sessionId) {
+    await startFromSession(props.sessionId)
+  }
+})
+
 async function startGeneration() {
   try {
     const response = await store.startFromSwagger(file.value, {
@@ -95,6 +108,20 @@ async function startGeneration() {
     socket.connect()
   } catch (err) {
     console.error('Generation failed:', err)
+  }
+}
+
+async function startFromSession(sessionId) {
+  try {
+    const response = await store.startFromSession(sessionId, {
+      framework: framework.value,
+      provider: provider.value
+    })
+    socket = useGenerationSocket(response.task_id)
+    step.value = 'progress'
+    socket.connect()
+  } catch (err) {
+    console.error('Generation from session failed:', err)
   }
 }
 

@@ -69,10 +69,11 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/generator',
+    path: '/generator/:sessionId?',
     name: 'generator',
     component: () => import('@/views/GeneratorView.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true },
+    props: true
   }
 ]
 

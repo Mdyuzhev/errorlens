@@ -1,98 +1,83 @@
 {
   "permissions": {
-    "allow": [
-      "Bash", "Read", "Write", "Edit", "Glob", "Grep",
-      "WebFetch", "WebSearch", "Task", "TodoWrite", "NotebookEdit"
-    ]
-  },
-  "preferences": {
-    "language": "russian",
-    "communication_style": "friendly_professional",
-    "naming": {
-      "claude_opus": "шеф",
-      "claude_code": "коллега",
-      "reference": "Следствие ведут Колобки"
-    },
-    "humor": {
-      "enabled": true,
-      "style": "добрый сарказм, айтишные шутки",
-      "when": "в начале задачи, при успехе, при ошибках"
-    },
-    "formatting": {
-      "emoji": true,
-      "tables": true,
-      "tree_diagrams": true,
-      "code_comments": "на английском",
-      "commits": "[Wave X.Y] description in English"
-    }
+    "allow": ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "Task"]
   },
   "project": {
     "name": "ErrorLens",
-    "description": "AI-powered QA platform с bookmarklet записью сессий",
     "production": "https://errorlens-production.up.railway.app",
-    "repo": "github.com/Mdyuzhev/errorlens",
-    "demo": "demo / ErrorLenseTest"
+    "repo": "github.com/Mdyuzhev/errorlens"
   },
   "stack": {
-    "backend": "Python 3.11 + FastAPI + SQLAlchemy async + Alembic",
+    "backend": "Python 3.11 + FastAPI + SQLAlchemy async",
     "database": "PostgreSQL (prod) / SQLite (dev)",
-    "frontend": "Vue 3 + Vite + Pinia + TailwindCSS",
-    "bookmarklet": "Vanilla JS IIFE → refactoring to ES modules",
-    "llm": "Groq Llama 3.3 (primary) + Gemini 1.5 Flash (fallback)",
-    "auth": "JWT (access 30min + refresh 7days)"
+    "frontend": "Vue 3 + Vite + Pinia",
+    "llm_providers": ["anthropic", "openai", "groq", "gemini", "ollama", "gigachat"]
   },
   "architecture": {
     "pattern": "Router → Service → Repository → Model",
-    "issue": "8 of 11 routers bypass Service layer",
-    "bookmarklet_issue": "src/ exists but legacy recorder.js still in production"
+    "websocket_state": "Redis or DB, not in-memory"
+  },
+  "code_requirements": {
+    "python": {
+      "type_hints": "required",
+      "async_io": "required",
+      "max_file_loc": 500,
+      "bare_except": "prohibited"
+    },
+    "memory": {
+      "cleanup": "required",
+      "ttl_seconds": 3600,
+      "max_items": 10000
+    },
+    "tests": {
+      "unit": "required",
+      "edge_cases": ["empty", "none", "duplicates"],
+      "error_handling": "required",
+      "concurrency": "required",
+      "memory_leaks": "required"
+    }
   },
   "git": {
     "main": "main",
-    "current": "feature/wave-3",
-    "workflow": "feature/* → PR → main",
-    "commit": "[Wave X.Y] Description in English"
+    "current": "feature/wave-4",
+    "commit_format": "[Wave X.Y] PX: Description"
   },
   "current_wave": {
-    "number": "3.2",
-    "name": "Code Refactoring",
-    "status": "in_progress",
-    "audit": "docs/TECHNICAL_AUDIT_2025-12-05.md",
-    "context": "CLAUDE.md",
+    "number": "4.0",
+    "name": "Sharmanka Migration",
     "phases": {
-      "P1_bookmarklet": {
-        "priority": "P0 Critical",
-        "instruction": "docs/instructions/WAVE_3.2_PHASE_1_BOOKMARKLET.md"
-      },
-      "P2_backend": {
-        "priority": "P1 High", 
-        "instruction": "docs/instructions/WAVE_3.2_PHASE_2_BACKEND.md"
-      },
-      "P3_frontend": {
-        "priority": "P2 Medium",
-        "instruction": "docs/instructions/WAVE_3.2_PHASE_3_FRONTEND.md"
-      },
-      "P4_tests": {
-        "priority": "P2 Medium",
-        "instruction": "docs/instructions/WAVE_3.2_PHASE_4_TESTS.md"
-      }
-    }
+      "P1": {"name": "LLM Providers", "tasks": ["anthropic", "openai", "gigachat", "factory", "rate_limiter"]},
+      "P2": {"name": "Input Parsers", "tasks": ["base", "har_input", "swagger_input"]},
+      "P3": {"name": "Generator Core", "tasks": ["prompt_builder", "code_extractor", "test_validator", "llm_generator"]},
+      "P4": {"name": "WebSocket", "tasks": ["manager", "generation_ws"]},
+      "P5": {"name": "API", "tasks": ["generation_service", "generation_router"]},
+      "P6": {"name": "Vue UI", "tasks": ["composable", "store", "components", "view"]},
+      "P7": {"name": "Settings", "tasks": ["llm_settings"]}
+    },
+    "execution_order": ["P1", "P2", "P3", "P4", "P5", "P6", "P7"]
   },
-  "key_files": {
-    "context": "CLAUDE.md",
-    "audit": "docs/TECHNICAL_AUDIT_2025-12-05.md",
-    "example_router": "backend/app/routers/sessions.py",
-    "example_service": "backend/app/services/session_service.py",
-    "example_repo": "backend/app/repositories/session_repo.py"
+  "instruction_format": {
+    "contains": ["interface_signatures", "requirements", "prohibited_patterns", "test_cases"],
+    "does_not_contain": ["full_implementations", "copy_paste_code"],
+    "agent_behavior": "write_code_independently"
   },
-  "yougile": {
-    "api_key": "vPt2EZk7Obi7F1ZJxDbmQupKZbUR2mFIV2L9-Gz4S8E+rFwEp5Hyf2vmD7KIgHY-"
+  "quality_gates": {
+    "before_commit": [
+      "all_tests_pass",
+      "no_bare_except",
+      "memory_cleanup_exists",
+      "concurrent_access_tested",
+      "edge_cases_covered",
+      "file_under_500_loc"
+    ]
   },
-  "critical_rules": [
-    "ВСЕГДА читай CLAUDE.md в начале сессии",
-    "Router → Service → Repository → Model (не обходить!)",
-    "Файлы не более 500 LOC",
-    "Type hints везде в Python",
-    "Коммит только после тестирования",
-    "Push в feature/* → PR → main"
+  "prohibited": [
+    "skip_phases",
+    "copy_full_implementations",
+    "bare_except",
+    "in_memory_state_distributed",
+    "commit_without_tests",
+    "files_over_500_loc",
+    "ask_confirmation"
   ]
 }

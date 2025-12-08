@@ -2,10 +2,14 @@
 import json
 import io
 import zipfile
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database import get_db
+from app.middleware.jwt_auth import require_auth
+from app.models.user import User
 from app.services.generation_service import GenerationService
 
 router = APIRouter(prefix="/api/v1/generation", tags=["generation"])
@@ -84,6 +88,28 @@ async def download_result(result_id: str):
     buf.seek(0)
     return StreamingResponse(buf, media_type="application/zip",
                              headers={"Content-Disposition": f"attachment; filename=tests_{result_id[:8]}.zip"})
+
+
+@router.post("/from-session/{session_id}", response_model=TaskResponse)
+async def generate_from_session(
+    session_id: str,
+    background_tasks: BackgroundTasks,
+    framework: str = Form("pytest"),
+    provider: str = Form("anthropic"),
+    model: str | None = Form(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_auth),
+):
+    """Generate tests from recorded browser session."""
+    task_id = await GenerationService.create_task_from_session(
+        session_id=session_id,
+        db=db,
+        framework=framework,
+        provider=provider,
+        model=model
+    )
+    background_tasks.add_task(_delayed_run, task_id)
+    return TaskResponse(task_id=task_id, websocket_url=f"/ws/generation/{task_id}")
 
 
 @router.get("/health")

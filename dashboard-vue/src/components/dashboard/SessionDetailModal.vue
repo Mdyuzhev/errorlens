@@ -58,6 +58,13 @@
           Analyze
         </button>
         <button
+          v-if="session.recorded_requests?.length > 0"
+          class="btn btn-generate"
+          @click="$emit('generate-tests')"
+        >
+          🔧 Генерировать тесты
+        </button>
+        <button
           v-if="testItStatus.enabled && testItStatus.connected && !session.testit_url"
           class="btn btn-testit"
           :disabled="sendingToTestIt"
@@ -107,7 +114,7 @@ defineProps({
   }
 })
 
-defineEmits(['close', 'analyze', 'export', 'delete', 'send-to-testit'])
+defineEmits(['close', 'analyze', 'export', 'delete', 'send-to-testit', 'generate-tests'])
 
 function formatTime(isoDate) {
   if (!isoDate) return ''
@@ -369,5 +376,21 @@ function getStatusClass(status) {
 .testit-link::before {
   content: "✓";
   display: inline-block;
+}
+
+.btn-generate {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-generate:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
 }
 </style>

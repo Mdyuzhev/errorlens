@@ -35,6 +35,7 @@
       @export="exportSession"
       @delete="deleteSession"
       @send-to-testit="sendToTestIt"
+      @generate-tests="generateTests"
     />
   </div>
 </template>
@@ -137,6 +138,11 @@ async function sendToTestIt() {
   } finally {
     sendingToTestIt.value = false
   }
+}
+
+function generateTests() {
+  if (!selectedSession.value) return
+  router.push(`/generator/${selectedSession.value.id}`)
 }
 
 onMounted(async () => {
