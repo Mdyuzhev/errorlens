@@ -165,3 +165,43 @@ class TestGroqProvider:
     def test_groq_uses_correct_model(self, provider):
         """Should use llama-3.3-70b-versatile model."""
         assert provider.MODEL == "llama-3.3-70b-versatile"
+
+
+# Wave 4.0: Test generation providers
+
+
+def test_factory_list_providers():
+    """Test that factory lists all available providers."""
+    from app.providers import ProviderFactory
+
+    providers = ProviderFactory.list_providers()
+    assert "anthropic" in providers
+    assert "openai" in providers
+    assert "gigachat" in providers
+    assert "groq" in providers
+    assert "gemini" in providers
+    assert "ollama" in providers
+
+
+def test_factory_create_ollama():
+    """Test creating Ollama provider (no API key required)."""
+    from app.providers import ProviderFactory
+
+    provider = ProviderFactory.create("ollama")
+    assert provider.get_model_name() is not None
+
+
+def test_factory_unknown_provider():
+    """Test that factory raises error for unknown provider."""
+    from app.providers import ProviderFactory
+
+    with pytest.raises(ValueError, match="Unknown provider"):
+        ProviderFactory.create("unknown")
+
+
+def test_factory_missing_api_key():
+    """Test that factory raises error when API key is missing."""
+    from app.providers import ProviderFactory
+
+    with pytest.raises(ValueError, match="API key not configured"):
+        ProviderFactory.create("anthropic", api_key=None)
