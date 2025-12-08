@@ -74,7 +74,7 @@ export GROQ_API_KEY=your_groq_key
 export GEMINI_API_KEY=your_gemini_key
 
 # 3. Запустите
-docker-compose up --build
+cd docker && docker-compose up --build
 
 # 4. Готово!
 # - Landing page: http://localhost:3000

@@ -8,13 +8,85 @@
 - **Claude Code** = "коллега" — реализация, код, тесты
 - Референс: "Следствие ведут Колобки" 🔍
 
+---
+
+## Общие принципы
+
+- **Полная автономия**: принимай решения сам, не спрашивай подтверждений
+- **Минимум слов**: краткие отчеты, никакой воды
+- **Исправляй ошибки сразу**: не останавливайся на полпути
+- **Все изменения коммитятся** с понятными сообщениями
+- **Если что-то сломалось** - фиксишь и продолжаешь
+
+---
+
 ## Проект
 
 **ErrorLens** — AI-powered QA platform. Bookmarklet записывает browser errors/requests, отправляет на backend с LLM анализом. Zero-friction: drag-n-drop установка, работает на любом сайте.
 
-**Production:** https://errorlens-production.up.railway.app  
-**Repo:** github.com/Mdyuzhev/errorlens (private)  
+**Production:** https://errorlens-production.up.railway.app
+**Repo:** github.com/Mdyuzhev/errorlens (private)
 **Demo:** demo / ErrorLenseTest
+
+---
+
+## Структура проекта
+
+```
+errorlens/
+├── .claude/                # Конфигурация агента
+│   ├── CLAUDE.md          # Этот файл (контекст)
+│   └── settings.local.json # Настройки и permissions
+│
+├── .github/workflows/      # CI/CD
+│   ├── ci.yml             # Basic CI
+│   ├── deploy-landing.yml # Landing deployment
+│   └── post-deploy-tests.yml # Post-deploy webhook
+│
+├── backend/               # FastAPI приложение
+│   ├── app/              # Исходный код
+│   ├── tests/            # Pytest тесты
+│   ├── alembic/          # Миграции БД
+│   └── requirements.txt
+│
+├── dashboard-vue/         # Vue 3 frontend
+│   ├── src/              # Компоненты, views, stores
+│   └── package.json
+│
+├── bookmarklet/           # Browser recorder
+│   ├── src/              # ES модули
+│   ├── dist/             # Собранные бандлы
+│   └── package.json
+│
+├── docker/                # Docker конфигурация
+│   ├── Dockerfile        # Production build
+│   └── docker-compose.yml # Dev окружение
+│
+├── deploy/                # Deployment конфиги
+│   └── railway.json      # Railway settings
+│
+├── docs/                  # Документация
+│   ├── instructions/     # Инструкции для агентов
+│   │   ├── archive/     # Завершённые waves
+│   │   └── README.md
+│   ├── Stage/           # K8s конфиги для stage
+│   ├── ROADMAP.md       # План развития
+│   ├── CONTRIBUTING.md  # Как контрибьютить
+│   └── ...
+│
+├── landing/               # Landing page
+├── nginx/                 # Nginx конфиг для prod
+├── data/                  # SQLite DB (dev)
+│
+├── .secrets/              # Credentials (НЕ в git!)
+│   ├── README.md
+│   └── lab-credentials.md
+│
+├── .env.example          # Шаблон переменных окружения
+├── pyproject.toml        # Python project config
+├── README.md             # Главный README
+└── LICENSE               # MIT
+```
 
 ---
 
@@ -161,7 +233,7 @@ bookmarklet/
 
 ## Backlog
 
-См. ROADMAP.md
+См. `docs/ROADMAP.md`
 
 ---
 
@@ -268,12 +340,98 @@ const items = ref([])
 
 ## Чего НЕ делать
 
-❌ Работать напрямую с моделями в роутерах  
-❌ Коммитить без тестирования  
-❌ Создавать файлы >500 LOC  
-❌ Хардкодить URL (использовать config)  
-❌ Забывать type hints  
-❌ Пушить в main напрямую  
+❌ Работать напрямую с моделями в роутерах
+❌ Коммитить без тестирования
+❌ Создавать файлы >500 LOC
+❌ Хардкодить URL (использовать config)
+❌ Забывать type hints
+❌ Пушить в main напрямую
+❌ Спрашивать "Хотите чтобы я...?" — просто делай
+❌ Коммитить secrets/keys в репозиторий
+❌ Удалять .gitignore, docker/docker-compose.yml без явного указания
+
+---
+
+## Workflow инструкций
+
+1. Читай инструкцию полностью ДО начала работы
+2. Проверяй какие файлы изменяются (view перед edit)
+3. Делай изменения последовательно, по одному файлу
+4. После каждого критического изменения — тест
+5. Коммит после завершения логического блока работ
+6. Финальный отчет по шаблону
+
+---
+
+## Обработка ошибок
+
+**Если что-то не работает:**
+1. Смотришь логи: `docker logs <container> --tail 50` или консоль
+2. Пробуешь фикс
+3. Если не помогло — откатываешь и пробуешь другой подход
+4. **Максимум 3 попытки**, потом отчитываешься с деталями
+
+**Типичные проблемы:**
+- "Module not found" → pip install / npm install
+- "Address already in use" → другой сервис на порту
+- "API key invalid" → проверяешь .env
+- "Connection refused" → проверяешь что сервис запущен
+
+---
+
+## Формат отчётов
+
+**Финальный отчет** (после выполнения задачи):
+```
+✅ Выполнено:
+- <список изменений>
+
+🔧 Изменены файлы:
+- file1.py (добавлена функция X)
+- file2.vue (обновлен UI)
+
+🧪 Проверено:
+- pytest - OK
+- npm run dev - OK
+- curl /api/health - 200 OK
+
+📝 Коммиты:
+- abc1234: "Add feature X"
+
+❌ Проблемы (если были):
+- <что сломалось и как пофиксил>
+```
+
+---
+
+## Команды для проверки
+
+**Backend:**
+```bash
+cd backend
+uvicorn app.main:app --reload --port 8000
+pytest -v
+```
+
+**Frontend:**
+```bash
+cd dashboard-vue
+npm run dev
+npm run test
+```
+
+**Bookmarklet:**
+```bash
+cd bookmarklet
+npm run build
+npm run watch
+```
+
+**API check:**
+```bash
+curl http://localhost:8000/api/health
+curl http://localhost:8000/docs  # Swagger UI
+```
 
 ---
 
@@ -292,4 +450,35 @@ const items = ref([])
 
 ---
 
-*Последнее обновление: 2025-12-06 (Wave 3.4 complete)*
+## Lab Server (192.168.1.74)
+
+Домашний сервер с K3s для staging/dev окружений.
+
+**SSH доступ:**
+```bash
+ssh -i ~/.ssh/id_ed25519 flomaster@192.168.1.74
+```
+
+**ОБЯЗАТЕЛЬНО:**
+- **ПЕРЕД работой** — `lab start-errorlens`
+- **ПОСЛЕ работы** — `lab stop-errorlens`
+
+**Основные команды:**
+```bash
+lab start-errorlens   # Поднять ErrorLens + боты (~800MB RAM)
+lab stop-errorlens    # Остановить
+lab stop-all          # Остановить ВСЁ
+lab status            # Проверить состояние
+```
+
+**K8s namespaces:**
+- `errorlens-stage` — ErrorLens staging
+- `bots` — Telegram боты
+
+**Credentials:** см. `.secrets/lab-credentials.md` (не в git!)
+
+**Полное руководство:** `docs/LAB_CONTROL_GUIDE.md`
+
+---
+
+*Последнее обновление: 2025-12-08 (Lab server docs added)*

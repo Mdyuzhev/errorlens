@@ -9,12 +9,16 @@ class Settings(BaseSettings):
     # App info
     version: str = "0.1.0"
 
-    # LLM provider: "gemini" or "groq"
+    # LLM provider: "gemini", "groq", or "ollama"
     llm_provider: str = "gemini"
 
     # API keys (loaded from env)
     gemini_api_key: str = ""
     groq_api_key: str = ""
+
+    # Ollama settings (local LLM)
+    ollama_host: str = "http://localhost:11434"
+    ollama_model: str = "qwen2.5-coder:3b"
 
     # Auth (legacy X-Admin-Key)
     admin_key: str = "change_me"

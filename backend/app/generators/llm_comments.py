@@ -15,13 +15,22 @@ def _get_llm_provider():
     try:
         from app.providers.gemini import GeminiProvider
         from app.providers.groq import GroqProvider
+        from app.providers.ollama import OllamaProvider
 
+        # Ollama (local)
+        if settings.llm_provider == "ollama" and settings.ollama_host:
+            return OllamaProvider()
+        # Groq (cloud)
         if settings.llm_provider == "groq" and settings.groq_api_key:
             return GroqProvider()
+        # Gemini (cloud)
         if settings.gemini_api_key:
             return GeminiProvider()
         if settings.groq_api_key:
             return GroqProvider()
+        # Fallback to Ollama
+        if settings.ollama_host:
+            return OllamaProvider()
     except Exception as e:
         logger.warning(f"Could not initialize LLM provider: {e}")
     return None
