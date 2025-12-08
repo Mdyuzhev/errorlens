@@ -46,4 +46,10 @@ package-lock.json
 # Bookmarklet build artifacts
 bookmarklet/dist/
 bookmarklet/*.backup.js
+
+# Secrets (NEVER commit!)
+.secrets/
 credentials.local
+*.credentials
+*-credentials.md
+lab-credentials.md
