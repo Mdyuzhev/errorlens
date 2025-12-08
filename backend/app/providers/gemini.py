@@ -3,7 +3,9 @@
 import httpx
 
 from app.config import settings
-from app.providers.base import LLMProvider, BaseLLMProvider
+from typing import Any
+
+from app.providers.base import LLMProvider, BaseHTTPProvider
 
 
 class GeminiProvider(LLMProvider):
@@ -50,32 +52,33 @@ class GeminiProvider(LLMProvider):
             raise ValueError(f"Unexpected Gemini response format: {e}")
 
 
-class GeminiGeneratorProvider(BaseLLMProvider):
+class GeminiGeneratorProvider(BaseHTTPProvider):
     """Gemini provider for test generation (Wave 4.0)."""
 
     def __init__(self, api_key: str, model: str = "gemini-1.5-flash"):
-        self.api_key = api_key
-        self.model = model
-        self.base_url = "https://generativelanguage.googleapis.com/v1beta/models"
+        super().__init__(
+            api_key=api_key,
+            model=model,
+            base_url="https://generativelanguage.googleapis.com/v1beta/models",
+        )
 
-    async def generate(self, prompt: str, max_tokens: int = 4096) -> str:
-        """Generate completion using Gemini API."""
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/{self.model}:generateContent",
-                params={"key": self.api_key},
-                json={
-                    "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {
-                        "temperature": 0.3,
-                        "maxOutputTokens": max_tokens,
-                    },
-                },
-                timeout=120.0,
-            )
-            response.raise_for_status()
-            data = response.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"]
+    def _build_headers(self) -> dict[str, str]:
+        return {"Content-Type": "application/json"}
 
-    def get_model_name(self) -> str:
-        return self.model
+    def _build_request_body(self, prompt: str, max_tokens: int) -> dict[str, Any]:
+        return {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.3,
+                "maxOutputTokens": max_tokens,
+            },
+        }
+
+    def _extract_response(self, data: dict[str, Any]) -> str:
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+
+    def _get_endpoint(self) -> str:
+        return f"{self.base_url}/{self.model}:generateContent"
+
+    def _get_request_params(self) -> dict[str, str]:
+        return {"key": self.api_key}

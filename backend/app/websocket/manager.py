@@ -22,7 +22,8 @@ class ConnectionManager:
             try:
                 await ws.send_json(data)
                 return True
-            except:
+            except (RuntimeError, ConnectionError, OSError) as e:
+                logger.warning(f"WebSocket send failed for {task_id}: {e}")
                 await self.disconnect(task_id)
         return False
 

@@ -1,25 +1,32 @@
 """GigaChat (Sber) provider."""
 
-import httpx
 import uuid
-from .base import BaseLLMProvider
+from typing import Any
+
+import httpx
+
+from .base import BaseHTTPProvider
 
 
-class GigaChatProvider(BaseLLMProvider):
+class GigaChatProvider(BaseHTTPProvider):
     """GigaChat API provider (Sber)."""
 
     def __init__(self, credentials: str, model: str = "GigaChat"):
+        super().__init__(
+            api_key=credentials,
+            model=model,
+            base_url="https://gigachat.devices.sberbank.ru/api/v1",
+            verify_ssl=False,
+        )
         self.credentials = credentials
-        self.model = model
-        self.base_url = "https://gigachat.devices.sberbank.ru/api/v1"
-        self.token = None
+        self._token: str | None = None
 
     async def _get_token(self) -> str:
         """Get OAuth token from GigaChat."""
-        if self.token:
-            return self.token
+        if self._token:
+            return self._token
 
-        async with httpx.AsyncClient(verify=False) as client:
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
             response = await client.post(
                 "https://ngw.devices.sberbank.ru:9443/api/v2/oauth",
                 headers={
@@ -28,33 +35,32 @@ class GigaChatProvider(BaseLLMProvider):
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
                 data={"scope": "GIGACHAT_API_PERS"},
-                timeout=30.0,
             )
             response.raise_for_status()
-            self.token = response.json()["access_token"]
-            return self.token
+            self._token = response.json()["access_token"]
+            return self._token
+
+    def _build_headers(self) -> dict[str, str]:
+        # Token will be set dynamically in generate()
+        return {
+            "Authorization": f"Bearer {self._token}",
+            "Content-Type": "application/json",
+        }
+
+    def _build_request_body(self, prompt: str, max_tokens: int) -> dict[str, Any]:
+        return {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+
+    def _extract_response(self, data: dict[str, Any]) -> str:
+        return data["choices"][0]["message"]["content"]
+
+    def _get_endpoint(self) -> str:
+        return f"{self.base_url}/chat/completions"
 
     async def generate(self, prompt: str, max_tokens: int = 4096) -> str:
-        """Generate completion using GigaChat API."""
-        token = await self._get_token()
-
-        async with httpx.AsyncClient(verify=False) as client:
-            response = await client.post(
-                f"{self.base_url}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": self.model,
-                    "max_tokens": max_tokens,
-                    "messages": [{"role": "user", "content": prompt}],
-                },
-                timeout=120.0,
-            )
-            response.raise_for_status()
-            data = response.json()
-            return data["choices"][0]["message"]["content"]
-
-    def get_model_name(self) -> str:
-        return self.model
+        """Generate completion with token refresh."""
+        await self._get_token()
+        return await super().generate(prompt, max_tokens)
