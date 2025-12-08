@@ -122,6 +122,11 @@
           <span class="value">Vue 3 + FastAPI + PostgreSQL</span>
         </div>
       </div>
+
+      <!-- LLM Settings -->
+      <div class="settings-card" style="grid-column: 1 / -1">
+        <LLMSettings />
+      </div>
     </div>
   </div>
 </template>
@@ -130,6 +135,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
+import LLMSettings from '@/components/generator/LLMSettings.vue'
 
 const auth = useAuthStore()
 
