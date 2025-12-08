@@ -29,6 +29,7 @@ from app.routers import (
     testruns,
     tests,
 )
+from app.websocket import ws_router
 from app.services.auth import init_admin_user
 from app.services.seed_demo import seed_demo_data
 from app.services.seed_test_users import seed_test_users
@@ -100,6 +101,7 @@ app.include_router(tests.router)
 app.include_router(integrations.router)
 app.include_router(analysis.router)
 app.include_router(projects.router)
+app.include_router(ws_router)  # Wave 4.0: WebSocket
 
 # Static files setup
 DASHBOARD_PATH = None
