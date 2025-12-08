@@ -57,6 +57,11 @@ from .k6 import (
 # LLM comments
 from .llm_comments import generate_llm_comments
 
+# Wave 4.0: LLM-based test generator
+from .llm_generator import LLMTestGenerator, GenerationResult, GeneratedTest
+from .inputs import HARInput, SwaggerInput, EndpointSpec
+from .prompts import PromptBuilder
+
 # Postman generator
 from .postman import (
     PostmanGenerator,
@@ -119,4 +124,12 @@ __all__ = [
     "generate_testit_testcase",
     # LLM
     "generate_llm_comments",
+    # Wave 4.0
+    "LLMTestGenerator",
+    "GenerationResult",
+    "GeneratedTest",
+    "HARInput",
+    "SwaggerInput",
+    "EndpointSpec",
+    "PromptBuilder",
 ]
