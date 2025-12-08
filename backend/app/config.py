@@ -20,6 +20,16 @@ class Settings(BaseSettings):
     ollama_host: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5-coder:3b"
 
+    # Wave 4.0: LLM Provider API Keys
+    ANTHROPIC_API_KEY: str = ""
+    OPENAI_API_KEY: str = ""
+    GIGACHAT_CREDENTIALS: str = ""
+    OLLAMA_HOST: str = "http://localhost:11434"
+    DEFAULT_LLM_PROVIDER: str = "anthropic"
+    DEFAULT_LLM_MODEL: str = "claude-sonnet-4-20250514"
+    GEMINI_API_KEY: str = ""
+    GROQ_API_KEY: str = ""
+
     # Auth (legacy X-Admin-Key)
     admin_key: str = "change_me"
 
