@@ -1,7 +1,7 @@
 /**
  * ErrorLens Backend API
  */
-import { detectApiBaseUrl } from './config.js';
+import { detectApiBaseUrl, detectDashboardUrl } from './config.js';
 import { getSessionData, getState } from './state.js';
 
 /**
@@ -103,5 +103,5 @@ export async function captureScreenshot() {
  * Get dashboard URL for redirect
  */
 export function getDashboardUrl() {
-  return detectApiBaseUrl();
+  return detectDashboardUrl();
 }

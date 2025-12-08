@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from app.analyzer import (
-    SYSTEM_PROMPT,
+    SYSTEM_PROMPT_LARGE as SYSTEM_PROMPT,
     _format_context,
     _get_provider,
     _parse_llm_response,

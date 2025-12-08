@@ -135,7 +135,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
-import LLMSettings from '@/components/generator/LLMSettings.vue'
+import LLMSettings from '@/components/generator/ProviderSelector.vue'
 
 const auth = useAuthStore()
 
@@ -159,12 +159,12 @@ onMounted(async () => {
     apiStatus.value = 'Error'
   }
 
-  // Generate bookmarklet code
-  const baseUrl = window.location.origin
+  // Generate bookmarklet code - use API URL for backend, not frontend origin
+  const baseUrl = import.meta.env.VITE_API_URL || window.location.origin
   bookmarkletCode.value = `javascript:(function(){var s=document.createElement('script');s.src='${baseUrl}/bookmarklet/recorder.js';document.body.appendChild(s);})();`
 
   // Short version for display
-  shortBookmarkletCode.value = `javascript:fetch('${baseUrl}/go_to_test.js').then(r=>r.text()).then(eval)`
+  shortBookmarkletCode.value = `javascript:(function(){var s=document.createElement('script');s.src='${baseUrl}/bookmarklet/recorder.js';document.body.appendChild(s);})();`
 
   // Show onboarding for first-time users
   if (!localStorage.getItem('errorlens_settings_onboarding_done')) {

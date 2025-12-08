@@ -33,6 +33,7 @@ export const CONFIG = {
 // URLs
 export const PROD_URL = 'https://errorlens-production.up.railway.app';
 export const LOCAL_URL = 'http://localhost:8000';
+export const LOCAL_DASHBOARD_URL = 'http://localhost:3000';
 
 /**
  * Detect API base URL based on environment
@@ -53,6 +54,28 @@ export function detectApiBaseUrl() {
   const isPageOnLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   return (isScriptFromLocalhost || isPageOnLocalhost) ? LOCAL_URL : PROD_URL;
+}
+
+/**
+ * Detect Dashboard URL based on environment
+ */
+export function detectDashboardUrl() {
+  // Check user config
+  const userConfig = window.__ERRORLENS_CONFIG__ || {};
+  if (userConfig.dashboardUrl) return userConfig.dashboardUrl;
+
+  // Check localStorage
+  const saved = localStorage.getItem('errorlens_dashboard_url');
+  if (saved) return saved;
+
+  // Auto-detect based on script source or page location
+  const currentScript = document.currentScript || document.querySelector('script[src*="recorder.js"]');
+  const scriptSrc = currentScript ? currentScript.src : '';
+  const isScriptFromLocalhost = scriptSrc.includes('localhost') || scriptSrc.includes('127.0.0.1');
+  const isPageOnLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+  // In production, API and dashboard are same URL; in dev, dashboard is on port 3000
+  return (isScriptFromLocalhost || isPageOnLocalhost) ? LOCAL_DASHBOARD_URL : PROD_URL;
 }
 
 /**

@@ -72,6 +72,12 @@ export const useGenerationStore = defineStore('generation', () => {
     return `${import.meta.env.VITE_API_URL || ''}/api/v1/generation/download/${id}`
   }
 
+  async function startFromEndpoints(endpoints, options = {}) {
+    // TODO: Backend endpoint not implemented yet
+    error.value = 'Генерация из URL endpoints пока не поддерживается. Используйте Swagger файл или сессию.'
+    throw new Error(error.value)
+  }
+
   function reset() {
     loading.value = false
     taskId.value = null
@@ -79,5 +85,5 @@ export const useGenerationStore = defineStore('generation', () => {
     error.value = null
   }
 
-  return { loading, taskId, result, error, startFromSwagger, startFromSession, fetchResult, getDownloadUrl, reset }
+  return { loading, taskId, result, error, startFromSwagger, startFromSession, startFromEndpoints, fetchResult, getDownloadUrl, reset }
 })

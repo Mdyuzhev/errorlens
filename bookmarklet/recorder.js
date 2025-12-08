@@ -1,4 +1,4 @@
-/* ErrorLens Bookmarklet v2.0.0 - 2025-12-05 */
+/* ErrorLens Bookmarklet v2.0.0 - 2025-12-08 */
 var ErrorLens = (() => {
   // src/core/state.js
   var state = {
@@ -81,6 +81,7 @@ var ErrorLens = (() => {
   };
   var PROD_URL = "https://errorlens-production.up.railway.app";
   var LOCAL_URL = "http://localhost:8000";
+  var LOCAL_DASHBOARD_URL = "http://localhost:3000";
   function detectApiBaseUrl() {
     const userConfig = window.__ERRORLENS_CONFIG__ || {};
     if (userConfig.apiUrl)
@@ -94,6 +95,19 @@ var ErrorLens = (() => {
     const isPageOnLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
     return isScriptFromLocalhost || isPageOnLocalhost ? LOCAL_URL : PROD_URL;
   }
+  function detectDashboardUrl() {
+    const userConfig = window.__ERRORLENS_CONFIG__ || {};
+    if (userConfig.dashboardUrl)
+      return userConfig.dashboardUrl;
+    const saved = localStorage.getItem("errorlens_dashboard_url");
+    if (saved)
+      return saved;
+    const currentScript = document.currentScript || document.querySelector('script[src*="recorder.js"]');
+    const scriptSrc = currentScript ? currentScript.src : "";
+    const isScriptFromLocalhost = scriptSrc.includes("localhost") || scriptSrc.includes("127.0.0.1");
+    const isPageOnLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    return isScriptFromLocalhost || isPageOnLocalhost ? LOCAL_DASHBOARD_URL : PROD_URL;
+  }
   function isJunkUrl(url) {
     if (!url)
       return true;
@@ -104,18 +118,47 @@ var ErrorLens = (() => {
   async function sendSession() {
     const apiUrl = detectApiBaseUrl();
     const sessionData = getSessionData();
-    const response = await fetch(`${apiUrl}/sessions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(sessionData)
+    console.log("[ErrorLens] ====== SEND SESSION START ======");
+    console.log("[ErrorLens] API URL:", `${apiUrl}/sessions`);
+    console.log("[ErrorLens] Event counts:", {
+      console_logs: sessionData.console_logs?.length || 0,
+      network_errors: sessionData.network_errors?.length || 0,
+      js_exceptions: sessionData.js_exceptions?.length || 0,
+      recorded_requests: sessionData.recorded_requests?.length || 0,
+      has_screenshot: !!sessionData.screenshot
     });
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API Error ${response.status}: ${errorText}`);
+    console.log("[ErrorLens] Full payload:", sessionData);
+    const headers = {
+      "Content-Type": "application/json"
+    };
+    console.log("[ErrorLens] Request headers:", headers);
+    try {
+      const response = await fetch(`${apiUrl}/sessions`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(sessionData)
+      });
+      console.log("[ErrorLens] Response status:", response.status);
+      console.log("[ErrorLens] Response headers:", Object.fromEntries(response.headers.entries()));
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[ErrorLens] API Error:", response.status, errorText);
+        throw new Error(`API Error ${response.status}: ${errorText}`);
+      }
+      const result = await response.json();
+      console.log("[ErrorLens] Session created successfully:", result);
+      console.log("[ErrorLens] ====== SEND SESSION END ======");
+      if (result.session_id && !result.id) {
+        result.id = result.session_id;
+      }
+      return result;
+    } catch (error) {
+      console.error("[ErrorLens] ====== SEND SESSION FAILED ======");
+      console.error("[ErrorLens] Error type:", error.name);
+      console.error("[ErrorLens] Error message:", error.message);
+      console.error("[ErrorLens] Full error:", error);
+      throw error;
     }
-    return response.json();
   }
   function loadHtml2Canvas() {
     return new Promise((resolve, reject) => {
@@ -147,7 +190,7 @@ var ErrorLens = (() => {
     }
   }
   function getDashboardUrl() {
-    return detectApiBaseUrl();
+    return detectDashboardUrl();
   }
 
   // src/ui/styles.js
