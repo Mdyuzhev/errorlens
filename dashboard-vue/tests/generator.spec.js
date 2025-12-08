@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import InputTabs from '@/components/generator/InputTabs.vue'
 import SessionSelector from '@/components/generator/SessionSelector.vue'
@@ -76,34 +76,36 @@ describe('SessionSelector', () => {
   })
 
   it('loads sessions with recorded_requests', async () => {
+    const mockSessions = [
+      { id: '1', url: 'test.com', recorded_requests: [{ method: 'GET' }] }
+    ]
+
     global.fetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({
-        items: [
-          { id: '1', url: 'test.com', recorded_requests: [{ method: 'GET' }] }
-        ]
-      })
+      json: async () => ({ items: mockSessions })
     })
 
-    await new Promise(resolve => setTimeout(resolve, 100))
+    const wrapper2 = mount(SessionSelector)
+    await flushPromises()
 
-    expect(wrapper.vm.sessions.length).toBe(1)
+    expect(wrapper2.vm.sessions.length).toBe(1)
   })
 
   it('filters empty sessions', async () => {
+    const mockSessions = [
+      { id: '1', url: 'test.com', recorded_requests: [] },
+      { id: '2', url: 'test2.com', recorded_requests: [{ method: 'GET' }] }
+    ]
+
     global.fetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({
-        items: [
-          { id: '1', url: 'test.com', recorded_requests: [] },
-          { id: '2', url: 'test2.com', recorded_requests: [{ method: 'GET' }] }
-        ]
-      })
+      json: async () => ({ items: mockSessions })
     })
 
-    await new Promise(resolve => setTimeout(resolve, 100))
+    const wrapper2 = mount(SessionSelector)
+    await flushPromises()
 
-    expect(wrapper.vm.sessions.length).toBe(1)
+    expect(wrapper2.vm.sessions.length).toBe(1)
   })
 
   it('shows endpoint preview', async () => {
