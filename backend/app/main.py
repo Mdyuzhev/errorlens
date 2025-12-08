@@ -21,6 +21,7 @@ from app.routers import (
     articles,
     auth,
     exports,
+    generation,
     integrations,
     projects,
     sessions,
@@ -101,6 +102,7 @@ app.include_router(tests.router)
 app.include_router(integrations.router)
 app.include_router(analysis.router)
 app.include_router(projects.router)
+app.include_router(generation.router)  # Wave 4.0: Generation API
 app.include_router(ws_router)  # Wave 4.0: WebSocket
 
 # Static files setup
