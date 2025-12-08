@@ -4,8 +4,13 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.generators.llm_generator import LLMTestGenerator, GenerationResult
 from app.generators.inputs import SwaggerInput, HARInput
+from app.models.db_models import Session
 from app.websocket.manager import manager
 
 
@@ -117,3 +122,53 @@ class GenerationService:
         before = len(_results)
         _cleanup_expired_results()
         return before - len(_results)
+
+    @staticmethod
+    async def create_task_from_session(
+        session_id: str,
+        db: AsyncSession,
+        framework: str = "pytest",
+        provider: str = "anthropic",
+        model: str | None = None
+    ) -> str:
+        """Load session, extract recorded_requests, create task."""
+        # Load session from DB
+        query = select(Session).where(Session.id == session_id)
+        result = await db.execute(query)
+        session = result.scalar_one_or_none()
+
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        # Lazy-load session data
+        await db.refresh(session, ["data"])
+
+        if not session.data or not session.data.recorded_requests:
+            raise HTTPException(status_code=400, detail="Session has no recorded requests")
+
+        # Convert to HARInput format
+        recorded_requests = session.data.recorded_requests
+        if isinstance(recorded_requests, list):
+            har_data = [
+                {
+                    "request": {
+                        "url": req.get("url", ""),
+                        "method": req.get("method", "GET"),
+                        "headers": req.get("headers", {}),
+                        "body": req.get("body")
+                    }
+                }
+                for req in recorded_requests
+            ]
+        else:
+            har_data = []
+
+        # Create task
+        task_id = await GenerationService.create_task(
+            input_type="har",
+            input_data=har_data,
+            framework=framework,
+            provider=provider,
+            model=model
+        )
+        return task_id

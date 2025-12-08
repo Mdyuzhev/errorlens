@@ -33,6 +33,30 @@ export const useGenerationStore = defineStore('generation', () => {
     }
   }
 
+  async function startFromSession(sessionId, options = {}) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const formData = new FormData()
+      formData.append('framework', options.framework || 'pytest')
+      formData.append('provider', options.provider || 'anthropic')
+      if (options.model) formData.append('model', options.model)
+
+      const response = await api.post(`/api/v1/generation/from-session/${sessionId}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+
+      taskId.value = response.data.task_id
+      loading.value = false
+      return response.data
+    } catch (err) {
+      error.value = err.response?.data?.detail || err.message
+      loading.value = false
+      throw err
+    }
+  }
+
   async function fetchResult(id) {
     try {
       const response = await api.get(`/api/v1/generation/result/${id}`)
@@ -55,5 +79,5 @@ export const useGenerationStore = defineStore('generation', () => {
     error.value = null
   }
 
-  return { loading, taskId, result, error, startFromSwagger, fetchResult, getDownloadUrl, reset }
+  return { loading, taskId, result, error, startFromSwagger, startFromSession, fetchResult, getDownloadUrl, reset }
 })
