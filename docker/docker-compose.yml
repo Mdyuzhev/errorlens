@@ -1,12 +1,32 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: errorlens
+      POSTGRES_USER: errorlens
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-errorlens_secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U errorlens -d errorlens"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   backend:
     build: ../backend
     ports:
       - "8000:8000"
     env_file:
       - ../.env
-    volumes:
-      - ../data:/app/data
+    environment:
+      DATABASE_URL: postgresql+asyncpg://errorlens:${POSTGRES_PASSWORD:-errorlens_secret}@postgres:5432/errorlens
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -21,16 +41,22 @@ services:
     ports:
       - "3000:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  postgres_data:
 
 # =============================================================================
 # USAGE:
 # =============================================================================
-# 1. Set environment variables: GROQ_API_KEY or GEMINI_API_KEY
-# 2. Run: docker-compose up --build
-# 3. Landing page: http://localhost:3000
-# 4. API direct: http://localhost:8000
-# 5. API via nginx: http://localhost:3000/api/
-# 6. Swagger docs: http://localhost:8000/docs
+# cd docker
+# docker-compose up --build
+#
+# Landing page:     http://localhost:3000
+# Vue Dashboard:    http://localhost:3000/dashboard/
+# API via nginx:    http://localhost:3000/api/
+# API direct:       http://localhost:8000
+# Swagger docs:     http://localhost:8000/docs
 # =============================================================================

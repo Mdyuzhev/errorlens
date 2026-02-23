@@ -16,16 +16,16 @@ if config.config_file_name is not None:
 
 # Get DATABASE_URL from environment
 DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is required for migrations")
 
-if DATABASE_URL:
-    # Railway/Heroku PostgreSQL - convert to sync driver for Alembic
-    if DATABASE_URL.startswith("postgres://"):
-        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-    elif "asyncpg" in DATABASE_URL:
-        DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
-else:
-    # Local dev - SQLite (sync driver)
-    DATABASE_URL = "sqlite:///./data/errorlens.db"
+# Alembic uses sync driver
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+if "asyncpg" in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
+if "aiosqlite" in DATABASE_URL:
+    raise RuntimeError("SQLite is no longer supported. Use PostgreSQL.")
 
 # Override sqlalchemy.url from environment
 config.set_main_option("sqlalchemy.url", DATABASE_URL)

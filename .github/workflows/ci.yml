@@ -39,6 +39,21 @@ jobs:
     name: Run Tests
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: errorlens_test
+          POSTGRES_USER: errorlens
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U errorlens -d errorlens_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -58,6 +73,6 @@ jobs:
           cd backend
           pytest tests/ -v --tb=short
         env:
-          # Use empty keys for tests (mocked)
+          DATABASE_URL: postgresql+asyncpg://errorlens:test_password@localhost:5432/errorlens_test
           GEMINI_API_KEY: ""
           GROQ_API_KEY: ""

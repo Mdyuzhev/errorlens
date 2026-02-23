@@ -99,11 +99,10 @@ class TestCaseRepository(BaseRepository[TestCase]):
             tags: List of tags to search for
             match_all: If True, require all tags; if False, match any tag
         """
-        # For JSON array containment, we need database-specific approach
-        # This is a simplified version that works with SQLite
+        # Filter by tags in JSON array (Python-side filtering)
         query = select(TestCase)
 
-        # Get all and filter in Python for SQLite compatibility
+        # Get all and filter in Python
         result = await self.session.execute(query)
         all_cases = list(result.scalars().all())
 

@@ -31,9 +31,9 @@ export const CONFIG = {
 };
 
 // URLs
-export const PROD_URL = 'https://errorlens-production.up.railway.app';
+export const PROD_URL = 'http://localhost:3000/api';
 export const LOCAL_URL = 'http://localhost:8000';
-export const LOCAL_DASHBOARD_URL = 'http://localhost:3000';
+export const LOCAL_DASHBOARD_URL = 'http://localhost:5173';
 
 /**
  * Detect API base URL based on environment

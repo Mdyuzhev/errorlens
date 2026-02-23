@@ -26,6 +26,8 @@ build/
 .coverage
 htmlcov/
 .tox/
+*.db
+!schema.db
 
 # OS
 .DS_Store

@@ -73,9 +73,9 @@
 
 | Service | Environment | URL |
 |---------|-------------|-----|
-| Backend | Production | https://errorlens-production.up.railway.app |
-| Database | Production | PostgreSQL on Railway |
-| CI/CD | GitHub Actions | Post-deploy tests on push |
+| Backend | Docker | http://localhost:8000 |
+| Database | Docker | PostgreSQL 16 (Docker Compose) |
+| CI/CD | GitHub Actions | Tests on push |
 
 ---
 

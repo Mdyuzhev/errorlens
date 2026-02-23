@@ -1,14 +1,28 @@
 """Pytest fixtures for ErrorLens tests."""
 
+import os
+
+# Set DATABASE_URL before any app imports (CI uses PostgreSQL via env)
+if "DATABASE_URL" not in os.environ:
+    os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./tests/test_errorlens.db"
+
 import pytest
 from app.main import app
 from fastapi.testclient import TestClient
 
 
+# Session-scoped client triggers lifespan once (creates tables, seeds data)
+@pytest.fixture(scope="session")
+def _app_client():
+    """Session-scoped TestClient that triggers app lifespan."""
+    with TestClient(app) as c:
+        yield c
+
+
 @pytest.fixture
-def client():
+def client(_app_client):
     """Create test client for API tests."""
-    return TestClient(app)
+    return _app_client
 
 
 @pytest.fixture

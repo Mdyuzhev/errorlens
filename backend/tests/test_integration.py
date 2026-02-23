@@ -7,8 +7,6 @@ Run after seeding test users via: python -m app.services.seed_test_users
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
-
 
 # Test user credentials (from seed_test_users.py)
 TEST_USERS = {
@@ -20,12 +18,6 @@ TEST_USERS = {
     "viewer1": {"password": "Test123!", "project": "project-alpha", "role": "viewer"},
     "viewer2": {"password": "Test123!", "project": "project-beta", "role": "viewer"},
 }
-
-
-@pytest.fixture
-def client():
-    """Create test client."""
-    return TestClient(app)
 
 
 def get_token(client: TestClient, username: str, password: str) -> str:
