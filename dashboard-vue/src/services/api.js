@@ -115,6 +115,13 @@ export const articlesApi = {
   deleteFolder: (id) => api.delete(`/articles/folders/${id}`),
   moveFolder: (id, data) => api.post(`/articles/folders/${id}/move`, data),
   moveArticleToFolder: (id, data) => api.post(`/articles/${id}/move-to-folder`, data),
+  // Import
+  importFile: (formData) => api.post('/articles/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  previewFile: (formData) => api.post('/articles/import/preview', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 }
 
 // Test Runs API

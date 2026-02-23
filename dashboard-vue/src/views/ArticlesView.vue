@@ -2,10 +2,31 @@
   <div class="articles-page">
     <div class="page-header">
       <h1>Articles</h1>
-      <button class="btn btn-primary" @click="createArticle">
-        + New Article
-      </button>
+      <div class="header-actions">
+        <button class="btn btn-secondary" @click="triggerImport" :disabled="importing">
+          {{ importing ? 'Importing...' : 'Import' }}
+        </button>
+        <button class="btn btn-primary" @click="createArticle">
+          + New Article
+        </button>
+      </div>
     </div>
+
+    <!-- Hidden file inputs -->
+    <input
+      ref="importFileInput"
+      type="file"
+      accept=".md,.docx"
+      style="display: none"
+      @change="handleQuickImport"
+    />
+    <input
+      ref="editorFileInput"
+      type="file"
+      accept=".md,.docx"
+      style="display: none"
+      @change="handleEditorImport"
+    />
 
     <div class="articles-layout">
       <!-- Sidebar: Folder Tree -->
@@ -106,7 +127,12 @@
           </div>
 
           <div class="form-group">
-            <label>Content (Markdown)</label>
+            <div class="content-label-row">
+              <label>Content (Markdown)</label>
+              <button type="button" class="btn-import-small" @click="triggerEditorImport" :disabled="importing">
+                {{ importing ? 'Loading...' : 'Import from file' }}
+              </button>
+            </div>
             <textarea
               v-model="form.content"
               rows="15"
@@ -166,6 +192,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useArticlesStore } from '@/stores/articles'
+import { articlesApi } from '@/services/api'
 import FolderTree from '@/components/articles/FolderTree.vue'
 
 const store = useArticlesStore()
@@ -173,6 +200,10 @@ const store = useArticlesStore()
 const showEditor = ref(false)
 const editingArticle = ref(null)
 const viewingArticle = ref(null)
+const importing = ref(false)
+const importFileInput = ref(null)
+const editorFileInput = ref(null)
+const notification = ref(null)
 
 const filters = ref({
   category: '',
@@ -219,8 +250,10 @@ function createArticle() {
   showEditor.value = true
 }
 
-function openArticle(article) {
-  viewingArticle.value = article
+async function openArticle(article) {
+  // Fetch full article with content
+  const full = await store.fetchArticle(article.id)
+  viewingArticle.value = full || article
 }
 
 function closeViewer() {
@@ -306,6 +339,86 @@ async function handleDrop(payload) {
     await store.moveFolder(payload.itemId, payload.targetFolderId)
   } else if (payload.itemType === 'article') {
     await store.moveArticleToFolder(payload.itemId, payload.targetFolderId)
+  }
+}
+
+// Import handlers
+function triggerImport() {
+  importFileInput.value?.click()
+}
+
+function triggerEditorImport() {
+  editorFileInput.value?.click()
+}
+
+function validateFile(file) {
+  const ext = file.name.split('.').pop()?.toLowerCase()
+  if (!['md', 'docx'].includes(ext)) {
+    alert('Unsupported format. Allowed: .md, .docx')
+    return false
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    alert('File too large. Max: 5 MB')
+    return false
+  }
+  return true
+}
+
+async function handleQuickImport(event) {
+  const file = event.target.files?.[0]
+  if (!file || !validateFile(file)) {
+    event.target.value = ''
+    return
+  }
+
+  importing.value = true
+  const formData = new FormData()
+  formData.append('file', file)
+  if (store.selectedFolderId) {
+    formData.append('folder_id', store.selectedFolderId)
+  }
+  formData.append('status', 'draft')
+
+  try {
+    const response = await articlesApi.importFile(formData)
+    const { title, warnings } = response.data
+    let msg = `Article imported: "${title}"`
+    if (warnings?.length) msg += `\nWarnings: ${warnings.join(', ')}`
+    alert(msg)
+    await loadArticles()
+    await store.fetchFoldersTree()
+  } catch (err) {
+    alert(err.response?.data?.detail || 'Import failed')
+  } finally {
+    importing.value = false
+    event.target.value = ''
+  }
+}
+
+async function handleEditorImport(event) {
+  const file = event.target.files?.[0]
+  if (!file || !validateFile(file)) {
+    event.target.value = ''
+    return
+  }
+
+  importing.value = true
+  const formData = new FormData()
+  formData.append('file', file)
+
+  try {
+    const response = await articlesApi.previewFile(formData)
+    const { title, content, warnings } = response.data
+    form.value.title = title || form.value.title
+    form.value.content = content || form.value.content
+    if (warnings?.length) {
+      alert(`Warnings: ${warnings.join(', ')}`)
+    }
+  } catch (err) {
+    alert(err.response?.data?.detail || 'Preview failed')
+  } finally {
+    importing.value = false
+    event.target.value = ''
   }
 }
 
@@ -574,5 +687,42 @@ onMounted(() => {
   color: var(--text-secondary);
   font-size: 24px;
   cursor: pointer;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.content-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.content-label-row label {
+  margin-bottom: 0;
+}
+
+.btn-import-small {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-import-small:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-import-small:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>
