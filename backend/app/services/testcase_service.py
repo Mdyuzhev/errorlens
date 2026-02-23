@@ -32,6 +32,7 @@ class TestCaseService:
         status: str = "Draft",
         automation_status: str = "Manual",
         folder: str | None = None,
+        folder_id: str | None = None,
         tags: list[str] | None = None,
         steps: list[dict] | None = None,
         session_id: str | None = None,
@@ -54,6 +55,7 @@ class TestCaseService:
             "status": status,
             "automation_status": automation_status,
             "folder": folder,
+            "folder_id": folder_id,
             "tags": tags or [],
             "steps": steps or [],
             "session_id": session_id,
@@ -71,14 +73,16 @@ class TestCaseService:
     async def list_testcases(
         self,
         folder: str | None = None,
+        folder_id: str | None = None,
         status: str | None = None,
         priority: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
         """List test cases with filters."""
-        # Use repo methods based on filters
-        if folder:
+        if folder_id:
+            testcases = await self.repo.get_by_folder_id(folder_id, skip=offset, limit=limit)
+        elif folder:
             testcases = await self.repo.get_by_folder(folder, skip=offset, limit=limit)
         elif status:
             testcases = await self.repo.get_by_status(status, skip=offset, limit=limit)
@@ -180,6 +184,7 @@ class TestCaseService:
             "status": tc.status,
             "automation_status": tc.automation_status,
             "folder": tc.folder,
+            "folder_id": tc.folder_id,
             "tags": tc.tags,
             "steps": tc.steps,
             "created_at": tc.created_at.isoformat() if tc.created_at else None,

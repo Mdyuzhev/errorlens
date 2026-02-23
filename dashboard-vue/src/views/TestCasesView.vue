@@ -7,64 +7,81 @@
       </button>
     </div>
 
-    <!-- Filters -->
-    <div class="filters">
-      <select v-model="filters.folder" @change="loadTestCases">
-        <option value="">All Folders</option>
-        <option v-for="f in folders" :key="f" :value="f">{{ f }}</option>
-      </select>
+    <div class="testcases-layout">
+      <!-- Sidebar: Folder Tree -->
+      <aside class="sidebar">
+        <FolderTree
+          :folders="treeFolders"
+          :selected-folder-id="store.selectedFolderId"
+          :expanded-ids="store.expandedFolders"
+          @select="handleSelectFolder"
+          @toggle="store.toggleFolder($event)"
+          @create="handleCreateFolder"
+          @rename="handleRenameFolder"
+          @delete="handleDeleteFolder"
+          @drop="handleDrop"
+        />
+      </aside>
 
-      <select v-model="filters.status" @change="loadTestCases">
-        <option value="">All Statuses</option>
-        <option value="Draft">Draft</option>
-        <option value="Ready">Ready</option>
-        <option value="Approved">Approved</option>
-      </select>
+      <!-- Main Area -->
+      <div class="main-area">
+        <!-- Filters -->
+        <div class="filters">
+          <select v-model="filters.status" @change="loadTestCases">
+            <option value="">All Statuses</option>
+            <option value="Draft">Draft</option>
+            <option value="Ready">Ready</option>
+            <option value="Approved">Approved</option>
+          </select>
 
-      <select v-model="filters.priority" @change="loadTestCases">
-        <option value="">All Priorities</option>
-        <option value="Critical">Critical</option>
-        <option value="High">High</option>
-        <option value="Medium">Medium</option>
-        <option value="Low">Low</option>
-      </select>
-    </div>
-
-    <!-- Test Cases Grid -->
-    <div v-if="loading" class="loading">
-      <div class="spinner"></div>
-    </div>
-
-    <div v-else-if="testCases.length === 0" class="empty-state">
-      <p>No test cases yet</p>
-      <p class="hint">Create from session or manually</p>
-    </div>
-
-    <div v-else class="testcases-grid" data-testid="testcases-list">
-      <div
-        v-for="tc in testCases"
-        :key="tc.id"
-        class="testcase-card"
-        @click="openTestCase(tc)"
-      >
-        <div class="tc-header">
-          <span class="tc-priority" :class="tc.priority?.toLowerCase()">
-            {{ tc.priority }}
-          </span>
-          <span class="tc-status" :class="tc.status?.toLowerCase()">
-            {{ tc.status }}
-          </span>
+          <select v-model="filters.priority" @change="loadTestCases">
+            <option value="">All Priorities</option>
+            <option value="Critical">Critical</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
         </div>
-        <h3 class="tc-title">{{ tc.title }}</h3>
-        <p class="tc-description">{{ tc.description || 'No description' }}</p>
-        <div class="tc-footer">
-          <span class="tc-steps">{{ tc.steps?.length || 0 }} steps</span>
-          <span class="tc-automation" :class="tc.automation_status?.toLowerCase().replace(' ', '-')">
-            {{ tc.automation_status }}
-          </span>
+
+        <!-- Test Cases Grid -->
+        <div v-if="loading" class="loading">
+          <div class="spinner"></div>
         </div>
-        <div v-if="tc.tags?.length" class="tc-tags">
-          <span v-for="tag in tc.tags.slice(0, 3)" :key="tag" class="tag">{{ tag }}</span>
+
+        <div v-else-if="testCases.length === 0" class="empty-state">
+          <p>No test cases yet</p>
+          <p class="hint">Create from session or manually</p>
+        </div>
+
+        <div v-else class="testcases-grid" data-testid="testcases-list">
+          <div
+            v-for="tc in testCases"
+            :key="tc.id"
+            class="testcase-card"
+            :draggable="true"
+            @click="openTestCase(tc)"
+            @dragstart="onTestCaseDragStart($event, tc)"
+          >
+            <div class="tc-header">
+              <span class="tc-priority" :class="tc.priority?.toLowerCase()">
+                {{ tc.priority }}
+              </span>
+              <span class="tc-status" :class="tc.status?.toLowerCase()">
+                {{ tc.status }}
+              </span>
+            </div>
+            <h3 class="tc-title">{{ tc.title }}</h3>
+            <p class="tc-description">{{ tc.description || 'No description' }}</p>
+            <div class="tc-footer">
+              <span class="tc-steps">{{ tc.steps?.length || 0 }} steps</span>
+              <span class="tc-automation" :class="tc.automation_status?.toLowerCase().replace(' ', '-')">
+                {{ tc.automation_status }}
+              </span>
+            </div>
+            <div v-if="tc.tags?.length" class="tc-tags">
+              <span v-for="tag in tc.tags.slice(0, 3)" :key="tag" class="tag">{{ tag }}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -128,7 +145,7 @@
               <span class="step-num">{{ idx + 1 }}</span>
               <input v-model="step.action" placeholder="Action" class="step-action" />
               <input v-model="step.expected" placeholder="Expected result" class="step-expected" />
-              <button type="button" class="btn-icon" @click="removeStep(idx)">×</button>
+              <button type="button" class="btn-icon" @click="removeStep(idx)">x</button>
             </div>
             <button type="button" class="btn btn-secondary btn-sm" @click="addStep">+ Add Step</button>
           </div>
@@ -139,16 +156,14 @@
           </div>
 
           <div class="form-group">
-            <label>Folder</label>
-            <input v-model="form.folder" placeholder="e.g., API/Auth" />
-          </div>
-
-          <div class="form-group">
             <label>Tags (comma-separated)</label>
             <input v-model="tagsInput" placeholder="api, smoke, regression" />
           </div>
 
           <div class="form-actions">
+            <button v-if="editingTestCase" type="button" class="btn btn-danger" @click="deleteTestCase">
+              Delete
+            </button>
             <button type="button" class="btn btn-secondary" @click="closeEditor">Cancel</button>
             <button type="submit" class="btn btn-primary">Save</button>
           </div>
@@ -161,6 +176,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useTestCasesStore } from '@/stores/testcases'
+import FolderTree from '@/components/testcases/FolderTree.vue'
 
 const store = useTestCasesStore()
 
@@ -168,7 +184,6 @@ const showEditor = ref(false)
 const editingTestCase = ref(null)
 
 const filters = ref({
-  folder: '',
   status: '',
   priority: ''
 })
@@ -181,7 +196,6 @@ const form = ref({
   priority: 'Medium',
   status: 'Draft',
   automation_status: 'Manual',
-  folder: '',
   steps: [{ action: '', expected: '', testData: '' }]
 })
 
@@ -189,10 +203,10 @@ const tagsInput = ref('')
 
 const loading = computed(() => store.loading)
 const testCases = computed(() => store.testCases)
-const folders = computed(() => store.folders)
+const treeFolders = computed(() => store.treeFolders)
 
 async function loadTestCases() {
-  store.filters = { ...filters.value }
+  store.filters = { ...filters.value, folder: '' }
   await store.fetchTestCases()
 }
 
@@ -206,7 +220,6 @@ function openTestCase(tc) {
     priority: tc.priority || 'Medium',
     status: tc.status || 'Draft',
     automation_status: tc.automation_status || 'Manual',
-    folder: tc.folder || '',
     steps: tc.steps?.length ? [...tc.steps] : [{ action: '', expected: '', testData: '' }]
   }
   tagsInput.value = tc.tags?.join(', ') || ''
@@ -228,7 +241,6 @@ function resetForm() {
     priority: 'Medium',
     status: 'Draft',
     automation_status: 'Manual',
-    folder: '',
     steps: [{ action: '', expected: '', testData: '' }]
   }
   tagsInput.value = ''
@@ -257,15 +269,81 @@ async function saveTestCase() {
   }
 
   closeEditor()
+  await store.fetchFoldersTree()
+}
+
+async function deleteTestCase() {
+  if (editingTestCase.value && confirm('Delete this test case?')) {
+    await store.deleteTestCase(editingTestCase.value.id)
+    closeEditor()
+    await store.fetchFoldersTree()
+  }
+}
+
+// Folder handlers
+function handleSelectFolder(folderId) {
+  store.selectFolder(folderId)
+}
+
+async function handleCreateFolder({ parentId, name }) {
+  await store.createFolder(name, parentId)
+}
+
+async function handleRenameFolder({ id, name }) {
+  await store.updateFolder(id, name)
+}
+
+async function handleDeleteFolder(folderId) {
+  await store.deleteFolder(folderId)
+}
+
+async function handleDrop(payload) {
+  if (payload.itemType === 'folder') {
+    await store.moveFolder(payload.itemId, payload.targetFolderId)
+  } else if (payload.itemType === 'testcase') {
+    await store.moveTestCaseToFolder(payload.itemId, payload.targetFolderId)
+  }
+}
+
+function onTestCaseDragStart(e, tc) {
+  e.dataTransfer.setData('application/json', JSON.stringify({
+    itemId: tc.id,
+    itemType: 'testcase',
+  }))
+  e.dataTransfer.effectAllowed = 'move'
 }
 
 onMounted(() => {
   loadTestCases()
-  store.fetchFolders()
+  store.fetchFoldersTree()
 })
 </script>
 
 <style scoped>
+.testcases-layout {
+  display: flex;
+  gap: 20px;
+  margin-top: 16px;
+}
+
+.sidebar {
+  width: 250px;
+  min-width: 250px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 12px;
+  align-self: flex-start;
+  position: sticky;
+  top: 20px;
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+}
+
+.main-area {
+  flex: 1;
+  min-width: 0;
+}
+
 .testcases-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -454,6 +532,10 @@ onMounted(() => {
   margin-top: 20px;
   padding-top: 20px;
   border-top: 1px solid var(--bg-secondary);
+}
+
+.form-actions .btn-danger {
+  margin-right: auto;
 }
 
 .loading {

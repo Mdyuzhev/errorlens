@@ -28,6 +28,7 @@ from app.routers import (
     projects,
     sessions,
     tasks,
+    testcase_folders,
     testcases,
     testruns,
     tests,
@@ -95,6 +96,8 @@ app.add_middleware(
 app.include_router(admin.router)
 app.include_router(auth.router)
 app.include_router(sessions.router)
+app.include_router(testcase_folders.router)  # Must be before testcases (path conflict)
+app.include_router(testcase_folders.move_router)  # /testcases/{id}/move-to-folder
 app.include_router(testcases.router)
 app.include_router(tasks.router)
 app.include_router(article_folders.router)  # Must be before articles (path conflict)

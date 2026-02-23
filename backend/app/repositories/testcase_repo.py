@@ -27,13 +27,30 @@ class TestCaseRepository(BaseRepository[TestCase]):
         """Get all test cases linked to a session."""
         return await self.get_many_by_field("session_id", session_id, skip, limit)
 
+    async def get_by_folder_id(
+        self,
+        folder_id: str,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> list[TestCase]:
+        """Get test cases in a specific tree folder."""
+        query = (
+            select(TestCase)
+            .where(TestCase.folder_id == folder_id)
+            .order_by(desc(TestCase.created_at))
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
     async def get_by_folder(
         self,
         folder: str,
         skip: int = 0,
         limit: int = 100,
     ) -> list[TestCase]:
-        """Get test cases in a specific folder."""
+        """Get test cases in a specific folder (string-based, deprecated)."""
         query = (
             select(TestCase)
             .where(TestCase.folder == folder)
