@@ -2,9 +2,9 @@
 
 import os
 
-# Set DATABASE_URL before any app imports (CI uses PostgreSQL via env)
+# Set DATABASE_URL before any app imports (PostgreSQL only)
 if "DATABASE_URL" not in os.environ:
-    os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./tests/test_errorlens.db"
+    os.environ["DATABASE_URL"] = "postgresql+asyncpg://errorlens:errorlens_secret@localhost:5432/errorlens"
 
 import pytest
 from app.main import app
