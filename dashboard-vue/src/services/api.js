@@ -87,7 +87,14 @@ export const testCasesApi = {
   create: (data) => api.post('/testcases', data),
   update: (id, data) => api.put(`/testcases/${id}`, data),
   delete: (id) => api.delete(`/testcases/${id}`),
-  getFolders: () => api.get('/testcases/folders/list')
+  getFolders: () => api.get('/testcases/folders/list'),
+  // Tree folders
+  getFoldersTree: (params) => api.get('/testcases/folders', { params }),
+  createFolder: (data) => api.post('/testcases/folders', data),
+  updateFolder: (id, data) => api.put(`/testcases/folders/${id}`, data),
+  deleteFolder: (id) => api.delete(`/testcases/folders/${id}`),
+  moveFolder: (id, data) => api.post(`/testcases/folders/${id}/move`, data),
+  moveTestCaseToFolder: (id, data) => api.post(`/testcases/${id}/move-to-folder`, data),
 }
 
 // Tasks API

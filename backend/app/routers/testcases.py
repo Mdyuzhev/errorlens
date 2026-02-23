@@ -21,6 +21,7 @@ class TestCaseCreate(BaseModel):
     status: str = "Draft"
     automation_status: str = "Manual"
     folder: str | None = None
+    folder_id: str | None = None
     tags: list[str] = []
     steps: list[dict] = []
     session_id: str | None = None
@@ -42,6 +43,7 @@ class TestCaseUpdate(BaseModel):
 @router.get("")
 async def list_testcases(
     folder: str | None = None,
+    folder_id: str | None = None,
     status: str | None = None,
     priority: str | None = None,
     limit: int = 50,
@@ -53,6 +55,7 @@ async def list_testcases(
     service = TestCaseService(db)
     return await service.list_testcases(
         folder=folder,
+        folder_id=folder_id,
         status=status,
         priority=priority,
         limit=limit,
@@ -139,6 +142,7 @@ async def create_testcase(
         status=data.status,
         automation_status=data.automation_status,
         folder=data.folder,
+        folder_id=data.folder_id,
         tags=data.tags,
         steps=data.steps,
         session_id=data.session_id,
