@@ -4,7 +4,7 @@ Multi-tenancy: Articles are filtered by project_id.
 Users can only access articles in projects they own or are members of.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,7 @@ from app.middleware.jwt_auth import (
     require_auth,
 )
 from app.models.user import User
+from app.services.article_import_service import ArticleImportService
 from app.services.article_service import ArticleService
 
 router = APIRouter(prefix="/articles", tags=["articles"])
@@ -90,6 +91,64 @@ async def list_categories(
 
     service = ArticleService(db)
     return await service.get_categories(project_id=filter_project_id)
+
+
+@router.post("/import")
+async def import_article(
+    file: UploadFile = File(...),
+    folder_id: str | None = Form(default=None),
+    category: str | None = Form(default=None),
+    status: str = Form(default="draft"),
+    tags: str = Form(default=""),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """Import article from .md or .docx file (quick import as draft)."""
+    # Determine project
+    default_project = await get_default_project(user, db)
+    if not default_project:
+        raise HTTPException(
+            status_code=400, detail="No default project found"
+        )
+    project_id = default_project.id
+
+    tags_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
+
+    service = ArticleImportService(db)
+    article, warnings = await service.import_from_file(
+        file=file,
+        folder_id=folder_id,
+        project_id=project_id,
+        author=user.username,
+        created_by=user.id,
+        category=category,
+        status=status,
+        tags=tags_list,
+    )
+
+    return {
+        "id": article.id,
+        "title": article.title,
+        "slug": article.slug,
+        "content_length": len(article.content or ""),
+        "warnings": warnings,
+    }
+
+
+@router.post("/import/preview")
+async def import_article_preview(
+    file: UploadFile = File(...),
+    _user: User = Depends(require_auth),
+):
+    """Parse file and return title + content without creating article."""
+    service = ArticleImportService(None)  # type: ignore[arg-type]
+    title, content, warnings = await service.preview_file(file)
+
+    return {
+        "title": title,
+        "content": content,
+        "warnings": warnings,
+    }
 
 
 @router.get("/{article_id}")
