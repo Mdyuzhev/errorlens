@@ -129,16 +129,32 @@
           <div class="form-group">
             <div class="content-label-row">
               <label>Content (Markdown)</label>
-              <button type="button" class="btn-import-small" @click="triggerEditorImport" :disabled="importing">
-                {{ importing ? 'Loading...' : 'Import from file' }}
-              </button>
+              <div class="editor-toolbar">
+                <button type="button" class="btn-import-small" @click="triggerImageUpload" :disabled="uploadingImage">
+                  {{ uploadingImage ? 'Uploading...' : 'Upload Image' }}
+                </button>
+                <button type="button" class="btn-import-small" @click="triggerEditorImport" :disabled="importing">
+                  {{ importing ? 'Loading...' : 'Import from file' }}
+                </button>
+              </div>
             </div>
             <textarea
+              ref="contentTextarea"
               v-model="form.content"
               rows="15"
               placeholder="Write your article in Markdown..."
               class="content-editor"
+              @paste="handleImagePaste"
+              @drop.prevent="handleImageDrop"
+              @dragover.prevent
             ></textarea>
+            <input
+              ref="imageFileInput"
+              type="file"
+              accept="image/*"
+              style="display: none"
+              @change="handleImageFileSelect"
+            />
           </div>
 
           <div class="form-group">
@@ -201,8 +217,11 @@ const showEditor = ref(false)
 const editingArticle = ref(null)
 const viewingArticle = ref(null)
 const importing = ref(false)
+const uploadingImage = ref(false)
 const importFileInput = ref(null)
 const editorFileInput = ref(null)
+const imageFileInput = ref(null)
+const contentTextarea = ref(null)
 const notification = ref(null)
 
 const filters = ref({
@@ -232,6 +251,7 @@ const renderedContent = computed(() => {
     .replace(/^### (.*$)/gim, '<h3>$1</h3>')
     .replace(/^## (.*$)/gim, '<h2>$1</h2>')
     .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<img src="$2" alt="$1" class="article-image" loading="lazy">')
     .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/gim, '<em>$1</em>')
     .replace(/`([^`]+)`/gim, '<code>$1</code>')
@@ -422,6 +442,80 @@ async function handleEditorImport(event) {
   }
 }
 
+// Image upload helpers
+function triggerImageUpload() {
+  imageFileInput.value?.click()
+}
+
+async function uploadImageFile(file) {
+  uploadingImage.value = true
+  const formData = new FormData()
+  formData.append('file', file)
+  if (editingArticle.value?.id) {
+    formData.append('article_id', editingArticle.value.id)
+  }
+
+  try {
+    const response = await articlesApi.uploadImage(formData)
+    const { url, filename } = response.data
+    insertAtCursor(`![${filename}](${url})\n`)
+  } catch (err) {
+    alert(err.response?.data?.detail || 'Image upload failed')
+  } finally {
+    uploadingImage.value = false
+  }
+}
+
+function handleImageFileSelect(event) {
+  const file = event.target.files?.[0]
+  if (file) uploadImageFile(file)
+  event.target.value = ''
+}
+
+function handleImagePaste(event) {
+  const items = event.clipboardData?.items
+  if (!items) return
+
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      event.preventDefault()
+      const file = item.getAsFile()
+      if (file) uploadImageFile(file)
+      return
+    }
+  }
+}
+
+function handleImageDrop(event) {
+  const files = event.dataTransfer?.files
+  if (!files) return
+
+  for (const file of files) {
+    if (file.type.startsWith('image/')) {
+      uploadImageFile(file)
+    }
+  }
+}
+
+function insertAtCursor(text) {
+  const textarea = contentTextarea.value
+  if (!textarea) {
+    form.value.content += text
+    return
+  }
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const before = form.value.content.substring(0, start)
+  const after = form.value.content.substring(end)
+  form.value.content = before + text + after
+  // Restore cursor position after Vue re-renders
+  const newPos = start + text.length
+  requestAnimationFrame(() => {
+    textarea.selectionStart = textarea.selectionEnd = newPos
+    textarea.focus()
+  })
+}
+
 function onArticleDragStart(e, article) {
   e.dataTransfer.setData('application/json', JSON.stringify({
     itemId: article.id,
@@ -603,6 +697,19 @@ onMounted(() => {
 .article-content :deep(pre code) {
   background: none;
   padding: 0;
+}
+
+.article-content :deep(.article-image) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 16px 0;
+  display: block;
+}
+
+.editor-toolbar {
+  display: flex;
+  gap: 6px;
 }
 
 .article-actions {

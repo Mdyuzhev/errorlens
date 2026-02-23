@@ -43,6 +43,7 @@ from app.models.db_models import (
     Task,
     ArticleFolder,
     Article,
+    ArticleImage,
     TestRun,
 )
 from app.models.user import User

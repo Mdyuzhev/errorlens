@@ -402,6 +402,47 @@ class Article(Base):
     article_folder: Mapped[Optional["ArticleFolder"]] = relationship(
         "ArticleFolder", back_populates="articles"
     )
+    images: Mapped[list["ArticleImage"]] = relationship(
+        "ArticleImage", back_populates="article"
+    )
+
+
+class ArticleImage(Base):
+    """Image attached to an article, stored in S3/MinIO."""
+
+    __tablename__ = "article_images"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    object_key: Mapped[str] = mapped_column(String(500), unique=True)
+    original_filename: Mapped[str] = mapped_column(String(500))
+    content_type: Mapped[str] = mapped_column(String(100))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Multi-tenancy
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE")
+    )
+
+    # Link to article (optional — image can be orphan before insertion)
+    article_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("articles.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # Audit
+    uploaded_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    project: Mapped["Project"] = relationship("Project")
+    article: Mapped[Optional["Article"]] = relationship("Article", back_populates="images")
+
+    def __repr__(self) -> str:
+        return f"<ArticleImage {self.object_key}>"
 
 
 class TestRun(Base):
