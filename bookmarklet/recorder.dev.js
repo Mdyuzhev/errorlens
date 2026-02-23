@@ -78,7 +78,7 @@
       GRADIENT: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
     }
   };
-  var PROD_URL = "https://errorlens-production.up.railway.app";
+  var PROD_URL = "http://localhost:3000/api";
   var LOCAL_URL = "http://localhost:8000";
   function detectApiBaseUrl() {
     const userConfig = window.__ERRORLENS_CONFIG__ || {};

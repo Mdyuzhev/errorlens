@@ -1,4 +1,4 @@
-/* ErrorLens Bookmarklet v2.0.0 - 2025-12-08 */
+/* ErrorLens Bookmarklet v2.0.0 - 2025-12-09 */
 var ErrorLens = (() => {
   // src/core/state.js
   var state = {
@@ -79,9 +79,9 @@ var ErrorLens = (() => {
       GRADIENT: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
     }
   };
-  var PROD_URL = "https://errorlens-production.up.railway.app";
+  var PROD_URL = "http://localhost:3000/api";
   var LOCAL_URL = "http://localhost:8000";
-  var LOCAL_DASHBOARD_URL = "http://localhost:3000";
+  var LOCAL_DASHBOARD_URL = "http://localhost:5173";
   function detectApiBaseUrl() {
     const userConfig = window.__ERRORLENS_CONFIG__ || {};
     if (userConfig.apiUrl)

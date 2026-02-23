@@ -1,17 +1,15 @@
-# ErrorLens Full Stack Dockerfile for Railway
-# Multi-stage build: Vue frontend + Python backend
+# ErrorLens Full Stack Dockerfile
+# Multi-stage: Vue frontend + Python backend
 
 # Stage 1: Build Vue dashboard
 FROM node:20-alpine AS frontend-builder
 
 WORKDIR /build
-
-# Copy package files and install dependencies
 COPY dashboard-vue/package*.json ./
 RUN npm ci
-
-# Copy source and build
 COPY dashboard-vue/ ./
+
+# For single-container mode, Vue is served by FastAPI at root
 RUN npm run build
 
 # Stage 2: Python backend with frontend assets
@@ -19,16 +17,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install curl for healthcheck + Java & Maven for REST Assured tests
-RUN apt-get update && apt-get install -y \
-    curl \
-    default-jdk \
-    maven \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set JAVA_HOME
-ENV JAVA_HOME=/usr/lib/jvm/default-java
-ENV PATH="${JAVA_HOME}/bin:${PATH}"
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY backend/requirements.txt .
@@ -41,21 +31,16 @@ COPY backend/app/ ./app/
 COPY backend/alembic.ini ./alembic.ini
 COPY backend/alembic/ ./alembic/
 
-# Create data directory for SQLite (if no PostgreSQL configured)
-RUN mkdir -p /app/data
-
 # Copy built Vue dashboard from frontend stage
 COPY --from=frontend-builder /build/dist/ ./dashboard-vue/dist/
 
 # Copy bookmarklet scripts
-COPY bookmarklet/ ./bookmarklet/
+COPY bookmarklet/recorder.js ./bookmarklet/recorder.js
+COPY bookmarklet/recorder.min.js ./bookmarklet/recorder.min.js
 
-# Expose port
 EXPOSE 8000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Run with uvicorn
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
