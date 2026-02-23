@@ -77,7 +77,7 @@ export const sessionsApi = {
     if (subformat) url += `?format=${subformat}`
     return api.get(url, { responseType: 'blob' })
   },
-  analyze: (id) => api.post(`/analyze/session/${id}`)
+  analyze: (id) => api.post('/analyze/rerun', { session_id: id })
 }
 
 // Test Cases API

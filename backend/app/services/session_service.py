@@ -159,6 +159,7 @@ class SessionService:
         offset: int = 0,
         mode: str | None = None,
         project_id: str | None = None,
+        include_unassigned: bool = True,
     ) -> dict[str, Any]:
         """
         Get paginated list of sessions.
@@ -168,16 +169,17 @@ class SessionService:
             offset: Number of sessions to skip
             mode: Filter by record_mode ('errors' or 'all')
             project_id: Filter by project ID for multi-tenancy
+            include_unassigned: Also include sessions without project_id
 
         Returns:
             Dict with items, total, limit, offset
         """
         # Get total count (filtered by project_id)
-        total = await self.repo.count(project_id=project_id)
+        total = await self.repo.count(project_id=project_id, include_unassigned=include_unassigned)
 
         # Get sessions with data (filtered by project_id)
         sessions = await self.repo.get_recent(
-            limit=limit, skip=offset, mode=mode, project_id=project_id
+            limit=limit, skip=offset, mode=mode, project_id=project_id, include_unassigned=include_unassigned
         )
 
         items = []

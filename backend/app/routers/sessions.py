@@ -150,6 +150,7 @@ async def create_session(
 @router.get("", response_model=SessionListResponse)
 async def list_sessions(
     project_id: str | None = Query(default=None, description="Filter by project ID"),
+    include_unassigned: bool = Query(default=True, description="Include sessions without project"),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -160,6 +161,7 @@ async def list_sessions(
 
     If project_id is provided, filters by that project (requires access).
     If project_id is None, returns sessions from user's default project.
+    If include_unassigned is True, also includes sessions without project_id.
     Returns 403 if user has no access to the specified project.
     """
     # Determine which project to use
@@ -173,7 +175,12 @@ async def list_sessions(
         filter_project_id = default_project.id if default_project else None
 
     service = SessionService(db)
-    result = await service.list_sessions(limit=limit, offset=offset, project_id=filter_project_id)
+    result = await service.list_sessions(
+        limit=limit,
+        offset=offset,
+        project_id=filter_project_id,
+        include_unassigned=include_unassigned,
+    )
     return SessionListResponse(**result)
 
 

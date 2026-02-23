@@ -12,7 +12,7 @@
       <div class="spinner"></div>
     </div>
 
-    <div v-else class="kanban-board">
+    <div v-else class="kanban-board" data-testid="kanban-board">
       <div
         v-for="column in columns"
         :key="column.id"

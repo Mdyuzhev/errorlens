@@ -3,9 +3,9 @@
     <h1>Settings</h1>
 
     <div class="settings-grid">
-      <!-- User Info -->
-      <div class="settings-card">
-        <h2>Account</h2>
+      <!-- Profile Section -->
+      <div class="settings-card" data-testid="profile-section">
+        <h2>Profile</h2>
         <div class="setting-item">
           <label>Username</label>
           <span class="value">{{ auth.user?.username }}</span>
@@ -16,9 +16,24 @@
         </div>
       </div>
 
-      <!-- API Info -->
-      <div class="settings-card">
-        <h2>API</h2>
+      <!-- Theme Settings -->
+      <div class="settings-card" data-testid="theme-section">
+        <h2>Theme</h2>
+        <div class="setting-item">
+          <label>Dark Mode</label>
+          <button
+            class="theme-toggle"
+            data-testid="theme-toggle"
+            @click="toggleTheme"
+          >
+            {{ isDarkMode ? '🌙 Dark' : '☀️ Light' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- API Key Section -->
+      <div class="settings-card" data-testid="api-key-section">
+        <h2>API Key</h2>
         <div class="setting-item">
           <label>API URL</label>
           <span class="value code">{{ apiUrl }}</span>
@@ -141,6 +156,13 @@ const auth = useAuthStore()
 
 const apiUrl = import.meta.env.VITE_API_URL || '/api'
 const apiStatus = ref('Checking...')
+const isDarkMode = ref(true)
+
+function toggleTheme() {
+  isDarkMode.value = !isDarkMode.value
+  document.documentElement.classList.toggle('light-mode', !isDarkMode.value)
+  localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light')
+}
 
 const bookmarkletCode = ref('')
 const shortBookmarkletCode = ref('')
@@ -449,5 +471,20 @@ function copyBookmarklet() {
 .btn-primary:hover {
   transform: scale(1.05);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.theme-toggle {
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.theme-toggle:hover {
+  background: var(--accent);
+  color: white;
 }
 </style>

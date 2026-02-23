@@ -31,7 +31,7 @@
       <p class="hint">Create your first article</p>
     </div>
 
-    <div v-else class="articles-grid">
+    <div v-else class="articles-grid" data-testid="articles-list">
       <div
         v-for="article in articles"
         :key="article.id"

@@ -4,18 +4,21 @@
       <button
         :class="{ active: modelValue === 'swagger' }"
         @click="selectTab('swagger')"
+        data-testid="tab-swagger"
       >
         📄 Swagger/OpenAPI
       </button>
       <button
         :class="{ active: modelValue === 'session' }"
         @click="selectTab('session')"
+        data-testid="tab-session"
       >
         📹 Из сессии
       </button>
       <button
         :class="{ active: modelValue === 'url' }"
         @click="selectTab('url')"
+        data-testid="tab-url"
       >
         🔗 URL endpoint
       </button>

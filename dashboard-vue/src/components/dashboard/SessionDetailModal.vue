@@ -1,6 +1,6 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-content modal-large">
+  <div class="modal-overlay modal" data-testid="session-detail-modal" @click.self="$emit('close')">
+    <div class="modal-content modal-large session-detail">
       <button class="modal-close" @click="$emit('close')">&times;</button>
 
       <h2>{{ session.url }}</h2>
