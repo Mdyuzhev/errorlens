@@ -107,7 +107,14 @@ export const articlesApi = {
   create: (data) => api.post('/articles', data),
   update: (id, data) => api.put(`/articles/${id}`, data),
   delete: (id) => api.delete(`/articles/${id}`),
-  getCategories: () => api.get('/articles/categories/list')
+  getCategories: () => api.get('/articles/categories/list'),
+  // Folders
+  getFoldersTree: (params) => api.get('/articles/folders', { params }),
+  createFolder: (data) => api.post('/articles/folders', data),
+  updateFolder: (id, data) => api.put(`/articles/folders/${id}`, data),
+  deleteFolder: (id) => api.delete(`/articles/folders/${id}`),
+  moveFolder: (id, data) => api.post(`/articles/folders/${id}/move`, data),
+  moveArticleToFolder: (id, data) => api.post(`/articles/${id}/move-to-folder`, data),
 }
 
 // Test Runs API

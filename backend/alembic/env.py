@@ -41,6 +41,7 @@ from app.models.db_models import (
     AnalysisResult,
     TestCase,
     Task,
+    ArticleFolder,
     Article,
     TestRun,
 )

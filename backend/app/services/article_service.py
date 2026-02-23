@@ -36,6 +36,7 @@ class ArticleService:
         status: str = "draft",
         project_id: str | None = None,
         created_by: str | None = None,
+        folder_id: str | None = None,
     ) -> Article:
         """Create new article with unique slug."""
         slug = slugify(title)
@@ -56,6 +57,7 @@ class ArticleService:
             "author": author,
             "project_id": project_id,
             "created_by": created_by,
+            "folder_id": folder_id,
             "published_at": datetime.utcnow() if status == "published" else None,
         }
 
@@ -83,12 +85,18 @@ class ArticleService:
         category: str | None = None,
         status: str | None = None,
         tag: str | None = None,
+        folder_id: str | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
         """List articles with filters."""
         articles = await self.repo.list_with_filters(
-            project_id=project_id, category=category, status=status, limit=limit, offset=offset
+            project_id=project_id,
+            category=category,
+            status=status,
+            folder_id=folder_id,
+            limit=limit,
+            offset=offset,
         )
 
         # Filter by tag (post-filter for JSON field)
@@ -138,6 +146,7 @@ class ArticleService:
             "status": article.status,
             "author": article.author,
             "project_id": article.project_id,
+            "folder_id": article.folder_id,
             "created_at": article.created_at.isoformat() if article.created_at else None,
             "views": article.views,
         }

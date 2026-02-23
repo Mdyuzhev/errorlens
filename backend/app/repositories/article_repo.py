@@ -26,10 +26,11 @@ class ArticleRepository(BaseRepository[Article]):
         project_id: str | None = None,
         category: str | None = None,
         status: str | None = None,
+        folder_id: str | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list[Article]:
-        """List articles with filters including project_id."""
+        """List articles with filters including project_id and folder_id."""
         query = select(Article).order_by(Article.created_at.desc())
 
         # Filter by project_id for multi-tenancy
@@ -40,6 +41,11 @@ class ArticleRepository(BaseRepository[Article]):
             query = query.where(Article.category == category)
         if status:
             query = query.where(Article.status == status)
+        if folder_id is not None:
+            if folder_id == "root":
+                query = query.where(Article.folder_id.is_(None))
+            else:
+                query = query.where(Article.folder_id == folder_id)
 
         query = query.limit(limit).offset(offset)
         result = await self.session.execute(query)

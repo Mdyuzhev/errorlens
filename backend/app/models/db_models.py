@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -61,6 +61,9 @@ class Project(Base):
     )
     articles: Mapped[list["Article"]] = relationship(
         "Article", back_populates="project", cascade="all, delete-orphan"
+    )
+    article_folders: Mapped[list["ArticleFolder"]] = relationship(
+        "ArticleFolder", back_populates="project", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
@@ -310,6 +313,50 @@ class Task(Base):
     project: Mapped[Optional["Project"]] = relationship("Project", back_populates="tasks")
 
 
+class ArticleFolder(Base):
+    """Folder for organizing articles in a tree hierarchy (max depth 3)."""
+
+    __tablename__ = "article_folders"
+    __table_args__ = (
+        UniqueConstraint("name", "parent_id", "project_id", name="uq_article_folder_name_parent_project"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    name: Mapped[str] = mapped_column(String(200))
+
+    # Parent folder (self-reference)
+    parent_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("article_folders.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+
+    # Multi-tenancy
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+
+    # Ordering
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # Relationships
+    project: Mapped["Project"] = relationship("Project", back_populates="article_folders")
+    parent: Mapped[Optional["ArticleFolder"]] = relationship(
+        "ArticleFolder", remote_side=[id], back_populates="children"
+    )
+    children: Mapped[list["ArticleFolder"]] = relationship(
+        "ArticleFolder", back_populates="parent", cascade="all, delete-orphan"
+    )
+    articles: Mapped[list["Article"]] = relationship(
+        "Article", back_populates="article_folder"
+    )
+
+    def __repr__(self) -> str:
+        return f"<ArticleFolder {self.name}>"
+
+
 class Article(Base):
     """Knowledge base article."""
 
@@ -324,6 +371,11 @@ class Article(Base):
     # Multi-tenancy
     project_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True
+    )
+
+    # Folder (tree structure)
+    folder_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("article_folders.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
     # Organization
@@ -347,6 +399,9 @@ class Article(Base):
 
     # Relationships
     project: Mapped[Optional["Project"]] = relationship("Project", back_populates="articles")
+    article_folder: Mapped[Optional["ArticleFolder"]] = relationship(
+        "ArticleFolder", back_populates="articles"
+    )
 
 
 class TestRun(Base):

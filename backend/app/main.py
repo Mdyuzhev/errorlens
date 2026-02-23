@@ -18,6 +18,7 @@ from app.models import db_models, user  # noqa: F401
 from app.routers import (
     admin,
     analysis,
+    article_folders,
     articles,
     auth,
     exports,
@@ -95,6 +96,8 @@ app.include_router(auth.router)
 app.include_router(sessions.router)
 app.include_router(testcases.router)
 app.include_router(tasks.router)
+app.include_router(article_folders.router)  # Must be before articles (path conflict)
+app.include_router(article_folders.move_router)  # /articles/{id}/move-to-folder
 app.include_router(articles.router)
 app.include_router(testruns.router)
 app.include_router(exports.router)
