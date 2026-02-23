@@ -122,6 +122,12 @@ export const articlesApi = {
   previewFile: (formData) => api.post('/articles/import/preview', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  // Images
+  uploadImage: (formData) => api.post('/articles/images/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  deleteImage: (imageId) => api.delete(`/articles/images/${imageId}`),
+  getArticleImages: (articleId) => api.get(`/articles/${articleId}/images`),
 }
 
 // Test Runs API

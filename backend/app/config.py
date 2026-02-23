@@ -45,6 +45,19 @@ class Settings(BaseSettings):
     max_screenshot_kb: int = 500
     max_recorded_requests: int = 50
 
+    # MinIO / S3 Storage
+    minio_endpoint: str = "minio:9000"
+    minio_access_key: str = "errorlens"
+    minio_secret_key: str = "errorlens_secret"
+    minio_bucket: str = "article-images"
+    minio_use_ssl: bool = False
+    minio_public_url: str = ""
+    max_image_size_mb: int = 10
+    allowed_image_types: list[str] = [
+        "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"
+    ]
+    image_max_dimension: int = 2048
+
     # TestIt Integration (configure in .env)
     testit_url: str = ""
     testit_token: str = ""

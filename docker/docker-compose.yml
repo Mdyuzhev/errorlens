@@ -16,6 +16,40 @@ services:
       retries: 5
     restart: unless-stopped
 
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-errorlens}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-errorlens_secret}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER:-errorlens} $${MINIO_ROOT_PASSWORD:-errorlens_secret};
+      mc mb --ignore-existing local/article-images;
+      mc anonymous set download local/article-images;
+      exit 0;
+      "
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-errorlens}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-errorlens_secret}
+
   backend:
     build: ../backend
     ports:
@@ -24,8 +58,13 @@ services:
       - ../.env
     environment:
       DATABASE_URL: postgresql+asyncpg://errorlens:${POSTGRES_PASSWORD:-errorlens_secret}@postgres:5432/errorlens
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-errorlens}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-errorlens_secret}
     depends_on:
       postgres:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -47,6 +86,7 @@ services:
 
 volumes:
   postgres_data:
+  minio_data:
 
 # =============================================================================
 # USAGE:
