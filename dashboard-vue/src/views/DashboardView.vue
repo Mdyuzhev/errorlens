@@ -64,8 +64,10 @@ const currentFilter = computed({
 const loading = computed(() => store.loading)
 const filteredSessions = computed(() => store.filteredSessions)
 
-function openSession(session) {
-  selectedSession.value = session
+async function openSession(session) {
+  // Load full session with recorded_requests
+  const fullSession = await store.fetchSession(session.id)
+  selectedSession.value = fullSession || session
   router.push(`/sessions/${session.id}`)
 }
 

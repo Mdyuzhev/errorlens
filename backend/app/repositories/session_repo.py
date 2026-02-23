@@ -38,6 +38,7 @@ class SessionRepository(BaseRepository[Session]):
         skip: int = 0,
         mode: str | None = None,
         project_id: str | None = None,
+        include_unassigned: bool = True,
     ) -> list[Session]:
         """
         Get recent sessions ordered by creation date.
@@ -47,7 +48,10 @@ class SessionRepository(BaseRepository[Session]):
             skip: Number of sessions to skip
             mode: Filter by record_mode
             project_id: Filter by project_id for multi-tenancy
+            include_unassigned: Also include sessions without project_id
         """
+        from sqlalchemy import or_
+
         query = (
             select(Session)
             .options(
@@ -61,11 +65,43 @@ class SessionRepository(BaseRepository[Session]):
             query = query.where(Session.record_mode == mode)
 
         if project_id:
-            query = query.where(Session.project_id == project_id)
+            if include_unassigned:
+                # Include both: sessions with this project_id OR sessions without project_id
+                query = query.where(
+                    or_(Session.project_id == project_id, Session.project_id.is_(None))
+                )
+            else:
+                query = query.where(Session.project_id == project_id)
+        elif not include_unassigned:
+            # No project_id filter but exclude unassigned - return nothing
+            query = query.where(Session.project_id.isnot(None))
 
         query = query.offset(skip).limit(limit)
         result = await self.session.execute(query)
         return list(result.scalars().all())
+
+    async def count(
+        self,
+        project_id: str | None = None,
+        include_unassigned: bool = True,
+    ) -> int:
+        """Count sessions with project filtering."""
+        from sqlalchemy import or_
+
+        query = select(func.count()).select_from(Session)
+
+        if project_id:
+            if include_unassigned:
+                query = query.where(
+                    or_(Session.project_id == project_id, Session.project_id.is_(None))
+                )
+            else:
+                query = query.where(Session.project_id == project_id)
+        elif not include_unassigned:
+            query = query.where(Session.project_id.isnot(None))
+
+        result = await self.session.execute(query)
+        return result.scalar() or 0
 
     async def get_by_url_pattern(
         self,

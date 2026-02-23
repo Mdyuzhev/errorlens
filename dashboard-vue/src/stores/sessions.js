@@ -30,7 +30,8 @@ export const useSessionsStore = defineStore('sessions', {
 
       try {
         const response = await sessionsApi.list()
-        this.sessions = response.data
+        // API returns { items: [...], total: N }, extract items
+        this.sessions = response.data.items || response.data
       } catch (error) {
         this.error = error.response?.data?.detail || 'Failed to load sessions'
       } finally {

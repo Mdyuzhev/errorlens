@@ -10,6 +10,8 @@ RUN npm ci
 COPY dashboard-vue/ ./
 
 # For single-container mode, Vue is served by FastAPI at root
+ENV VITE_BASE=/
+ENV VITE_API_URL=
 RUN npm run build
 
 # Stage 2: Python backend with frontend assets

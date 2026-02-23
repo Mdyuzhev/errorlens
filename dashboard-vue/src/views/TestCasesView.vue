@@ -40,7 +40,7 @@
       <p class="hint">Create from session or manually</p>
     </div>
 
-    <div v-else class="testcases-grid">
+    <div v-else class="testcases-grid" data-testid="testcases-list">
       <div
         v-for="tc in testCases"
         :key="tc.id"

@@ -4,14 +4,14 @@
   },
   "project": {
     "name": "ErrorLens",
-    "production": "https://errorlens-production.up.railway.app",
     "repo": "github.com/Mdyuzhev/errorlens"
   },
   "stack": {
     "backend": "Python 3.11 + FastAPI + SQLAlchemy async",
-    "database": "PostgreSQL (prod) / SQLite (dev)",
-    "frontend": "Vue 3 + Vite + Pinia",
-    "llm_providers": ["anthropic", "openai", "groq", "gemini", "ollama", "gigachat"]
+    "database": "PostgreSQL 16 (Docker, единственная БД)",
+    "frontend": "Vue 3 + Vite 7 + Pinia + TailwindCSS 4",
+    "llm_providers": ["anthropic", "openai", "groq", "gemini", "ollama", "gigachat"],
+    "infrastructure": "Docker Compose (nginx + backend + postgres)"
   },
   "architecture": {
     "pattern": "Router → Service → Repository → Model",
@@ -39,25 +39,11 @@
   },
   "git": {
     "main": "main",
-    "current": "feature/wave-4",
-    "commit_format": "[Wave X.Y] PX: Description"
-  },
-  "current_wave": {
-    "number": "4.0",
-    "name": "Sharmanka Migration",
-    "phases": {
-      "P1": {"name": "LLM Providers", "tasks": ["anthropic", "openai", "gigachat", "factory", "rate_limiter"]},
-      "P2": {"name": "Input Parsers", "tasks": ["base", "har_input", "swagger_input"]},
-      "P3": {"name": "Generator Core", "tasks": ["prompt_builder", "code_extractor", "test_validator", "llm_generator"]},
-      "P4": {"name": "WebSocket", "tasks": ["manager", "generation_ws"]},
-      "P5": {"name": "API", "tasks": ["generation_service", "generation_router"]},
-      "P6": {"name": "Vue UI", "tasks": ["composable", "store", "components", "view"]},
-      "P7": {"name": "Settings", "tasks": ["llm_settings"]}
-    },
-    "execution_order": ["P1", "P2", "P3", "P4", "P5", "P6", "P7"]
+    "commit_format": "[prefix] Описание на русском",
+    "commit_prefixes": ["backend", "frontend", "docker", "infra", "docs", "test", "fix", "refactor"]
   },
   "instruction_format": {
-    "contains": ["interface_signatures", "requirements", "prohibited_patterns", "test_cases"],
+    "contains": ["interface_signatures", "requirements_tables", "prohibited_patterns", "test_cases"],
     "does_not_contain": ["full_implementations", "copy_paste_code"],
     "agent_behavior": "write_code_independently"
   },
@@ -78,6 +64,7 @@
     "in_memory_state_distributed",
     "commit_without_tests",
     "files_over_500_loc",
-    "ask_confirmation"
+    "ask_confirmation",
+    "sqlite_usage"
   ]
 }

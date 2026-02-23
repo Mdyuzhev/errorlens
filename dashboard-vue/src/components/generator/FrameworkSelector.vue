@@ -6,6 +6,8 @@
         v-for="f in frameworks"
         :key="f.id"
         :class="['framework-card', { selected: modelValue === f.id }]"
+        :data-selected="modelValue === f.id"
+        :data-testid="`framework-${f.id}`"
         @click="$emit('update:modelValue', f.id)"
       >
         <span class="icon">{{ f.icon }}</span>

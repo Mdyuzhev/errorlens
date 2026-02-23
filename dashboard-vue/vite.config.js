@@ -4,7 +4,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/',
+  base: process.env.VITE_BASE || '/',
   plugins: [vue()],
   resolve: {
     alias: {
@@ -12,6 +12,8 @@ export default defineConfig({
     }
   },
   server: {
+    port: 5173,
+    strictPort: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
