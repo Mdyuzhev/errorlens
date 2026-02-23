@@ -7,50 +7,72 @@
       </button>
     </div>
 
-    <!-- Filters -->
-    <div class="filters">
-      <select v-model="filters.category" @change="loadArticles">
-        <option value="">All Categories</option>
-        <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
-      </select>
+    <div class="articles-layout">
+      <!-- Sidebar: Folder Tree -->
+      <aside class="sidebar">
+        <FolderTree
+          :folders="folders"
+          :selected-folder-id="store.selectedFolderId"
+          :expanded-ids="store.expandedFolders"
+          @select="handleSelectFolder"
+          @toggle="store.toggleFolder($event)"
+          @create="handleCreateFolder"
+          @rename="handleRenameFolder"
+          @delete="handleDeleteFolder"
+          @drop="handleDrop"
+        />
+      </aside>
 
-      <select v-model="filters.status" @change="loadArticles">
-        <option value="">All Statuses</option>
-        <option value="draft">Draft</option>
-        <option value="published">Published</option>
-      </select>
-    </div>
+      <!-- Main Area -->
+      <div class="main-area">
+        <!-- Filters -->
+        <div class="filters">
+          <select v-model="filters.category" @change="loadArticles">
+            <option value="">All Categories</option>
+            <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
+          </select>
 
-    <!-- Articles Grid -->
-    <div v-if="loading" class="loading">
-      <div class="spinner"></div>
-    </div>
-
-    <div v-else-if="articles.length === 0" class="empty-state">
-      <p>No articles yet</p>
-      <p class="hint">Create your first article</p>
-    </div>
-
-    <div v-else class="articles-grid" data-testid="articles-list">
-      <div
-        v-for="article in articles"
-        :key="article.id"
-        class="article-card"
-        @click="openArticle(article)"
-      >
-        <div class="article-status" :class="article.status">
-          {{ article.status }}
+          <select v-model="filters.status" @change="loadArticles">
+            <option value="">All Statuses</option>
+            <option value="draft">Draft</option>
+            <option value="published">Published</option>
+          </select>
         </div>
-        <h3>{{ article.title }}</h3>
-        <p class="excerpt">{{ article.excerpt || 'No preview available' }}</p>
-        <div class="article-meta">
-          <span class="category">{{ article.category || 'Uncategorized' }}</span>
-          <span class="views">{{ article.views }} views</span>
+
+        <!-- Articles Grid -->
+        <div v-if="loading" class="loading">
+          <div class="spinner"></div>
         </div>
-        <div v-if="article.tags?.length" class="tags">
-          <span v-for="tag in article.tags.slice(0, 3)" :key="tag" class="tag">
-            {{ tag }}
-          </span>
+
+        <div v-else-if="articles.length === 0" class="empty-state">
+          <p>No articles yet</p>
+          <p class="hint">Create your first article</p>
+        </div>
+
+        <div v-else class="articles-grid" data-testid="articles-list">
+          <div
+            v-for="article in articles"
+            :key="article.id"
+            class="article-card"
+            :draggable="true"
+            @click="openArticle(article)"
+            @dragstart="onArticleDragStart($event, article)"
+          >
+            <div class="article-status" :class="article.status">
+              {{ article.status }}
+            </div>
+            <h3>{{ article.title }}</h3>
+            <p class="excerpt">{{ article.excerpt || 'No preview available' }}</p>
+            <div class="article-meta">
+              <span class="category">{{ article.category || 'Uncategorized' }}</span>
+              <span class="views">{{ article.views }} views</span>
+            </div>
+            <div v-if="article.tags?.length" class="tags">
+              <span v-for="tag in article.tags.slice(0, 3)" :key="tag" class="tag">
+                {{ tag }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -144,6 +166,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useArticlesStore } from '@/stores/articles'
+import FolderTree from '@/components/articles/FolderTree.vue'
 
 const store = useArticlesStore()
 
@@ -168,6 +191,7 @@ const tagsInput = ref('')
 const loading = computed(() => store.loading)
 const articles = computed(() => store.articles)
 const categories = computed(() => store.categories)
+const folders = computed(() => store.folders)
 
 // Simple markdown renderer
 const renderedContent = computed(() => {
@@ -260,13 +284,71 @@ function formatDate(date) {
   return new Date(date).toLocaleDateString()
 }
 
+// Folder handlers
+function handleSelectFolder(folderId) {
+  store.selectFolder(folderId)
+}
+
+async function handleCreateFolder({ parentId, name }) {
+  await store.createFolder(name, parentId)
+}
+
+async function handleRenameFolder({ id, name }) {
+  await store.updateFolder(id, name)
+}
+
+async function handleDeleteFolder(folderId) {
+  await store.deleteFolder(folderId)
+}
+
+async function handleDrop(payload) {
+  if (payload.itemType === 'folder') {
+    await store.moveFolder(payload.itemId, payload.targetFolderId)
+  } else if (payload.itemType === 'article') {
+    await store.moveArticleToFolder(payload.itemId, payload.targetFolderId)
+  }
+}
+
+function onArticleDragStart(e, article) {
+  e.dataTransfer.setData('application/json', JSON.stringify({
+    itemId: article.id,
+    itemType: 'article',
+  }))
+  e.dataTransfer.effectAllowed = 'move'
+}
+
 onMounted(() => {
   loadArticles()
   store.fetchCategories()
+  store.fetchFoldersTree()
 })
 </script>
 
 <style scoped>
+.articles-layout {
+  display: flex;
+  gap: 20px;
+  margin-top: 16px;
+}
+
+.sidebar {
+  width: 250px;
+  min-width: 250px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 12px;
+  align-self: flex-start;
+  position: sticky;
+  top: 20px;
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+}
+
+.main-area {
+  flex: 1;
+  min-width: 0;
+}
+
 .articles-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));

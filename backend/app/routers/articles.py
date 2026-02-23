@@ -28,6 +28,7 @@ class ArticleCreate(BaseModel):
     tags: list[str] = []
     status: str = "draft"
     project_id: str | None = None  # Required for multi-tenancy
+    folder_id: str | None = None
 
 
 class ArticleUpdate(BaseModel):
@@ -42,6 +43,7 @@ class ArticleUpdate(BaseModel):
 @router.get("")
 async def list_articles(
     project_id: str | None = Query(default=None, description="Filter by project ID"),
+    folder_id: str | None = Query(default=None, description="Filter by folder ID"),
     category: str | None = None,
     status: str | None = None,
     tag: str | None = None,
@@ -64,7 +66,11 @@ async def list_articles(
 
     service = ArticleService(db)
     return await service.list_articles(
-        project_id=filter_project_id, category=category, status=status, tag=tag
+        project_id=filter_project_id,
+        category=category,
+        status=status,
+        tag=tag,
+        folder_id=folder_id,
     )
 
 
@@ -144,6 +150,7 @@ async def create_article(
         status=data.status,
         project_id=project_id,
         created_by=user.id,
+        folder_id=data.folder_id,
     )
     return {"id": article.id, "slug": article.slug}
 
