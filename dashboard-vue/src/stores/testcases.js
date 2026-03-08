@@ -9,6 +9,8 @@ export const useTestCasesStore = defineStore('testcases', {
     treeFolders: [],      // Nested tree structure (new)
     expandedFolders: new Set(),
     selectedFolderId: null,
+    selectedTestCaseId: null,
+    panelMode: null,       // 'view' | 'edit' | null
     loading: false,
     error: null,
     filters: {
@@ -180,6 +182,22 @@ export const useTestCasesStore = defineStore('testcases', {
       this.selectedFolderId = id
       this.filters.folder = ''
       this.fetchTestCases()
+    },
+
+    async openTestCase(id) {
+      this.selectedTestCaseId = id
+      this.panelMode = 'edit'
+      const cached = this.testCases.find(tc => tc.id === id)
+      if (cached) {
+        this.currentTestCase = cached
+      }
+      await this.fetchTestCase(id)
+    },
+
+    closePanel() {
+      this.selectedTestCaseId = null
+      this.panelMode = null
+      this.currentTestCase = null
     },
 
     setFilter(key, value) {
