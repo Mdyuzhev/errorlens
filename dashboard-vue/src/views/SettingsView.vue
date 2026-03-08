@@ -2,145 +2,187 @@
   <div class="settings-page">
     <h1>Settings</h1>
 
-    <div class="settings-grid">
-      <!-- Profile Section -->
-      <div class="settings-card" data-testid="profile-section">
-        <h2>Profile</h2>
-        <div class="setting-item">
-          <label>Username</label>
-          <span class="value">{{ auth.user?.username }}</span>
-        </div>
-        <div class="setting-item">
-          <label>Role</label>
-          <span class="value badge-info">{{ auth.user?.role || 'user' }}</span>
-        </div>
-      </div>
+    <!-- Tab navigation -->
+    <div class="tabs">
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'general' }"
+        @click="activeTab = 'general'"
+      >
+        General
+      </button>
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'projects' }"
+        @click="activeTab = 'projects'"
+      >
+        Projects
+      </button>
+      <button
+        v-if="auth.user?.is_admin"
+        class="tab"
+        :class="{ active: activeTab === 'users' }"
+        @click="activeTab = 'users'"
+      >
+        Users
+      </button>
+    </div>
 
-      <!-- Theme Settings -->
-      <div class="settings-card" data-testid="theme-section">
-        <h2>Theme</h2>
-        <div class="setting-item">
-          <label>Dark Mode</label>
-          <button
-            class="theme-toggle"
-            data-testid="theme-toggle"
-            @click="toggleTheme"
-          >
-            {{ isDarkMode ? '🌙 Dark' : '☀️ Light' }}
-          </button>
-        </div>
-      </div>
-
-      <!-- API Key Section -->
-      <div class="settings-card" data-testid="api-key-section">
-        <h2>API Key</h2>
-        <div class="setting-item">
-          <label>API URL</label>
-          <span class="value code">{{ apiUrl }}</span>
-        </div>
-        <div class="setting-item">
-          <label>Status</label>
-          <span class="value" :class="apiStatus === 'OK' ? 'badge-success' : 'badge-error'">
-            {{ apiStatus }}
-          </span>
-        </div>
-      </div>
-
-      <!-- Bookmarklet with Onboarding -->
-      <div class="settings-card bookmarklet-card" :class="{ 'onboarding-active': showOnboarding }">
-        <div class="card-header">
-          <h2>Bookmarklet</h2>
-          <button
-            v-if="!showOnboarding"
-            class="help-btn"
-            @click="startOnboarding"
-            title="Show tutorial"
-          >
-            ?
-          </button>
+    <!-- General tab -->
+    <div v-if="activeTab === 'general'" class="tab-content">
+      <div class="settings-grid">
+        <!-- Profile Section -->
+        <div class="settings-card" data-testid="profile-section">
+          <h2>Profile</h2>
+          <div class="setting-item">
+            <label>Username</label>
+            <span class="value">{{ auth.user?.username }}</span>
+          </div>
+          <div class="setting-item">
+            <label>Role</label>
+            <span class="value badge-info">{{ auth.user?.role || 'user' }}</span>
+          </div>
         </div>
 
-        <!-- Onboarding overlay -->
-        <div v-if="showOnboarding" class="onboarding-overlay">
-          <div class="onboarding-step" :class="{ active: onboardingStep === 1 }">
-            <div class="step-number">1</div>
-            <div class="step-content">
-              <h3>Перетащите в закладки</h3>
-              <p>Перетащите фиолетовую кнопку "ErrorLens" на панель закладок браузера</p>
+        <!-- Theme Settings -->
+        <div class="settings-card" data-testid="theme-section">
+          <h2>Theme</h2>
+          <div class="setting-item">
+            <label>Dark Mode</label>
+            <button
+              class="theme-toggle"
+              data-testid="theme-toggle"
+              @click="toggleTheme"
+            >
+              {{ isDarkMode ? '🌙 Dark' : '☀️ Light' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- API Key Section -->
+        <div class="settings-card" data-testid="api-key-section">
+          <h2>API Key</h2>
+          <div class="setting-item">
+            <label>API URL</label>
+            <span class="value code">{{ apiUrl }}</span>
+          </div>
+          <div class="setting-item">
+            <label>Status</label>
+            <span class="value" :class="apiStatus === 'OK' ? 'badge-success' : 'badge-error'">
+              {{ apiStatus }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Bookmarklet with Onboarding -->
+        <div class="settings-card bookmarklet-card" :class="{ 'onboarding-active': showOnboarding }">
+          <div class="card-header">
+            <h2>Bookmarklet</h2>
+            <button
+              v-if="!showOnboarding"
+              class="help-btn"
+              @click="startOnboarding"
+              title="Show tutorial"
+            >
+              ?
+            </button>
+          </div>
+
+          <!-- Onboarding overlay -->
+          <div v-if="showOnboarding" class="onboarding-overlay">
+            <div class="onboarding-step" :class="{ active: onboardingStep === 1 }">
+              <div class="step-number">1</div>
+              <div class="step-content">
+                <h3>Перетащите в закладки</h3>
+                <p>Перетащите фиолетовую кнопку "ErrorLens" на панель закладок браузера</p>
+              </div>
+            </div>
+            <div class="onboarding-step" :class="{ active: onboardingStep === 2 }">
+              <div class="step-number">2</div>
+              <div class="step-content">
+                <h3>Откройте любой сайт</h3>
+                <p>Перейдите на сайт, который хотите протестировать на ошибки</p>
+              </div>
+            </div>
+            <div class="onboarding-step" :class="{ active: onboardingStep === 3 }">
+              <div class="step-number">3</div>
+              <div class="step-content">
+                <h3>Нажмите букмарклет</h3>
+                <p>Кликните на закладку ErrorLens чтобы начать запись ошибок и запросов</p>
+              </div>
+            </div>
+            <div class="onboarding-controls">
+              <button v-if="onboardingStep > 1" class="btn btn--ghost" @click="onboardingStep--">
+                Назад
+              </button>
+              <button v-if="onboardingStep < 3" class="btn btn-primary" @click="onboardingStep++">
+                Далее
+              </button>
+              <button v-else class="btn btn-primary" @click="finishOnboarding">
+                Понятно!
+              </button>
             </div>
           </div>
-          <div class="onboarding-step" :class="{ active: onboardingStep === 2 }">
-            <div class="step-number">2</div>
-            <div class="step-content">
-              <h3>Откройте любой сайт</h3>
-              <p>Перейдите на сайт, который хотите протестировать на ошибки</p>
+
+          <!-- Normal content -->
+          <div v-else>
+            <p class="hint">Перетащите кнопку ниже на панель закладок:</p>
+            <a
+              :href="bookmarkletCode"
+              class="bookmarklet-btn"
+              @click.prevent
+              draggable="true"
+            >
+              ErrorLens
+            </a>
+            <p class="hint" style="margin-top: 16px;">
+              Или скопируйте короткий код загрузчика:
+            </p>
+            <div class="code-display">
+              <code>{{ shortBookmarkletCode }}</code>
+              <button class="copy-btn" @click="copyBookmarklet" :class="{ copied: justCopied }">
+                {{ justCopied ? '✓' : 'Копировать' }}
+              </button>
             </div>
           </div>
-          <div class="onboarding-step" :class="{ active: onboardingStep === 3 }">
-            <div class="step-number">3</div>
-            <div class="step-content">
-              <h3>Нажмите букмарклет</h3>
-              <p>Кликните на закладку ErrorLens чтобы начать запись ошибок и запросов</p>
-            </div>
+        </div>
+
+        <!-- About -->
+        <div class="settings-card">
+          <h2>About</h2>
+          <div class="setting-item">
+            <label>Version</label>
+            <span class="value">2.0.0</span>
           </div>
-          <div class="onboarding-controls">
-            <button v-if="onboardingStep > 1" class="btn btn-ghost" @click="onboardingStep--">
-              Назад
-            </button>
-            <button v-if="onboardingStep < 3" class="btn btn-primary" @click="onboardingStep++">
-              Далее
-            </button>
-            <button v-else class="btn btn-primary" @click="finishOnboarding">
-              Понятно!
-            </button>
+          <div class="setting-item">
+            <label>Repository</label>
+            <a href="https://github.com/Mdyuzhev/errorlens" target="_blank" class="value link">
+              github.com/Mdyuzhev/errorlens
+            </a>
+          </div>
+          <div class="setting-item">
+            <label>Stack</label>
+            <span class="value">Vue 3 + FastAPI + PostgreSQL</span>
           </div>
         </div>
 
-        <!-- Normal content -->
-        <div v-else>
-          <p class="hint">Перетащите кнопку ниже на панель закладок:</p>
-          <a
-            :href="bookmarkletCode"
-            class="bookmarklet-btn"
-            @click.prevent
-            draggable="true"
-          >
-            ErrorLens
-          </a>
-          <p class="hint" style="margin-top: 16px;">
-            Или скопируйте короткий код загрузчика:
-          </p>
-          <div class="code-display">
-            <code>{{ shortBookmarkletCode }}</code>
-            <button class="copy-btn" @click="copyBookmarklet" :class="{ copied: justCopied }">
-              {{ justCopied ? '✓' : 'Копировать' }}
-            </button>
-          </div>
+        <!-- LLM Settings -->
+        <div class="settings-card" style="grid-column: 1 / -1">
+          <LLMSettings />
         </div>
       </div>
+    </div>
 
-      <!-- About -->
-      <div class="settings-card">
-        <h2>About</h2>
-        <div class="setting-item">
-          <label>Version</label>
-          <span class="value">2.0.0</span>
-        </div>
-        <div class="setting-item">
-          <label>Repository</label>
-          <a href="https://github.com/Mdyuzhev/errorlens" target="_blank" class="value link">
-            github.com/Mdyuzhev/errorlens
-          </a>
-        </div>
-        <div class="setting-item">
-          <label>Stack</label>
-          <span class="value">Vue 3 + FastAPI + PostgreSQL</span>
-        </div>
-      </div>
+    <!-- Projects tab -->
+    <div v-if="activeTab === 'projects'" class="tab-content">
+      <ProjectsTab />
+    </div>
 
-      <!-- LLM Settings -->
-      <div class="settings-card" style="grid-column: 1 / -1">
-        <LLMSettings />
+    <!-- Users tab (admin only) -->
+    <div v-if="activeTab === 'users'" class="tab-content">
+      <UsersTab v-if="auth.user?.is_admin" />
+      <div v-else class="access-denied">
+        <p>Доступ запрещён</p>
       </div>
     </div>
   </div>
@@ -151,8 +193,12 @@ import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 import LLMSettings from '@/components/generator/ProviderSelector.vue'
+import ProjectsTab from '@/components/settings/ProjectsTab.vue'
+import UsersTab from '@/components/settings/UsersTab.vue'
 
 const auth = useAuthStore()
+
+const activeTab = ref('general')
 
 const apiUrl = import.meta.env.VITE_API_URL || '/api'
 const apiStatus = ref('Checking...')
@@ -215,7 +261,54 @@ function copyBookmarklet() {
 
 <style scoped>
 .settings-page h1 {
+  margin-bottom: 16px;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 4px;
   margin-bottom: 24px;
+  border-bottom: 2px solid var(--bg-secondary);
+  padding-bottom: 0;
+}
+
+.tab {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tab.active {
+  color: var(--text-primary);
+  border-bottom-color: #667eea;
+}
+
+.tab-content {
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.access-denied {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 16px;
 }
 
 .settings-grid {
@@ -383,11 +476,6 @@ function copyBookmarklet() {
   animation: fadeIn 0.3s ease;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 .onboarding-step {
   display: flex;
   gap: 15px;
@@ -443,7 +531,7 @@ function copyBookmarklet() {
   margin-top: 15px;
 }
 
-.btn-ghost {
+.btn-ghost, .btn--ghost {
   background: rgba(255, 255, 255, 0.2);
   color: white;
   border: none;
@@ -453,7 +541,7 @@ function copyBookmarklet() {
   transition: all 0.2s;
 }
 
-.btn-ghost:hover {
+.btn-ghost:hover, .btn--ghost:hover {
   background: rgba(255, 255, 255, 0.3);
 }
 

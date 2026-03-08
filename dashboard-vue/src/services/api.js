@@ -185,3 +185,23 @@ export const integrationsApi = {
   testItStatus: () => api.get('/integrations/testit/status'),
   sendToTestIt: (sessionId) => api.post(`/sessions/${sessionId}/send-to-testit`)
 }
+
+// Projects API
+export const projectsApi = {
+  list: () => api.get('/projects'),
+  create: (data) => api.post('/projects', data),
+  update: (id, data) => api.put(`/projects/${id}`, data),
+  remove: (id) => api.delete(`/projects/${id}`),
+  listMembers: (projectId) => api.get(`/projects/${projectId}/members`),
+  addMember: (projectId, data) => api.post(`/projects/${projectId}/members`, data),
+  updateMember: (projectId, userId, data) => api.put(`/projects/${projectId}/members/${userId}`, data),
+  removeMember: (projectId, userId) => api.delete(`/projects/${projectId}/members/${userId}`),
+}
+
+// Admin API
+export const adminApi = {
+  listUsers: () => api.get('/admin/users'),
+  createUser: (data) => api.post('/admin/users', data),
+  changePassword: (userId, newPassword) => api.patch(`/admin/users/${userId}/password`, { new_password: newPassword }),
+  toggleActive: (userId, isActive) => api.patch(`/admin/users/${userId}/active`, { is_active: isActive }),
+}
