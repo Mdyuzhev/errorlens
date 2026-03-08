@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -522,3 +522,24 @@ class TestRun(Base):
     # Detailed results as JSON
     results: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     output: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class EntityLink(Base):
+    """Link between entities (article → article/testcase/task)."""
+
+    __tablename__ = "entity_links"
+    __table_args__ = (
+        UniqueConstraint("source_id", "target_type", "target_id", name="uq_entity_link_source_target"),
+        Index("ix_entity_links_source_id", "source_id"),
+        Index("ix_entity_links_target", "target_type", "target_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    source_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("articles.id", ondelete="CASCADE")
+    )
+    target_type: Mapped[str] = mapped_column(String(20))  # article, testcase, task
+    target_id: Mapped[str] = mapped_column(String(36))
+    link_type: Mapped[str] = mapped_column(String(20))  # verifies, related
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

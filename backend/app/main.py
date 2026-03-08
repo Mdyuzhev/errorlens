@@ -22,6 +22,7 @@ from app.routers import (
     article_images,
     articles,
     auth,
+    entity_links,
     exports,
     generation,
     integrations,
@@ -105,6 +106,7 @@ app.include_router(article_folders.move_router)  # /articles/{id}/move-to-folder
 app.include_router(article_images.router)  # /articles/images/* — before articles
 app.include_router(article_images.list_router)  # /articles/{id}/images
 app.include_router(articles.router)
+app.include_router(entity_links.router)
 app.include_router(testruns.router)
 app.include_router(exports.router)
 app.include_router(tests.router)
