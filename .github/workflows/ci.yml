@@ -76,3 +76,40 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://errorlens:test_password@localhost:5432/errorlens_test
           GEMINI_API_KEY: ""
           GROQ_API_KEY: ""
+
+  deploy:
+    name: Deploy to Homelab
+    runs-on: self-hosted
+    needs: [lint, test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Pull latest code
+        run: |
+          cd /opt/errorlens
+          git pull origin main
+
+      - name: Rebuild and restart containers
+        run: |
+          cd /opt/errorlens/docker
+          docker compose up --build -d --no-deps backend nginx
+
+      - name: Wait for backend to be healthy
+        run: |
+          cd /opt/errorlens/docker
+          for i in $(seq 1 30); do
+            if docker compose exec -T backend curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+              echo "Backend is healthy"
+              exit 0
+            fi
+            echo "Waiting for backend... ($i/30)"
+            sleep 5
+          done
+          echo "Backend failed to become healthy"
+          docker compose logs backend --tail=20
+          exit 1
+
+      - name: Verify deployment
+        run: |
+          curl -sf http://localhost:3000 > /dev/null && echo "Landing: OK"
+          curl -sf http://localhost:3000/api/health && echo " API: OK"
