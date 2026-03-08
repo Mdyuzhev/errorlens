@@ -38,6 +38,24 @@ class TaskRepository(BaseRepository[Task]):
         result = await self.session.execute(query)
         return list(result.scalars().all())
 
+    async def search(
+        self,
+        query: str,
+        limit: int = 20,
+    ) -> list[Task]:
+        """Search tasks by title or description (ILIKE)."""
+        pattern = f"%{query}%"
+        stmt = (
+            select(Task)
+            .where(
+                (Task.title.ilike(pattern)) | (Task.description.ilike(pattern))
+            )
+            .order_by(Task.created_at.desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_all_tasks(self) -> list[Task]:
         """Get all tasks (for board view)."""
         result = await self.session.execute(select(Task))

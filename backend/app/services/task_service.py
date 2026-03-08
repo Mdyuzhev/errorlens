@@ -75,6 +75,15 @@ class TaskService:
         )
         return [self._to_list_dict(t) for t in tasks]
 
+    async def search_tasks(
+        self,
+        q: str,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Search tasks by title or description."""
+        tasks = await self.repo.search(q, limit=limit)
+        return [self._to_list_dict(t) for t in tasks]
+
     async def get_board(self) -> dict[str, list[dict[str, Any]]]:
         """Get tasks grouped by status for Kanban board."""
         tasks = await self.repo.get_all_tasks()

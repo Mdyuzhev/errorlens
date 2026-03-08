@@ -51,6 +51,27 @@ class ArticleRepository(BaseRepository[Article]):
         result = await self.session.execute(query)
         return list(result.scalars().all())
 
+    async def search(
+        self,
+        query: str,
+        project_id: str | None = None,
+        limit: int = 20,
+    ) -> list[Article]:
+        """Search articles by title or content (ILIKE)."""
+        pattern = f"%{query}%"
+        stmt = (
+            select(Article)
+            .where(
+                (Article.title.ilike(pattern)) | (Article.content.ilike(pattern))
+            )
+            .order_by(Article.created_at.desc())
+            .limit(limit)
+        )
+        if project_id:
+            stmt = stmt.where(Article.project_id == project_id)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_categories(self, project_id: str | None = None) -> list[str]:
         """Get unique categories, optionally filtered by project."""
         query = select(Article.category).distinct().where(Article.category.isnot(None))

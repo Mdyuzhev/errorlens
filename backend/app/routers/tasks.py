@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,6 +38,7 @@ class TaskUpdate(BaseModel):
 
 @router.get("")
 async def list_tasks(
+    q: str | None = Query(default=None, description="Search query"),
     status: str | None = None,
     priority: str | None = None,
     assignee: str | None = None,
@@ -46,6 +47,8 @@ async def list_tasks(
 ):
     """List tasks with filters."""
     service = TaskService(db)
+    if q:
+        return await service.search_tasks(q, limit=20)
     return await service.list_tasks(
         status=status,
         priority=priority,
