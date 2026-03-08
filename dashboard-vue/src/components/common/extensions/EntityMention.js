@@ -1,7 +1,10 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 import { VueNodeViewRenderer } from '@tiptap/vue-3'
 import Suggestion from '@tiptap/suggestion'
+import { PluginKey } from '@tiptap/pm/state'
 import EntityMentionChip from '../EntityMentionChip.vue'
+
+const EntityMentionPluginKey = new PluginKey('entityMention')
 
 export default Node.create({
   name: 'entityMention',
@@ -57,6 +60,7 @@ export default Node.create({
     return [
       Suggestion({
         editor: this.editor,
+        pluginKey: EntityMentionPluginKey,
         char: '@',
         command: ({ editor, range, props }) => {
           editor
@@ -83,7 +87,7 @@ export default Node.create({
     return {
       suggestion: {
         char: '@',
-        pluginKey: 'entityMentionSuggestion',
+        pluginKey: EntityMentionPluginKey,
         command: ({ editor, range, props }) => {
           editor
             .chain()
