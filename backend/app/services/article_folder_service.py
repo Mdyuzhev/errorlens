@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.db_models import Article, ArticleFolder
+from app.models.db_models import ArticleFolder
 from app.repositories.article_folder_repo import ArticleFolderRepository
 from app.repositories.article_repo import ArticleRepository
 

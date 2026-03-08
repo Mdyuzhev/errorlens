@@ -1,9 +1,11 @@
 """Swagger/OpenAPI input parser."""
 
 import json
-import yaml
 from pathlib import Path
-from .base import TestGeneratorInput, EndpointSpec
+
+import yaml
+
+from .base import EndpointSpec, TestGeneratorInput
 
 
 class SwaggerValidationError(Exception):

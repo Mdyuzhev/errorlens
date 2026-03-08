@@ -1,5 +1,6 @@
 """WebSocket endpoint for generation progress."""
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
 from app.websocket.manager import manager
 
 router = APIRouter()

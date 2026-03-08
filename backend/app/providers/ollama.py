@@ -1,12 +1,12 @@
 """Ollama LLM provider for local models."""
 
-import httpx
 import logging
-
-from app.config import settings
 from typing import Any
 
-from app.providers.base import LLMProvider, BaseHTTPProvider
+import httpx
+
+from app.config import settings
+from app.providers.base import BaseHTTPProvider, LLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ class OllamaProvider(LLMProvider):
                 return result
 
         except httpx.TimeoutException:
-            logger.error(f"Ollama timeout after 120s")
+            logger.error("Ollama timeout after 120s")
             raise ValueError("Ollama timeout")
         except httpx.ConnectError:
             logger.error(f"Cannot connect to Ollama at {settings.ollama_host}")

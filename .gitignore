@@ -38,8 +38,11 @@ Thumbs.db
 .env.local
 .env.*.local
 
-# Claude Code local settings
-.claude/settings.local.json
+# Claude Code — весь каталог локальный, не для репо
+.claude/
+
+# Задачи агента — локальные, не для репо
+Tasks/
 
 # Node.js
 node_modules/
