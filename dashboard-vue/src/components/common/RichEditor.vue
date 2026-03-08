@@ -18,6 +18,9 @@
       style="display: none"
       @change="handleImageSelect"
     />
+    <Teleport to="body">
+      <EntityMentionPopup />
+    </Teleport>
   </div>
 </template>
 
@@ -31,6 +34,9 @@ import CharacterCount from '@tiptap/extension-character-count'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { common, createLowlight } from 'lowlight'
 import EditorToolbar from './EditorToolbar.vue'
+import EntityMentionPopup from './EntityMentionPopup.vue'
+import EntityMention from './extensions/EntityMention.js'
+import entityMentionSuggestion from './EntityMentionSuggestion.js'
 import { articlesApi } from '@/services/api'
 import '@/assets/rich-editor.css'
 
@@ -58,6 +64,9 @@ const extensions = [
     placeholder: props.placeholder
   }),
   CodeBlockLowlight.configure({ lowlight }),
+  EntityMention.configure({
+    suggestion: entityMentionSuggestion,
+  }),
   ...(props.maxLength
     ? [CharacterCount.configure({ limit: props.maxLength })]
     : [CharacterCount])
