@@ -172,6 +172,15 @@
             <input v-model="tagsInput" placeholder="api, smoke, regression" />
           </div>
 
+          <!-- Backlinks -->
+          <div v-if="editingTestCase && backlinks.length" class="backlinks-section">
+            <label>Mentioned in articles ({{ backlinks.length }}):</label>
+            <div v-for="bl in backlinks" :key="bl.article_id" class="backlink-item" @click="goToArticle(bl)">
+              <span class="backlink-icon">{'\u{1F4C4}'}</span>
+              {{ bl.article_title }}
+            </div>
+          </div>
+
           <div class="form-actions">
             <button v-if="editingTestCase" type="button" class="btn btn-danger" @click="deleteTestCase">
               Delete
@@ -188,6 +197,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useTestCasesStore } from '@/stores/testcases'
+import { entityLinksApi } from '@/services/api'
 import FolderTree from '@/components/testcases/FolderTree.vue'
 import RichEditor from '@/components/common/RichEditor.vue'
 
@@ -195,6 +205,7 @@ const store = useTestCasesStore()
 
 const showEditor = ref(false)
 const editingTestCase = ref(null)
+const backlinks = ref([])
 
 const filters = ref({
   status: '',
@@ -235,8 +246,9 @@ async function loadTestCases() {
   await store.fetchTestCases()
 }
 
-function openTestCase(tc) {
+async function openTestCase(tc) {
   editingTestCase.value = tc
+  loadBacklinks(tc.id)
   form.value = {
     title: tc.title || '',
     description: tc.description || '',
@@ -257,7 +269,21 @@ function openTestCase(tc) {
 function closeEditor() {
   showEditor.value = false
   editingTestCase.value = null
+  backlinks.value = []
   resetForm()
+}
+
+async function loadBacklinks(tcId) {
+  try {
+    const res = await entityLinksApi.getBacklinks('testcase', tcId)
+    backlinks.value = res.data.items || []
+  } catch {
+    backlinks.value = []
+  }
+}
+
+function goToArticle(bl) {
+  window.location.href = '/#/articles'
 }
 
 function resetForm() {
@@ -616,5 +642,39 @@ onMounted(() => {
   color: var(--text-secondary);
   font-size: 24px;
   cursor: pointer;
+}
+
+.backlinks-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+}
+
+.backlinks-section label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.backlink-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+
+.backlink-item:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.backlink-icon {
+  font-size: 14px;
 }
 </style>

@@ -114,6 +114,15 @@
             <input v-model="labelsInput" placeholder="bug, feature, urgent" />
           </div>
 
+          <!-- Backlinks -->
+          <div v-if="selectedTask && backlinks.length" class="backlinks-section">
+            <label>Mentioned in articles ({{ backlinks.length }}):</label>
+            <div v-for="bl in backlinks" :key="bl.article_id" class="backlink-item" @click="goToArticle(bl)">
+              <span class="backlink-icon">{'\u{1F4C4}'}</span>
+              {{ bl.article_title }}
+            </div>
+          </div>
+
           <div class="form-actions">
             <button v-if="selectedTask" type="button" class="btn btn-danger" @click="deleteTask">
               Delete
@@ -130,6 +139,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useTasksStore } from '@/stores/tasks'
+import { entityLinksApi } from '@/services/api'
 import RichEditor from '@/components/common/RichEditor.vue'
 
 const store = useTasksStore()
@@ -143,6 +153,7 @@ const columns = [
 
 const showCreateModal = ref(false)
 const selectedTask = ref(null)
+const backlinks = ref([])
 let draggedTask = null
 
 const form = ref({
@@ -184,6 +195,7 @@ async function onDrop(event, status) {
 
 function openTask(task) {
   selectedTask.value = task
+  loadBacklinks(task.id)
   form.value = {
     title: task.title || '',
     description: task.description || '',
@@ -199,7 +211,21 @@ function openTask(task) {
 function closeModal() {
   showCreateModal.value = false
   selectedTask.value = null
+  backlinks.value = []
   resetForm()
+}
+
+async function loadBacklinks(taskId) {
+  try {
+    const res = await entityLinksApi.getBacklinks('task', taskId)
+    backlinks.value = res.data.items || []
+  } catch {
+    backlinks.value = []
+  }
+}
+
+function goToArticle(bl) {
+  window.location.href = '/#/articles'
 }
 
 function resetForm() {
@@ -452,6 +478,40 @@ onMounted(() => {
   color: var(--text-secondary);
   font-size: 24px;
   cursor: pointer;
+}
+
+.backlinks-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+}
+
+.backlinks-section label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.backlink-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+
+.backlink-item:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.backlink-icon {
+  font-size: 14px;
 }
 
 @media (max-width: 1024px) {

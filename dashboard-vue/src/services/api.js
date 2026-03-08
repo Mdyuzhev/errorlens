@@ -137,6 +137,39 @@ export const articlesApi = {
   getArticleImages: (articleId) => api.get(`/articles/${articleId}/images`),
 }
 
+// Entity Links API — with 30s in-memory cache
+const entityPreviewCache = new Map()
+const CACHE_TTL = 30_000
+
+function getCached(key) {
+  const entry = entityPreviewCache.get(key)
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL) return entry.data
+  entityPreviewCache.delete(key)
+  return null
+}
+
+function setCache(key, data) {
+  entityPreviewCache.set(key, { data, timestamp: Date.now() })
+  if (entityPreviewCache.size > 200) {
+    const now = Date.now()
+    for (const [k, v] of entityPreviewCache) {
+      if (now - v.timestamp > CACHE_TTL) entityPreviewCache.delete(k)
+    }
+  }
+}
+
+export const entityLinksApi = {
+  getPreview: async (type, id) => {
+    const key = `${type}:${id}`
+    const cached = getCached(key)
+    if (cached) return { data: cached }
+    const response = await api.get(`/entities/${type}/${id}/preview`)
+    setCache(key, response.data)
+    return response
+  },
+  getBacklinks: (type, id) => api.get(`/entities/${type}/${id}/backlinks`),
+}
+
 // Test Runs API
 export const testRunsApi = {
   list: (limit = 5) => api.get('/test-runs', { params: { limit } }),

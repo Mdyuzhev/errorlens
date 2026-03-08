@@ -45,6 +45,7 @@ from app.models.db_models import (
     Article,
     ArticleImage,
     TestRun,
+    EntityLink,
 )
 from app.models.user import User
 

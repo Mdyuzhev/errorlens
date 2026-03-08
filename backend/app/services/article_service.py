@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import Article, ArticleFolder
 from app.repositories.article_repo import ArticleRepository
+from app.services.entity_link_service import EntityLinkService
 
 
 def slugify(text: str) -> str:
@@ -26,6 +27,7 @@ class ArticleService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.repo = ArticleRepository(db)
+        self.entity_link_service = EntityLinkService(db)
 
     async def create_article(
         self,
@@ -134,6 +136,14 @@ class ArticleService:
             article.published_at = datetime.utcnow()
 
         article.updated_at = datetime.utcnow()
+
+        # Sync entity links if content was updated
+        if "content" in updates and updates["content"]:
+            await self.entity_link_service.sync_links_from_document(
+                article_id=article.id,
+                content_json=updates["content"],
+            )
+
         await self.db.commit()
         return article
 
