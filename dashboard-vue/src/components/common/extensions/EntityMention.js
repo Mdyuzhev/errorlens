@@ -57,6 +57,23 @@ export default Node.create({
     return [
       Suggestion({
         editor: this.editor,
+        char: '@',
+        command: ({ editor, range, props }) => {
+          editor
+            .chain()
+            .focus()
+            .deleteRange(range)
+            .insertContent({
+              type: 'entityMention',
+              attrs: {
+                entityType: props.entityType,
+                entityId: props.entityId,
+                entityTitle: props.entityTitle,
+                linkType: props.linkType || 'related',
+              },
+            })
+            .run()
+        },
         ...this.options.suggestion,
       }),
     ]
