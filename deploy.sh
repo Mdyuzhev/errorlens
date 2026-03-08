@@ -10,6 +10,7 @@ cd "$REPO_DIR"
 git pull origin main
 
 cd "$COMPOSE_DIR"
-docker compose up --build -d --no-deps backend nginx
+docker compose build --no-cache backend nginx
+docker compose up -d --no-deps backend nginx
 
 echo "[$(date)] Deploy finished."
