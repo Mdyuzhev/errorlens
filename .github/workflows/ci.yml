@@ -89,6 +89,7 @@ jobs:
       - name: Pull latest code
         run: |
           cd /opt/errorlens
+          git stash --include-untracked || true
           git pull origin main
 
       - name: Rebuild and restart containers
