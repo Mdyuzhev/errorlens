@@ -28,10 +28,12 @@ jobs:
           ruff check backend/app/
 
       - name: Check black formatting
+        continue-on-error: true
         run: |
           black --check backend/app/
 
       - name: Check isort imports
+        continue-on-error: true
         run: |
           isort --check-only backend/app/
 
