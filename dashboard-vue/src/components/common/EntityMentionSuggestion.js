@@ -13,6 +13,7 @@ export const suggestionState = reactive({
 })
 
 let debounceTimer = null
+let pendingResolve = null
 
 async function fetchItems(query) {
   if (!query || query.length < 1) return []
@@ -66,9 +67,14 @@ async function fetchItems(query) {
 export default {
   items: ({ query }) => {
     return new Promise((resolve) => {
+      // Resolve any pending promise so TipTap doesn't hang
+      if (pendingResolve) pendingResolve([])
+      pendingResolve = resolve
+
       clearTimeout(debounceTimer)
       debounceTimer = setTimeout(async () => {
         const items = await fetchItems(query)
+        pendingResolve = null
         resolve(items)
       }, 300)
     })

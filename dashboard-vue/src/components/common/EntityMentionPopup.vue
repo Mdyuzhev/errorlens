@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="state.active && state.items.length"
+    v-if="state.active"
     class="entity-mention-popup"
     :style="popupStyle"
   >
