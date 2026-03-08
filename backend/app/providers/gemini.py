@@ -1,11 +1,11 @@
 """Google Gemini LLM provider."""
 
+from typing import Any
+
 import httpx
 
 from app.config import settings
-from typing import Any
-
-from app.providers.base import LLMProvider, BaseHTTPProvider
+from app.providers.base import BaseHTTPProvider, LLMProvider
 
 
 class GeminiProvider(LLMProvider):

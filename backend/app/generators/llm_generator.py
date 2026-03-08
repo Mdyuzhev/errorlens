@@ -1,11 +1,11 @@
 """LLM-based test generator."""
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Callable, Awaitable
 
-from app.providers import ProviderFactory, get_rate_limiter
-from app.generators.inputs import TestGeneratorInput, EndpointSpec
+from app.generators.inputs import EndpointSpec, TestGeneratorInput
 from app.generators.prompts import PromptBuilder
 from app.generators.utils import CodeExtractor, TestValidator, get_language_for_framework
+from app.providers import ProviderFactory, get_rate_limiter
 
 
 @dataclass

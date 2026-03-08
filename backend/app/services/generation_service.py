@@ -8,11 +8,10 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.generators.llm_generator import LLMTestGenerator, GenerationResult
-from app.generators.inputs import SwaggerInput, HARInput
+from app.generators.inputs import HARInput, SwaggerInput
+from app.generators.llm_generator import GenerationResult, LLMTestGenerator
 from app.models.db_models import Session
 from app.websocket.manager import manager
-
 
 RESULT_TTL = 3600  # 1 hour
 MAX_RESULTS = 1000

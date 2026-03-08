@@ -34,8 +34,8 @@ class CodeExtractor:
         return None
 
     def _clean_code(self, code: str) -> str:
-        lines = [l for l in code.split("\n")
-                 if not l.strip().startswith(("Here", "This", "The ", "Note:", "```"))]
+        lines = [line for line in code.split("\n")
+                 if not line.strip().startswith(("Here", "This", "The ", "Note:", "```"))]
         while lines and not lines[0].strip():
             lines.pop(0)
         while lines and not lines[-1].strip():

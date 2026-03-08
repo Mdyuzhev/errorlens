@@ -1,8 +1,9 @@
 """HAR (HTTP Archive) input parser."""
 
-from urllib.parse import urlparse, parse_qs
 import json
-from .base import TestGeneratorInput, EndpointSpec
+from urllib.parse import parse_qs, urlparse
+
+from .base import EndpointSpec, TestGeneratorInput
 
 
 class HARInput(TestGeneratorInput):

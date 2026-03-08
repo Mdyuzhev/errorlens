@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 
 from app.database import get_db_context
-from app.models.db_models import Article, Task, TestCase
+from app.models.db_models import Article, Project, ProjectMember, Task, TestCase, TestCaseFolder
+from app.models.user import User
 
 # Demo test cases - разные типы для демонстрации
 DEMO_TEST_CASES = [
@@ -246,6 +247,28 @@ DEMO_TASKS = [
     },
 ]
 
+# Testcase folder tree structure: {folder_name: [subfolder_names]}
+DEMO_TESTCASE_FOLDERS = {
+    "Авторизация": ["Позитивные", "Негативные"],
+    "Регистрация": [],
+    "API": ["Sessions", "TestCases"],
+    "UI": [],
+    "Экспорт": ["Postman", "pytest"],
+    "AI": [],
+    "Security": ["XSS", "CSRF"],
+}
+
+# Map: test case folder field → tree folder name
+DEMO_TC_FOLDER_MAP = {
+    "Авторизация": "Авторизация",
+    "Регистрация": "Регистрация",
+    "API": "API",
+    "UI": "UI",
+    "Экспорт": "Экспорт",
+    "AI": "AI",
+    "Security": "Security",
+}
+
 # Welcome article
 WELCOME_ARTICLE = {
     "title": "Добро пожаловать в ErrorLens!",
@@ -301,6 +324,32 @@ ErrorLens — это инструмент для QA-инженеров, кото
 }
 
 
+async def _get_demo_project_id(db) -> str | None:
+    """Get project_id for demo user's default project."""
+    user_result = await db.execute(
+        select(User).where(User.username == "demo")
+    )
+    demo_user = user_result.scalar_one_or_none()
+    if not demo_user:
+        return None
+
+    project_result = await db.execute(
+        select(Project).where(Project.owner_id == demo_user.id).limit(1)
+    )
+    project = project_result.scalar_one_or_none()
+    if not project:
+        # Fallback: check membership
+        member_result = await db.execute(
+            select(Project)
+            .join(ProjectMember, ProjectMember.project_id == Project.id)
+            .where(ProjectMember.user_id == demo_user.id)
+            .limit(1)
+        )
+        project = member_result.scalar_one_or_none()
+
+    return project.id if project else None
+
+
 async def seed_demo_data():
     """Seed demo test cases, tasks, and articles."""
     async with get_db_context() as db:
@@ -309,8 +358,40 @@ async def seed_demo_data():
         if existing_cases.scalar():
             print("Demo test cases already exist, skipping...")
         else:
+            # Get project_id for folder creation
+            project_id = await _get_demo_project_id(db)
+
+            # Create testcase folders if project exists
+            folder_map: dict[str, str] = {}  # folder_name → folder_id
+            if project_id:
+                existing_folders = await db.execute(
+                    select(TestCaseFolder).limit(1)
+                )
+                if not existing_folders.scalar():
+                    for folder_name, subfolders in DEMO_TESTCASE_FOLDERS.items():
+                        parent = TestCaseFolder(
+                            name=folder_name,
+                            project_id=project_id,
+                            sort_order=len(folder_map),
+                        )
+                        db.add(parent)
+                        await db.flush()
+                        folder_map[folder_name] = parent.id
+
+                        for i, sub_name in enumerate(subfolders):
+                            child = TestCaseFolder(
+                                name=sub_name,
+                                parent_id=parent.id,
+                                project_id=project_id,
+                                sort_order=i,
+                            )
+                            db.add(child)
+                    await db.flush()
+                    print(f"Added {len(DEMO_TESTCASE_FOLDERS)} testcase folders with subfolders")
+
             # Add test cases
             for tc_data in DEMO_TEST_CASES:
+                folder_id = folder_map.get(tc_data["folder"])
                 tc = TestCase(
                     title=tc_data["title"],
                     description=tc_data["description"],
@@ -320,6 +401,8 @@ async def seed_demo_data():
                     status=tc_data["status"],
                     automation_status=tc_data["automation_status"],
                     folder=tc_data["folder"],
+                    folder_id=folder_id,
+                    project_id=project_id,
                     tags=tc_data["tags"],
                     steps=tc_data["steps"],
                     created_by="demo",
