@@ -117,6 +117,16 @@ class ArticleService:
 
         return [self._to_list_dict(a) for a in articles]
 
+    async def search_articles(
+        self,
+        q: str,
+        project_id: str | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Search articles by title or content (ILIKE)."""
+        articles = await self.repo.search(q, project_id=project_id, limit=limit)
+        return [self._to_list_dict(a) for a in articles]
+
     async def get_categories(self, project_id: str | None = None) -> list[str]:
         """Get unique categories for a project."""
         return await self.repo.get_categories(project_id=project_id)

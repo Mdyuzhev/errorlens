@@ -43,6 +43,7 @@ class ArticleUpdate(BaseModel):
 
 @router.get("")
 async def list_articles(
+    q: str | None = Query(default=None, description="Search query"),
     project_id: str | None = Query(default=None, description="Filter by project ID"),
     folder_id: str | None = Query(default=None, description="Filter by folder ID"),
     category: str | None = None,
@@ -66,6 +67,8 @@ async def list_articles(
         filter_project_id = default_project.id if default_project else None
 
     service = ArticleService(db)
+    if q:
+        return await service.search_articles(q, project_id=filter_project_id, limit=10)
     return await service.list_articles(
         project_id=filter_project_id,
         category=category,

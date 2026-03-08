@@ -19,9 +19,9 @@ async function fetchItems(query) {
 
   try {
     const [tcRes, taskRes, articleRes] = await Promise.all([
-      testCasesApi.list({ search: query, limit: 10 }).catch(() => ({ data: [] })),
-      tasksApi.list({ search: query, limit: 10 }).catch(() => ({ data: [] })),
-      articlesApi.list({ search: query, limit: 10 }).catch(() => ({ data: [] })),
+      testCasesApi.list({ q: query, limit: 10 }).catch(() => ({ data: [] })),
+      tasksApi.list({ q: query, limit: 10 }).catch(() => ({ data: [] })),
+      articlesApi.list({ q: query, limit: 10 }).catch(() => ({ data: [] })),
     ])
 
     const tcItems = (tcRes.data.items || tcRes.data || []).map((tc) => ({
