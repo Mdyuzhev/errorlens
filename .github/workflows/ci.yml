@@ -123,5 +123,13 @@ jobs:
 
       - name: Verify deployment
         run: |
+          for i in $(seq 1 10); do
+            if curl -sf http://localhost:3000 > /dev/null 2>&1; then
+              echo "Landing: OK"
+              break
+            fi
+            echo "Waiting for nginx... ($i/10)"
+            sleep 3
+          done
           curl -sf http://localhost:3000 > /dev/null && echo "Landing: OK"
           curl -sf http://localhost:3000/api/health && echo " API: OK"
