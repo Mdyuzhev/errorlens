@@ -13,10 +13,18 @@ DEMO_TEST_CASES = [
         "folder": "Авторизация",
         "tags": ["smoke", "auth", "positive"],
         "steps": [
-            {"step": 1, "action": "Открыть страницу логина", "expected": "Отображается форма входа"},
+            {
+                "step": 1,
+                "action": "Открыть страницу логина",
+                "expected": "Отображается форма входа",
+            },
             {"step": 2, "action": "Ввести корректный email", "expected": "Email введен"},
             {"step": 3, "action": "Ввести корректный пароль", "expected": "Пароль введен"},
-            {"step": 4, "action": "Нажать кнопку 'Войти'", "expected": "Пользователь перенаправлен на главную"},
+            {
+                "step": 4,
+                "action": "Нажать кнопку 'Войти'",
+                "expected": "Пользователь перенаправлен на главную",
+            },
         ],
     },
     {
@@ -30,7 +38,11 @@ DEMO_TEST_CASES = [
         "folder": "Авторизация",
         "tags": ["auth", "negative"],
         "steps": [
-            {"step": 1, "action": "Открыть страницу логина", "expected": "Форма входа отображается"},
+            {
+                "step": 1,
+                "action": "Открыть страницу логина",
+                "expected": "Форма входа отображается",
+            },
             {"step": 2, "action": "Ввести корректный email", "expected": "Email введен"},
             {"step": 3, "action": "Ввести неверный пароль", "expected": "Пароль введен"},
             {"step": 4, "action": "Нажать 'Войти'", "expected": "Сообщение 'Неверный пароль'"},
@@ -49,7 +61,11 @@ DEMO_TEST_CASES = [
         "steps": [
             {"step": 1, "action": "Открыть страницу регистрации", "expected": "Форма регистрации"},
             {"step": 2, "action": "Заполнить все обязательные поля", "expected": "Поля заполнены"},
-            {"step": 3, "action": "Принять пользовательское соглашение", "expected": "Чекбокс отмечен"},
+            {
+                "step": 3,
+                "action": "Принять пользовательское соглашение",
+                "expected": "Чекбокс отмечен",
+            },
             {"step": 4, "action": "Нажать 'Зарегистрироваться'", "expected": "Аккаунт создан"},
         ],
     },
@@ -66,7 +82,11 @@ DEMO_TEST_CASES = [
         "steps": [
             {"step": 1, "action": "Отправить GET /sessions", "expected": "Status 200"},
             {"step": 2, "action": "Проверить структуру ответа", "expected": "Массив объектов"},
-            {"step": 3, "action": "Проверить поля сессии", "expected": "id, url, created_at присутствуют"},
+            {
+                "step": 3,
+                "action": "Проверить поля сессии",
+                "expected": "id, url, created_at присутствуют",
+            },
         ],
     },
     {
@@ -161,7 +181,11 @@ DEMO_TEST_CASES = [
         "folder": "Security",
         "tags": ["security", "xss", "negative"],
         "steps": [
-            {"step": 1, "action": "Ввести <script>alert(1)</script>", "expected": "Текст экранирован"},
+            {
+                "step": 1,
+                "action": "Ввести <script>alert(1)</script>",
+                "expected": "Текст экранирован",
+            },
             {"step": 2, "action": "Проверить DOM", "expected": "Нет script тега"},
             {"step": 3, "action": "Проверить Network", "expected": "Нет XHR с payload"},
         ],
@@ -194,7 +218,11 @@ DEMO_TEST_CASES = [
         "steps": [
             {"step": 1, "action": "GET /testcases?limit=5", "expected": "5 элементов в ответе"},
             {"step": 2, "action": "Проверить total count", "expected": "total > 5"},
-            {"step": 3, "action": "GET /testcases?offset=5&limit=5", "expected": "Следующая страница"},
+            {
+                "step": 3,
+                "action": "GET /testcases?offset=5&limit=5",
+                "expected": "Следующая страница",
+            },
         ],
     },
     {
@@ -209,8 +237,16 @@ DEMO_TEST_CASES = [
         "tags": ["ui", "testcases", "sorting"],
         "steps": [
             {"step": 1, "action": "Открыть список тест-кейсов", "expected": "Список загружен"},
-            {"step": 2, "action": "Нажать сортировку по приоритету", "expected": "Critical первыми"},
-            {"step": 3, "action": "Проверить порядок", "expected": "Critical > High > Medium > Low"},
+            {
+                "step": 2,
+                "action": "Нажать сортировку по приоритету",
+                "expected": "Critical первыми",
+            },
+            {
+                "step": 3,
+                "action": "Проверить порядок",
+                "expected": "Critical > High > Medium > Low",
+            },
         ],
     },
     {
@@ -226,7 +262,11 @@ DEMO_TEST_CASES = [
         "steps": [
             {"step": 1, "action": "Открыть сессию с ошибкой", "expected": "Детали сессии"},
             {"step": 2, "action": "Найти секцию stacktrace", "expected": "Stacktrace виден"},
-            {"step": 3, "action": "Проверить форматирование", "expected": "Моноширинный шрифт, подсветка"},
+            {
+                "step": 3,
+                "action": "Проверить форматирование",
+                "expected": "Моноширинный шрифт, подсветка",
+            },
         ],
     },
     {
@@ -255,7 +295,11 @@ DEMO_TEST_CASES = [
         "folder": "Security",
         "tags": ["security", "sql-injection", "negative"],
         "steps": [
-            {"step": 1, "action": "GET /sessions?search=' OR 1=1--", "expected": "Пустой результат или 400"},
+            {
+                "step": 1,
+                "action": "GET /sessions?search=' OR 1=1--",
+                "expected": "Пустой результат или 400",
+            },
             {"step": 2, "action": "Проверить логи БД", "expected": "Параметризованный запрос"},
         ],
     },
@@ -271,7 +315,11 @@ DEMO_TEST_CASES = [
         "tags": ["auth", "jwt", "refresh"],
         "steps": [
             {"step": 1, "action": "Дождаться истечения access token", "expected": "401 на запрос"},
-            {"step": 2, "action": "POST /auth/refresh с refresh token", "expected": "Новый access token"},
+            {
+                "step": 2,
+                "action": "POST /auth/refresh с refresh token",
+                "expected": "Новый access token",
+            },
             {"step": 3, "action": "Повторить запрос с новым token", "expected": "Status 200"},
         ],
     },
@@ -302,7 +350,11 @@ DEMO_TEST_CASES = [
         "tags": ["export", "rest-assured", "java"],
         "steps": [
             {"step": 1, "action": "Выбрать сессию", "expected": "Сессия выбрана"},
-            {"step": 2, "action": "Нажать 'Generate REST Assured'", "expected": "Генерация запущена"},
+            {
+                "step": 2,
+                "action": "Нажать 'Generate REST Assured'",
+                "expected": "Генерация запущена",
+            },
             {"step": 3, "action": "Скачать файл", "expected": ".java файл"},
         ],
     },
@@ -319,7 +371,11 @@ DEMO_TEST_CASES = [
         "steps": [
             {"step": 1, "action": "Открыть страницу регистрации", "expected": "Форма регистрации"},
             {"step": 2, "action": "Ввести существующий username", "expected": "Username введён"},
-            {"step": 3, "action": "Нажать 'Зарегистрироваться'", "expected": "Ошибка: username занят"},
+            {
+                "step": 3,
+                "action": "Нажать 'Зарегистрироваться'",
+                "expected": "Ошибка: username занят",
+            },
         ],
     },
 ]

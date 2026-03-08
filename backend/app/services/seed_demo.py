@@ -29,9 +29,7 @@ from app.services.seed_demo_constants import (
 
 async def _get_demo_project_id(db) -> str | None:
     """Get project_id for demo user's default project."""
-    user_result = await db.execute(
-        select(User).where(User.username == "demo")
-    )
+    user_result = await db.execute(select(User).where(User.username == "demo"))
     demo_user = user_result.scalar_one_or_none()
     if not demo_user:
         return None
@@ -173,7 +171,9 @@ async def _seed_articles(db, project_id: str) -> None:
         )
         db.add(art)
 
-    print(f"Added welcome article + {len(DEMO_ARTICLES)} demo articles in {len(article_folder_map)} folders")
+    print(
+        f"Added welcome article + {len(DEMO_ARTICLES)} demo articles in {len(article_folder_map)} folders"
+    )
 
 
 async def seed_demo_data():
@@ -211,4 +211,5 @@ async def seed_demo_data():
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(seed_demo_data())

@@ -49,13 +49,25 @@ DEMO_ARTICLE_FOLDER_MAP = {
 }
 
 
-def _art(title: str, slug: str, content: str, excerpt: str,
-         category: str, tags: list[str], folder_key: str) -> dict:
+def _art(
+    title: str,
+    slug: str,
+    content: str,
+    excerpt: str,
+    category: str,
+    tags: list[str],
+    folder_key: str,
+) -> dict:
     """Helper to create article dict with common defaults."""
     return {
-        "title": title, "slug": slug, "content": content,
-        "excerpt": excerpt, "category": category, "tags": tags,
-        "status": "published", "author": "ErrorLens Team",
+        "title": title,
+        "slug": slug,
+        "content": content,
+        "excerpt": excerpt,
+        "category": category,
+        "tags": tags,
+        "status": "published",
+        "author": "ErrorLens Team",
         "folder_key": folder_key,
     }
 
@@ -63,7 +75,8 @@ def _art(title: str, slug: str, content: str, excerpt: str,
 # Demo articles (15 статей)
 DEMO_ARTICLES = [
     _art(
-        "Установка букмарклета в браузер", "install-bookmarklet",
+        "Установка букмарклета в браузер",
+        "install-bookmarklet",
         "# Установка букмарклета\n\nБукмарклет ErrorLens — JavaScript-код, "
         "записывающий ошибки и сетевые запросы на странице.\n\n"
         "## Поддерживаемые браузеры\n\nChrome, Firefox, Edge, Safari.\n\n"
@@ -73,10 +86,13 @@ DEMO_ARTICLES = [
         "## Устранение проблем\n\nПроверьте: JavaScript не заблокирован, "
         "cookie разрешены, нет конфликта с CSP сайта.",
         "Пошаговая инструкция по установке букмарклета ErrorLens",
-        "Начало работы", ["install", "bookmarklet", "setup"], "Установка",
+        "Начало работы",
+        ["install", "bookmarklet", "setup"],
+        "Установка",
     ),
     _art(
-        "Быстрый старт за 5 минут", "quick-start",
+        "Быстрый старт за 5 минут",
+        "quick-start",
         "# Быстрый старт за 5 минут\n\n"
         "## Шаг 1: Регистрация\nСоздайте аккаунт на странице регистрации.\n\n"
         "## Шаг 2: Букмарклет\nВ Settings перетащите кнопку на панель закладок.\n\n"
@@ -84,10 +100,13 @@ DEMO_ARTICLES = [
         "## Шаг 4: Анализ\nОткройте сессию, нажмите Analyze.\n\n"
         "## Шаг 5: Экспорт\nВыберите формат (pytest, Postman, Cypress) и скачайте.",
         "Начните работу с ErrorLens за 5 минут",
-        "Начало работы", ["quick-start", "tutorial", "beginner"], "Начало работы",
+        "Начало работы",
+        ["quick-start", "tutorial", "beginner"],
+        "Начало работы",
     ),
     _art(
-        "Первая сессия записи ошибок", "first-session",
+        "Первая сессия записи ошибок",
+        "first-session",
         "# Первая сессия записи ошибок\n\n"
         "## Подготовка\nБукмарклет установлен, вы авторизованы, тестируемый сайт открыт.\n\n"
         "## Запуск записи\n1. Перейдите на тестируемую страницу\n"
@@ -96,10 +115,13 @@ DEMO_ARTICLES = [
         "HTTP запросы (XHR, Fetch), время каждого события.\n\n"
         "## Завершение\nНажмите Stop — данные отправляются на сервер автоматически.",
         "Подробное руководство по записи первой сессии ошибок",
-        "Начало работы", ["session", "recording", "tutorial"], "Начало работы",
+        "Начало работы",
+        ["session", "recording", "tutorial"],
+        "Начало работы",
     ),
     _art(
-        "Режимы записи: полный, только ошибки, только сеть", "recording-modes",
+        "Режимы записи: полный, только ошибки, только сеть",
+        "recording-modes",
         "# Режимы записи\n\n"
         "## Полный режим (Full)\nВсё: console, JS ошибки, HTTP, DOM events. "
         "Для исследовательского тестирования.\n\n"
@@ -108,10 +130,13 @@ DEMO_ARTICLES = [
         "## Только сеть (Network Only)\nHTTP запросы и ответы. Для API тестирования.\n\n"
         "## Выбор режима\nРежим выбирается при запуске. Изменить во время записи нельзя.",
         "Описание режимов записи ErrorLens и рекомендации по выбору",
-        "Руководство пользователя", ["recording", "modes", "configuration"], "Запись сессий",
+        "Руководство пользователя",
+        ["recording", "modes", "configuration"],
+        "Запись сессий",
     ),
     _art(
-        "Фильтрация HTTP-запросов по домену", "request-filtering",
+        "Фильтрация HTTP-запросов по домену",
+        "request-filtering",
         "# Фильтрация HTTP-запросов по домену\n\n"
         "## Настройка\nВ панели букмарклета перед записью: Include domains / Exclude domains.\n\n"
         "## Примеры\n- Только API: `api.mysite.com`\n"
@@ -119,10 +144,13 @@ DEMO_ARTICLES = [
         "- Wildcard: `*.mysite.com`\n\n"
         "## По умолчанию\nБез фильтров записываются все запросы.",
         "Как настроить фильтрацию HTTP-запросов при записи сессии",
-        "Руководство пользователя", ["filtering", "network", "domains"], "Запись сессий",
+        "Руководство пользователя",
+        ["filtering", "network", "domains"],
+        "Запись сессий",
     ),
     _art(
-        "Как читать результаты AI-анализа", "ai-analysis-results",
+        "Как читать результаты AI-анализа",
+        "ai-analysis-results",
         "# Как читать результаты AI-анализа\n\n"
         "## Структура отчёта\n"
         "- **Summary** — сводка в 2-3 предложениях\n"
@@ -135,10 +163,13 @@ DEMO_ARTICLES = [
         "| Medium | Заметная проблема, не критичная |\n"
         "| Low | Минорный дефект |\n| Info | Информация для улучшения |",
         "Руководство по интерпретации результатов AI-анализа ErrorLens",
-        "Руководство пользователя", ["ai", "analysis", "report"], "Анализ результатов",
+        "Руководство пользователя",
+        ["ai", "analysis", "report"],
+        "Анализ результатов",
     ),
     _art(
-        "Уровни severity: от info до critical", "severity-levels",
+        "Уровни severity: от info до critical",
+        "severity-levels",
         "# Уровни severity\n\n"
         "ErrorLens использует 5-уровневую шкалу критичности.\n\n"
         "## Critical\nПолная блокировка функционала. Белый экран, невозможность авторизации.\n\n"
@@ -148,11 +179,13 @@ DEMO_ARTICLES = [
         "## Info\nИнформационное замечание, не ошибка. Рекомендации по оптимизации.\n\n"
         "AI автоматически определяет severity на основе типа ошибки и контекста.",
         "Описание 5 уровней severity в ErrorLens",
-        "Руководство пользователя", ["severity", "classification", "priority"],
+        "Руководство пользователя",
+        ["severity", "classification", "priority"],
         "Анализ результатов",
     ),
     _art(
-        "Горячие клавиши и shortcuts", "hotkeys",
+        "Горячие клавиши и shortcuts",
+        "hotkeys",
         "# Горячие клавиши\n\n"
         "## Букмарклет\n"
         "| Клавиша | Действие |\n|---------|----------|\n"
@@ -165,11 +198,13 @@ DEMO_ARTICLES = [
         "| E | Редактировать |\n| Delete | Удалить |\n"
         "| Esc | Закрыть модалку |\n| Ctrl+K | Command Palette |",
         "Полный список горячих клавиш ErrorLens",
-        "Руководство пользователя", ["hotkeys", "shortcuts", "productivity"],
+        "Руководство пользователя",
+        ["hotkeys", "shortcuts", "productivity"],
         "Руководство пользователя",
     ),
     _art(
-        "Настройка интеграции с TestIT", "testit-setup",
+        "Настройка интеграции с TestIT",
+        "testit-setup",
         "# Настройка интеграции с TestIT\n\n"
         "## Получение API ключа\n"
         "1. Войдите в TestIT\n2. Administration > API Keys\n"
@@ -183,10 +218,13 @@ DEMO_ARTICLES = [
         "| title | Name |\n| description | Description |\n"
         "| steps | Steps |\n| priority | Priority |",
         "Пошаговая инструкция по подключению ErrorLens к TestIT",
-        "Интеграции", ["testit", "integration", "setup"], "TestIT",
+        "Интеграции",
+        ["testit", "integration", "setup"],
+        "TestIT",
     ),
     _art(
-        "Экспорт тест-кейсов в TestIT", "testit-export",
+        "Экспорт тест-кейсов в TestIT",
+        "testit-export",
         "# Экспорт тест-кейсов в TestIT\n\n"
         "## Экспорт одного тест-кейса\n"
         "Откройте тест-кейс > Export > TestIT > выберите раздел > Export.\n\n"
@@ -197,10 +235,13 @@ DEMO_ARTICLES = [
         "Предлагается обновить существующий или создать новый.\n\n"
         "## Статусы: Success, Updated, Failed.",
         "Как экспортировать тест-кейсы из ErrorLens в TestIT",
-        "Интеграции", ["testit", "export", "test-cases"], "TestIT",
+        "Интеграции",
+        ["testit", "export", "test-cases"],
+        "TestIT",
     ),
     _art(
-        "Генерация pytest-тестов из сессии", "export-pytest",
+        "Генерация pytest-тестов из сессии",
+        "export-pytest",
         "# Генерация pytest-тестов\n\n"
         "ErrorLens генерирует Python тесты из записанных HTTP запросов.\n\n"
         "## Процесс\n1. Откройте сессию\n2. Export > pytest\n"
@@ -211,10 +252,13 @@ DEMO_ARTICLES = [
         "    assert response.status_code == 200\n```\n\n"
         "Можно указать: base URL, заголовки, timeout, фильтр по HTTP методам.",
         "Генерация pytest тестов из записанной сессии ErrorLens",
-        "Интеграции", ["pytest", "export", "code-generation"], "Экспорт форматов",
+        "Интеграции",
+        ["pytest", "export", "code-generation"],
+        "Экспорт форматов",
     ),
     _art(
-        "Создание Postman-коллекции", "export-postman",
+        "Создание Postman-коллекции",
+        "export-postman",
         "# Создание Postman-коллекции\n\n"
         "Экспорт HTTP запросов в Postman Collection v2.1.\n\n"
         "## Экспорт\nОткройте сессию > Export > Postman > Download.\n\n"
@@ -222,10 +266,13 @@ DEMO_ARTICLES = [
         "- Группировка по доменам\n- Переменные {{base_url}}, {{auth_token}}\n\n"
         "## Импорт в Postman\nFile > Import > выберите JSON файл.",
         "Экспорт HTTP запросов из ErrorLens в Postman коллекцию",
-        "Интеграции", ["postman", "export", "api"], "Экспорт форматов",
+        "Интеграции",
+        ["postman", "export", "api"],
+        "Экспорт форматов",
     ),
     _art(
-        "Генерация Cypress E2E тестов", "export-cypress",
+        "Генерация Cypress E2E тестов",
+        "export-cypress",
         "# Генерация Cypress E2E тестов\n\n"
         "ErrorLens создаёт Cypress спецификацию из записанных сессий.\n\n"
         "## Генерация\nОткройте сессию > Export > Cypress > Download `.cy.js`\n\n"
@@ -235,10 +282,13 @@ DEMO_ARTICLES = [
         "      .then(r => expect(r.status).to.eq(200))\n  })\n})\n```\n\n"
         "## Ограничения\nТолько API запросы (cy.request). UI-взаимодействия не записываются.",
         "Автоматическая генерация Cypress E2E тестов из записанных сессий",
-        "Интеграции", ["cypress", "e2e", "export"], "Экспорт форматов",
+        "Интеграции",
+        ["cypress", "e2e", "export"],
+        "Экспорт форматов",
     ),
     _art(
-        "Аутентификация: JWT токены", "api-auth",
+        "Аутентификация: JWT токены",
+        "api-auth",
         "# Аутентификация: JWT токены\n\n"
         "## Получение токенов\n`POST /auth/login` с {username, password}. "
         "Ответ: {access_token, refresh_token, token_type}.\n\n"
@@ -248,10 +298,13 @@ DEMO_ARTICLES = [
         "## Ошибки\n- 401: токен отсутствует/истёк/невалиден\n"
         "- 403: недостаточно прав (не admin)",
         "Документация по JWT аутентификации в ErrorLens API",
-        "API Reference", ["api", "auth", "jwt"], "API Reference",
+        "API Reference",
+        ["api", "auth", "jwt"],
+        "API Reference",
     ),
     _art(
-        "Справочник: Sessions API", "api-sessions",
+        "Справочник: Sessions API",
+        "api-sessions",
         "# Справочник: Sessions API\n\n"
         "Все эндпоинты требуют авторизации.\n\n"
         "## GET /sessions\nПараметры: limit (20), offset, search, project_id. "
@@ -260,6 +313,8 @@ DEMO_ARTICLES = [
         "## POST /sessions\nТело: {url, user_agent, console_logs, network_errors, js_exceptions}.\n\n"
         "## DELETE /sessions/{id}\n200 при успехе, 404 если не найдена.",
         "Полный справочник Sessions API в ErrorLens",
-        "API Reference", ["api", "sessions", "reference"], "API Reference",
+        "API Reference",
+        ["api", "sessions", "reference"],
+        "API Reference",
     ),
 ]
