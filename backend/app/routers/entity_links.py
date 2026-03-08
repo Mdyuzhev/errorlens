@@ -21,6 +21,7 @@ class EntityPreviewResponse(BaseModel):
     type: str
     title: str
     status: str | None = None
+    slug: str | None = None
 
 
 class BacklinkItem(BaseModel):

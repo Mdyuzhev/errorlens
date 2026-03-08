@@ -75,6 +75,7 @@ class EntityLinkService:
                 "type": "article",
                 "title": article.title,
                 "status": article.status,
+                "slug": article.slug,
             }
 
         if entity_type == "testcase":
