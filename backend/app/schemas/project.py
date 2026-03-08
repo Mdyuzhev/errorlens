@@ -3,17 +3,17 @@ Project, Folder, ProjectMember Pydantic Schemas
 """
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class ProjectPlan(str, Enum):
+class ProjectPlan(StrEnum):
     FREE = "free"
     PRO = "pro"
 
 
-class MemberRole(str, Enum):
+class MemberRole(StrEnum):
     OWNER = "owner"
     ADMIN = "admin"
     MEMBER = "member"
