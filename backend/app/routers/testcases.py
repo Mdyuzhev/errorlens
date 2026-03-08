@@ -42,6 +42,7 @@ class TestCaseUpdate(BaseModel):
 
 @router.get("")
 async def list_testcases(
+    q: str | None = Query(default=None, description="Search query"),
     folder: str | None = None,
     folder_id: str | None = None,
     status: str | None = None,
@@ -53,6 +54,8 @@ async def list_testcases(
 ):
     """List test cases with filters."""
     service = TestCaseService(db)
+    if q:
+        return await service.search_testcases(q, limit=limit, offset=offset)
     return await service.list_testcases(
         folder=folder,
         folder_id=folder_id,
