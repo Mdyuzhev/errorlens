@@ -3,7 +3,9 @@
 import os
 
 if "DATABASE_URL" not in os.environ:
-    os.environ["DATABASE_URL"] = "postgresql+asyncpg://errorlens:errorlens_secret@localhost:5432/errorlens"
+    os.environ["DATABASE_URL"] = (
+        "postgresql+asyncpg://errorlens:errorlens_secret@localhost:5432/errorlens"
+    )
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
@@ -160,12 +162,24 @@ class TestSeedDemoConstants:
     def test_demo_articles_count(self):
         """Should have at least 15 demo articles."""
         from app.services.seed_demo_articles import DEMO_ARTICLES
+
         assert len(DEMO_ARTICLES) >= 15
 
     def test_demo_articles_have_required_fields(self):
         """Every article should have all required fields."""
         from app.services.seed_demo_articles import DEMO_ARTICLES
-        required = {"title", "slug", "content", "excerpt", "category", "tags", "status", "author", "folder_key"}
+
+        required = {
+            "title",
+            "slug",
+            "content",
+            "excerpt",
+            "category",
+            "tags",
+            "status",
+            "author",
+            "folder_key",
+        }
         for art in DEMO_ARTICLES:
             missing = required - set(art.keys())
             assert not missing, f"Article '{art['title']}' missing fields: {missing}"
@@ -173,32 +187,47 @@ class TestSeedDemoConstants:
     def test_demo_articles_have_project_folder_keys(self):
         """All folder_keys should map to existing folders."""
         from app.services.seed_demo_articles import DEMO_ARTICLES, DEMO_ARTICLE_FOLDER_MAP
+
         for art in DEMO_ARTICLES:
-            assert art["folder_key"] in DEMO_ARTICLE_FOLDER_MAP, (
-                f"Article '{art['title']}' has unknown folder_key: {art['folder_key']}"
-            )
+            assert (
+                art["folder_key"] in DEMO_ARTICLE_FOLDER_MAP
+            ), f"Article '{art['title']}' has unknown folder_key: {art['folder_key']}"
 
     def test_demo_articles_unique_slugs(self):
         """All article slugs should be unique."""
         from app.services.seed_demo_articles import DEMO_ARTICLES
+
         slugs = [a["slug"] for a in DEMO_ARTICLES]
         assert len(slugs) == len(set(slugs)), "Duplicate slugs found"
 
     def test_demo_article_folders_at_least_8(self):
         """Should have at least 8 unique article folders (including subfolders)."""
         from app.services.seed_demo_articles import DEMO_ARTICLE_FOLDERS
+
         total = sum(1 + len(subs) for subs in DEMO_ARTICLE_FOLDERS.values())
         assert total >= 8
 
     def test_demo_testcases_count(self):
         """Should have at least 20 demo test cases."""
         from app.services.seed_demo_constants import DEMO_TEST_CASES
+
         assert len(DEMO_TEST_CASES) >= 20
 
     def test_demo_testcases_have_required_fields(self):
         """Every test case should have all required fields."""
         from app.services.seed_demo_constants import DEMO_TEST_CASES
-        required = {"title", "description", "preconditions", "postconditions", "priority", "status", "folder", "tags", "steps"}
+
+        required = {
+            "title",
+            "description",
+            "preconditions",
+            "postconditions",
+            "priority",
+            "status",
+            "folder",
+            "tags",
+            "steps",
+        }
         for tc in DEMO_TEST_CASES:
             missing = required - set(tc.keys())
             assert not missing, f"TestCase '{tc['title']}' missing fields: {missing}"
@@ -206,6 +235,7 @@ class TestSeedDemoConstants:
     def test_demo_testcase_folders_expanded(self):
         """Testcase folders should have expanded structure."""
         from app.services.seed_demo_constants import DEMO_TESTCASE_FOLDERS
+
         # Per task: JWT subfolder in Авторизация, Auth in API, etc.
         assert "JWT" in DEMO_TESTCASE_FOLDERS.get("Авторизация", [])
         assert "Auth" in DEMO_TESTCASE_FOLDERS.get("API", [])
@@ -214,7 +244,8 @@ class TestSeedDemoConstants:
 
     def test_welcome_article_has_all_fields(self):
         """Welcome article should have all required fields."""
-        from app.services.seed_demo_constants import WELCOME_ARTICLE
+        from app.services.seed_demo_articles import WELCOME_ARTICLE
+
         required = {"title", "slug", "content", "excerpt", "category", "tags", "status", "author"}
         missing = required - set(WELCOME_ARTICLE.keys())
         assert not missing, f"Welcome article missing: {missing}"
@@ -222,13 +253,15 @@ class TestSeedDemoConstants:
     def test_demo_articles_content_min_length(self):
         """Each article content should be at least 200 chars."""
         from app.services.seed_demo_articles import DEMO_ARTICLES
+
         for art in DEMO_ARTICLES:
-            assert len(art["content"]) >= 200, (
-                f"Article '{art['title']}' content too short: {len(art['content'])} chars"
-            )
+            assert (
+                len(art["content"]) >= 200
+            ), f"Article '{art['title']}' content too short: {len(art['content'])} chars"
 
 
 # ─── Edge cases & concurrency ───────────────────────────────────────
+
 
 class TestAdminEdgeCases:
     """Edge cases for admin access checks."""
@@ -281,9 +314,7 @@ class TestAdminEdgeCases:
             db.execute.return_value = r
             return await check_project_access(pid, admin, db)
 
-        results = await asyncio.gather(
-            check_one("p1"), check_one("p2"), check_one("p3")
-        )
+        results = await asyncio.gather(check_one("p1"), check_one("p2"), check_one("p3"))
         assert [r.id for r in results] == ["p1", "p2", "p3"]
 
     @pytest.mark.asyncio
