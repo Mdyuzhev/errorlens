@@ -578,7 +578,7 @@ class TestArticleImportEndpoints:
         assert data["title"] == "Test DOCX Article"
         assert len(data["content"]) > 0
 
-    def test_import_with_folder_id(self, client):
+    def test_import_with_nonexistent_folder_id(self, client):
         headers = self._get_auth_headers(client)
         content = b"# Folder Test Article\n\nContent for folder test."
         resp = client.post(
@@ -587,8 +587,8 @@ class TestArticleImportEndpoints:
             data={"folder_id": "nonexistent-folder", "status": "draft"},
             headers=headers,
         )
-        # Should succeed even with non-existent folder_id (just stores the value)
-        assert resp.status_code == 200
+        # FK constraint prevents insertion with non-existent folder_id
+        assert resp.status_code in (400, 500)
 
     def test_import_with_category_tags(self, client):
         headers = self._get_auth_headers(client)

@@ -2,7 +2,7 @@
 Project Repository - Data access for projects, folders, members.
 """
 
-from sqlalchemy import func, select, union
+from sqlalchemy import func, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -41,7 +41,7 @@ class ProjectRepository(BaseRepository[Project]):
         )
 
         # Union both queries
-        union_query = union(owned_query, member_query).order_by(Project.created_at.desc())
+        union_query = union_all(owned_query, member_query).order_by(Project.created_at.desc())
         result = await self.session.execute(select(Project).from_statement(union_query))
         return list(result.scalars().all())
 
