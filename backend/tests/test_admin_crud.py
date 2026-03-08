@@ -7,8 +7,6 @@ if "DATABASE_URL" not in os.environ:
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from sqlalchemy import select
-
 from app.middleware.jwt_auth import check_project_access, get_default_project
 from app.models.db_models import Article, ArticleFolder, TestCase, TestCaseFolder, Project
 from app.models.user import User
@@ -161,12 +159,12 @@ class TestSeedDemoConstants:
 
     def test_demo_articles_count(self):
         """Should have at least 15 demo articles."""
-        from app.services.seed_demo_constants import DEMO_ARTICLES
+        from app.services.seed_demo_articles import DEMO_ARTICLES
         assert len(DEMO_ARTICLES) >= 15
 
     def test_demo_articles_have_required_fields(self):
         """Every article should have all required fields."""
-        from app.services.seed_demo_constants import DEMO_ARTICLES
+        from app.services.seed_demo_articles import DEMO_ARTICLES
         required = {"title", "slug", "content", "excerpt", "category", "tags", "status", "author", "folder_key"}
         for art in DEMO_ARTICLES:
             missing = required - set(art.keys())
@@ -174,7 +172,7 @@ class TestSeedDemoConstants:
 
     def test_demo_articles_have_project_folder_keys(self):
         """All folder_keys should map to existing folders."""
-        from app.services.seed_demo_constants import DEMO_ARTICLES, DEMO_ARTICLE_FOLDER_MAP
+        from app.services.seed_demo_articles import DEMO_ARTICLES, DEMO_ARTICLE_FOLDER_MAP
         for art in DEMO_ARTICLES:
             assert art["folder_key"] in DEMO_ARTICLE_FOLDER_MAP, (
                 f"Article '{art['title']}' has unknown folder_key: {art['folder_key']}"
@@ -182,13 +180,13 @@ class TestSeedDemoConstants:
 
     def test_demo_articles_unique_slugs(self):
         """All article slugs should be unique."""
-        from app.services.seed_demo_constants import DEMO_ARTICLES
+        from app.services.seed_demo_articles import DEMO_ARTICLES
         slugs = [a["slug"] for a in DEMO_ARTICLES]
         assert len(slugs) == len(set(slugs)), "Duplicate slugs found"
 
     def test_demo_article_folders_at_least_8(self):
         """Should have at least 8 unique article folders (including subfolders)."""
-        from app.services.seed_demo_constants import DEMO_ARTICLE_FOLDERS
+        from app.services.seed_demo_articles import DEMO_ARTICLE_FOLDERS
         total = sum(1 + len(subs) for subs in DEMO_ARTICLE_FOLDERS.values())
         assert total >= 8
 
@@ -223,8 +221,120 @@ class TestSeedDemoConstants:
 
     def test_demo_articles_content_min_length(self):
         """Each article content should be at least 200 chars."""
-        from app.services.seed_demo_constants import DEMO_ARTICLES
+        from app.services.seed_demo_articles import DEMO_ARTICLES
         for art in DEMO_ARTICLES:
             assert len(art["content"]) >= 200, (
                 f"Article '{art['title']}' content too short: {len(art['content'])} chars"
             )
+
+
+# ─── Edge cases & concurrency ───────────────────────────────────────
+
+class TestAdminEdgeCases:
+    """Edge cases for admin access checks."""
+
+    @pytest.mark.asyncio
+    async def test_empty_project_id_returns_404(self):
+        """Empty string project_id returns 404."""
+        from fastapi import HTTPException
+
+        admin = _make_user(is_admin=True)
+        db = AsyncMock()
+        r = MagicMock()
+        r.scalar_one_or_none.return_value = None
+        db.execute.return_value = r
+
+        with pytest.raises(HTTPException) as exc:
+            await check_project_access("", admin, db)
+        assert exc.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_duplicate_access_checks(self):
+        """Calling check_project_access twice works correctly."""
+        admin = _make_user(is_admin=True)
+        project = _make_project(owner_id="x", project_id="p1")
+
+        r1 = MagicMock()
+        r1.scalar_one_or_none.return_value = project
+        r2 = MagicMock()
+        r2.scalar_one_or_none.return_value = project
+
+        db = AsyncMock()
+        db.execute.side_effect = [r1, r2]
+
+        res1 = await check_project_access("p1", admin, db)
+        res2 = await check_project_access("p1", admin, db)
+        assert res1.id == res2.id
+
+    @pytest.mark.asyncio
+    async def test_concurrent_admin_access(self):
+        """Multiple concurrent admin access checks don't interfere."""
+        import asyncio
+
+        admin = _make_user(is_admin=True)
+
+        async def check_one(pid: str):
+            project = _make_project(project_id=pid, owner_id="x")
+            db = AsyncMock()
+            r = MagicMock()
+            r.scalar_one_or_none.return_value = project
+            db.execute.return_value = r
+            return await check_project_access(pid, admin, db)
+
+        results = await asyncio.gather(
+            check_one("p1"), check_one("p2"), check_one("p3")
+        )
+        assert [r.id for r in results] == ["p1", "p2", "p3"]
+
+    @pytest.mark.asyncio
+    async def test_error_recovery_after_404(self):
+        """After 404, next check works fine."""
+        from fastapi import HTTPException
+
+        admin = _make_user(is_admin=True)
+
+        db_none = AsyncMock()
+        r_none = MagicMock()
+        r_none.scalar_one_or_none.return_value = None
+        db_none.execute.return_value = r_none
+
+        with pytest.raises(HTTPException):
+            await check_project_access("gone", admin, db_none)
+
+        project = _make_project(project_id="p2", owner_id="x")
+        db_ok = AsyncMock()
+        r_ok = MagicMock()
+        r_ok.scalar_one_or_none.return_value = project
+        db_ok.execute.return_value = r_ok
+
+        result = await check_project_access("p2", admin, db_ok)
+        assert result.id == "p2"
+
+    @pytest.mark.asyncio
+    async def test_member_role_hierarchy(self):
+        """Member role can access member-level but not admin-level."""
+        from fastapi import HTTPException
+
+        user = _make_user(is_admin=False, user_id="u1")
+        project = _make_project(owner_id="other", project_id="p1")
+        member = MagicMock()
+        member.user_id = "u1"
+        member.role = "member"
+
+        def make_db():
+            db = AsyncMock()
+            r1 = MagicMock()
+            r1.scalar_one_or_none.return_value = project
+            r2 = MagicMock()
+            r2.scalar_one_or_none.return_value = member
+            db.execute.side_effect = [r1, r2]
+            return db
+
+        # member role sufficient for "member"
+        result = await check_project_access("p1", user, make_db(), required_role="member")
+        assert result.id == "p1"
+
+        # member role insufficient for "admin"
+        with pytest.raises(HTTPException) as exc:
+            await check_project_access("p1", user, make_db(), required_role="admin")
+        assert exc.value.status_code == 403

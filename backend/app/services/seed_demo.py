@@ -1,6 +1,5 @@
 """Seed demo data for ErrorLens."""
 
-import asyncio
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
@@ -16,13 +15,15 @@ from app.models.db_models import (
     TestCaseFolder,
 )
 from app.models.user import User
-from app.services.seed_demo_constants import (
+from app.services.seed_demo_articles import (
     DEMO_ARTICLE_FOLDERS,
     DEMO_ARTICLES,
+    WELCOME_ARTICLE,
+)
+from app.services.seed_demo_constants import (
     DEMO_TASKS,
     DEMO_TEST_CASES,
     DEMO_TESTCASE_FOLDERS,
-    WELCOME_ARTICLE,
 )
 
 
@@ -209,4 +210,5 @@ async def seed_demo_data():
 
 
 if __name__ == "__main__":
+    import asyncio
     asyncio.run(seed_demo_data())
