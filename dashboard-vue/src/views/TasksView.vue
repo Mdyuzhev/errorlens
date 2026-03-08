@@ -69,7 +69,10 @@
 
           <div class="form-group">
             <label>Description</label>
-            <textarea v-model="form.description" rows="3" placeholder="Task description"></textarea>
+            <RichEditor
+              v-model="form.descriptionJson"
+              placeholder="Task description"
+            />
           </div>
 
           <div class="form-row">
@@ -127,6 +130,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useTasksStore } from '@/stores/tasks'
+import RichEditor from '@/components/common/RichEditor.vue'
 
 const store = useTasksStore()
 
@@ -144,12 +148,22 @@ let draggedTask = null
 const form = ref({
   title: '',
   description: '',
+  descriptionJson: null,
   status: 'todo',
   priority: 'medium',
   assignee: '',
   due_date: '',
   labels: []
 })
+
+function parseContent(raw) {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed && parsed.type === 'doc') return parsed
+  } catch {}
+  return { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: raw }] }] }
+}
 
 const labelsInput = ref('')
 
@@ -173,6 +187,7 @@ function openTask(task) {
   form.value = {
     title: task.title || '',
     description: task.description || '',
+    descriptionJson: parseContent(task.description),
     status: task.status || 'todo',
     priority: task.priority || 'medium',
     assignee: task.assignee || '',
@@ -191,6 +206,7 @@ function resetForm() {
   form.value = {
     title: '',
     description: '',
+    descriptionJson: null,
     status: 'todo',
     priority: 'medium',
     assignee: '',
@@ -201,7 +217,11 @@ function resetForm() {
 
 async function saveTask() {
   const data = {
-    ...form.value,
+    title: form.value.title,
+    description: form.value.descriptionJson ? JSON.stringify(form.value.descriptionJson) : form.value.description,
+    status: form.value.status,
+    priority: form.value.priority,
+    assignee: form.value.assignee,
     labels: labelsInput.value.split(',').map(l => l.trim()).filter(Boolean),
     due_date: form.value.due_date || null
   }

@@ -128,32 +128,17 @@
 
           <div class="form-group">
             <div class="content-label-row">
-              <label>Content (Markdown)</label>
-              <div class="editor-toolbar">
-                <button type="button" class="btn-import-small" @click="triggerImageUpload" :disabled="uploadingImage">
-                  {{ uploadingImage ? 'Uploading...' : 'Upload Image' }}
-                </button>
+              <label>Content</label>
+              <div class="editor-toolbar-actions">
                 <button type="button" class="btn-import-small" @click="triggerEditorImport" :disabled="importing">
                   {{ importing ? 'Loading...' : 'Import from file' }}
                 </button>
               </div>
             </div>
-            <textarea
-              ref="contentTextarea"
-              v-model="form.content"
-              rows="15"
-              placeholder="Write your article in Markdown..."
-              class="content-editor"
-              @paste="handleImagePaste"
-              @drop.prevent="handleImageDrop"
-              @dragover.prevent
-            ></textarea>
-            <input
-              ref="imageFileInput"
-              type="file"
-              accept="image/*"
-              style="display: none"
-              @change="handleImageFileSelect"
+            <RichEditor
+              v-model="form.contentJson"
+              placeholder="Содержимое статьи..."
+              :uploadEnabled="true"
             />
           </div>
 
@@ -194,7 +179,9 @@
             <span v-if="viewingArticle.category">{{ viewingArticle.category }}</span>
           </div>
 
-          <div class="article-content" v-html="renderedContent"></div>
+          <div class="article-content">
+            <RichEditor :modelValue="parseContent(viewingArticle.content)" :editable="false" />
+          </div>
 
           <div class="article-actions">
             <button class="btn btn-secondary" @click="editFromView">Edit</button>
@@ -210,6 +197,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useArticlesStore } from '@/stores/articles'
 import { articlesApi } from '@/services/api'
 import FolderTree from '@/components/articles/FolderTree.vue'
+import RichEditor from '@/components/common/RichEditor.vue'
 
 const store = useArticlesStore()
 
@@ -217,12 +205,8 @@ const showEditor = ref(false)
 const editingArticle = ref(null)
 const viewingArticle = ref(null)
 const importing = ref(false)
-const uploadingImage = ref(false)
 const importFileInput = ref(null)
 const editorFileInput = ref(null)
-const imageFileInput = ref(null)
-const contentTextarea = ref(null)
-const notification = ref(null)
 
 const filters = ref({
   category: '',
@@ -232,9 +216,19 @@ const filters = ref({
 const form = ref({
   title: '',
   content: '',
+  contentJson: null,
   category: '',
   status: 'draft'
 })
+
+function parseContent(raw) {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed && parsed.type === 'doc') return parsed
+  } catch {}
+  return { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: raw }] }] }
+}
 
 const tagsInput = ref('')
 
@@ -242,22 +236,6 @@ const loading = computed(() => store.loading)
 const articles = computed(() => store.articles)
 const categories = computed(() => store.categories)
 const folders = computed(() => store.folders)
-
-// Simple markdown renderer
-const renderedContent = computed(() => {
-  if (!viewingArticle.value?.content) return ''
-
-  return viewingArticle.value.content
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<img src="$2" alt="$1" class="article-image" loading="lazy">')
-    .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-    .replace(/`([^`]+)`/gim, '<code>$1</code>')
-    .replace(/```(\w*)\n([\s\S]*?)```/gim, '<pre><code>$2</code></pre>')
-    .replace(/\n/gim, '<br>')
-})
 
 async function loadArticles() {
   store.filters = { ...filters.value }
@@ -285,6 +263,7 @@ function editFromView() {
   form.value = {
     title: viewingArticle.value.title || '',
     content: viewingArticle.value.content || '',
+    contentJson: parseContent(viewingArticle.value.content),
     category: viewingArticle.value.category || '',
     status: viewingArticle.value.status || 'draft'
   }
@@ -303,6 +282,7 @@ function resetForm() {
   form.value = {
     title: '',
     content: '',
+    contentJson: null,
     category: '',
     status: 'draft'
   }
@@ -311,7 +291,10 @@ function resetForm() {
 
 async function saveArticle() {
   const data = {
-    ...form.value,
+    title: form.value.title,
+    content: form.value.contentJson ? JSON.stringify(form.value.contentJson) : form.value.content,
+    category: form.value.category,
+    status: form.value.status,
     tags: tagsInput.value.split(',').map(t => t.trim()).filter(Boolean)
   }
 
@@ -430,7 +413,10 @@ async function handleEditorImport(event) {
     const response = await articlesApi.previewFile(formData)
     const { title, content, warnings } = response.data
     form.value.title = title || form.value.title
-    form.value.content = content || form.value.content
+    if (content) {
+      form.value.content = content
+      form.value.contentJson = parseContent(content)
+    }
     if (warnings?.length) {
       alert(`Warnings: ${warnings.join(', ')}`)
     }
@@ -440,80 +426,6 @@ async function handleEditorImport(event) {
     importing.value = false
     event.target.value = ''
   }
-}
-
-// Image upload helpers
-function triggerImageUpload() {
-  imageFileInput.value?.click()
-}
-
-async function uploadImageFile(file) {
-  uploadingImage.value = true
-  const formData = new FormData()
-  formData.append('file', file)
-  if (editingArticle.value?.id) {
-    formData.append('article_id', editingArticle.value.id)
-  }
-
-  try {
-    const response = await articlesApi.uploadImage(formData)
-    const { url, filename } = response.data
-    insertAtCursor(`![${filename}](${url})\n`)
-  } catch (err) {
-    alert(err.response?.data?.detail || 'Image upload failed')
-  } finally {
-    uploadingImage.value = false
-  }
-}
-
-function handleImageFileSelect(event) {
-  const file = event.target.files?.[0]
-  if (file) uploadImageFile(file)
-  event.target.value = ''
-}
-
-function handleImagePaste(event) {
-  const items = event.clipboardData?.items
-  if (!items) return
-
-  for (const item of items) {
-    if (item.type.startsWith('image/')) {
-      event.preventDefault()
-      const file = item.getAsFile()
-      if (file) uploadImageFile(file)
-      return
-    }
-  }
-}
-
-function handleImageDrop(event) {
-  const files = event.dataTransfer?.files
-  if (!files) return
-
-  for (const file of files) {
-    if (file.type.startsWith('image/')) {
-      uploadImageFile(file)
-    }
-  }
-}
-
-function insertAtCursor(text) {
-  const textarea = contentTextarea.value
-  if (!textarea) {
-    form.value.content += text
-    return
-  }
-  const start = textarea.selectionStart
-  const end = textarea.selectionEnd
-  const before = form.value.content.substring(0, start)
-  const after = form.value.content.substring(end)
-  form.value.content = before + text + after
-  // Restore cursor position after Vue re-renders
-  const newPos = start + text.length
-  requestAnimationFrame(() => {
-    textarea.selectionStart = textarea.selectionEnd = newPos
-    textarea.focus()
-  })
 }
 
 function onArticleDragStart(e, article) {
@@ -634,12 +546,6 @@ onMounted(() => {
 }
 
 /* Editor */
-.content-editor {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 14px;
-  line-height: 1.6;
-  resize: vertical;
-}
 
 /* Article View */
 .article-view h1 {
@@ -707,7 +613,7 @@ onMounted(() => {
   display: block;
 }
 
-.editor-toolbar {
+.editor-toolbar-actions {
   display: flex;
   gap: 6px;
 }
