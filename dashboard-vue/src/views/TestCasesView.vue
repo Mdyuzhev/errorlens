@@ -2,193 +2,108 @@
   <div class="testcases-page">
     <div class="page-header">
       <h1>Test Cases</h1>
-      <button class="btn btn-primary" @click="showEditor = true; editingTestCase = null">
+      <button class="btn btn-primary" @click="openNewTestCase">
         + New Test Case
       </button>
     </div>
 
-    <div class="testcases-layout">
-      <!-- Sidebar: Folder Tree -->
-      <aside class="sidebar">
-        <FolderTree
-          :folders="treeFolders"
-          :selected-folder-id="store.selectedFolderId"
-          :expanded-ids="store.expandedFolders"
-          @select="handleSelectFolder"
-          @toggle="store.toggleFolder($event)"
-          @create="handleCreateFolder"
-          @rename="handleRenameFolder"
-          @delete="handleDeleteFolder"
-          @drop="handleDrop"
-        />
-      </aside>
+    <div class="testcases-split">
+      <!-- Left: folder tree + test cases list -->
+      <div class="split-list" :class="{ 'split-list--collapsed': panelOpen }">
+        <div class="testcases-layout">
+          <!-- Sidebar: Folder Tree -->
+          <aside class="sidebar">
+            <FolderTree
+              :folders="treeFolders"
+              :selected-folder-id="store.selectedFolderId"
+              :expanded-ids="store.expandedFolders"
+              @select="handleSelectFolder"
+              @toggle="store.toggleFolder($event)"
+              @create="handleCreateFolder"
+              @rename="handleRenameFolder"
+              @delete="handleDeleteFolder"
+              @drop="handleDrop"
+            />
+          </aside>
 
-      <!-- Main Area -->
-      <div class="main-area">
-        <!-- Filters -->
-        <div class="filters">
-          <select v-model="filters.status" @change="loadTestCases">
-            <option value="">All Statuses</option>
-            <option value="Draft">Draft</option>
-            <option value="Ready">Ready</option>
-            <option value="Approved">Approved</option>
-          </select>
-
-          <select v-model="filters.priority" @change="loadTestCases">
-            <option value="">All Priorities</option>
-            <option value="Critical">Critical</option>
-            <option value="High">High</option>
-            <option value="Medium">Medium</option>
-            <option value="Low">Low</option>
-          </select>
-        </div>
-
-        <!-- Test Cases Grid -->
-        <div v-if="loading" class="loading">
-          <div class="spinner"></div>
-        </div>
-
-        <div v-else-if="testCases.length === 0" class="empty-state">
-          <p>No test cases yet</p>
-          <p class="hint">Create from session or manually</p>
-        </div>
-
-        <div v-else class="testcases-grid" data-testid="testcases-list">
-          <div
-            v-for="tc in testCases"
-            :key="tc.id"
-            class="testcase-card"
-            :draggable="true"
-            @click="openTestCase(tc)"
-            @dragstart="onTestCaseDragStart($event, tc)"
-          >
-            <div class="tc-header">
-              <span class="tc-priority" :class="tc.priority?.toLowerCase()">
-                {{ tc.priority }}
-              </span>
-              <span class="tc-status" :class="tc.status?.toLowerCase()">
-                {{ tc.status }}
-              </span>
-            </div>
-            <h3 class="tc-title">{{ tc.title }}</h3>
-            <p class="tc-description">{{ tc.description || 'No description' }}</p>
-            <div class="tc-footer">
-              <span class="tc-steps">{{ tc.steps?.length || 0 }} steps</span>
-              <span class="tc-automation" :class="tc.automation_status?.toLowerCase().replace(' ', '-')">
-                {{ tc.automation_status }}
-              </span>
-            </div>
-            <div v-if="tc.tags?.length" class="tc-tags">
-              <span v-for="tag in tc.tags.slice(0, 3)" :key="tag" class="tag">{{ tag }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Editor Modal -->
-    <div v-if="showEditor" class="modal-overlay" @click.self="closeEditor">
-      <div class="modal-content modal-large">
-        <button class="modal-close" @click="closeEditor">&times;</button>
-
-        <h2>{{ editingTestCase ? 'Edit Test Case' : 'New Test Case' }}</h2>
-
-        <form @submit.prevent="saveTestCase">
-          <div class="form-group">
-            <label>Title *</label>
-            <input v-model="form.title" required placeholder="Test case title" />
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Priority</label>
-              <select v-model="form.priority">
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-                <option value="Critical">Critical</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label>Status</label>
-              <select v-model="form.status">
+          <!-- Main Area -->
+          <div class="main-area">
+            <!-- Filters -->
+            <div class="filters">
+              <select v-model="filters.status" @change="loadTestCases">
+                <option value="">All Statuses</option>
                 <option value="Draft">Draft</option>
                 <option value="Ready">Ready</option>
                 <option value="Approved">Approved</option>
               </select>
-            </div>
 
-            <div class="form-group">
-              <label>Automation</label>
-              <select v-model="form.automation_status">
-                <option value="Manual">Manual</option>
-                <option value="Automated">Automated</option>
-                <option value="NotAutomatable">Not Automatable</option>
+              <select v-model="filters.priority" @change="loadTestCases">
+                <option value="">All Priorities</option>
+                <option value="Critical">Critical</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
               </select>
             </div>
-          </div>
 
-          <div class="form-group">
-            <label>Description</label>
-            <RichEditor
-              v-model="form.descriptionJson"
-              placeholder="Brief description"
-              :maxLength="5000"
-            />
-          </div>
-
-          <div class="form-group">
-            <label>Preconditions</label>
-            <RichEditor
-              v-model="form.preconditionsJson"
-              placeholder="What needs to be set up before test"
-              :maxLength="5000"
-            />
-          </div>
-
-          <div class="form-group">
-            <label>Steps</label>
-            <div v-for="(step, idx) in form.steps" :key="idx" class="step-row">
-              <span class="step-num">{{ idx + 1 }}</span>
-              <input v-model="step.action" placeholder="Action" class="step-action" />
-              <input v-model="step.expected" placeholder="Expected result" class="step-expected" />
-              <button type="button" class="btn-icon" @click="removeStep(idx)">x</button>
+            <!-- Test Cases Grid -->
+            <div v-if="loading" class="loading">
+              <div class="spinner"></div>
             </div>
-            <button type="button" class="btn btn-secondary btn-sm" @click="addStep">+ Add Step</button>
-          </div>
 
-          <div class="form-group">
-            <label>Postconditions</label>
-            <RichEditor
-              v-model="form.postconditionsJson"
-              placeholder="Expected state after test"
-              :maxLength="5000"
-            />
-          </div>
+            <div v-else-if="testCases.length === 0" class="empty-state">
+              <p>No test cases yet</p>
+              <p class="hint">Create from session or manually</p>
+            </div>
 
-          <div class="form-group">
-            <label>Tags (comma-separated)</label>
-            <input v-model="tagsInput" placeholder="api, smoke, regression" />
-          </div>
-
-          <!-- Backlinks -->
-          <div v-if="editingTestCase && backlinks.length" class="backlinks-section">
-            <label>Mentioned in articles ({{ backlinks.length }}):</label>
-            <div v-for="bl in backlinks" :key="bl.article_id" class="backlink-item" @click="goToArticle(bl)">
-              <span class="backlink-icon">{'\u{1F4C4}'}</span>
-              {{ bl.article_title }}
+            <div v-else class="testcases-grid" :class="{ 'grid-compact': panelOpen }" data-testid="testcases-list">
+              <div
+                v-for="tc in testCases"
+                :key="tc.id"
+                class="testcase-card"
+                :class="{ 'card-selected': tc.id === store.selectedTestCaseId }"
+                :draggable="true"
+                @click="handleCardClick(tc)"
+                @dragstart="onTestCaseDragStart($event, tc)"
+              >
+                <div class="tc-header">
+                  <span class="tc-priority" :class="tc.priority?.toLowerCase()">
+                    {{ tc.priority }}
+                  </span>
+                  <span class="tc-status" :class="tc.status?.toLowerCase()">
+                    {{ tc.status }}
+                  </span>
+                </div>
+                <h3 class="tc-title">{{ tc.title }}</h3>
+                <p class="tc-description">{{ tc.description || 'No description' }}</p>
+                <div class="tc-footer">
+                  <span class="tc-steps">{{ tc.steps?.length || 0 }} steps</span>
+                  <span class="tc-automation" :class="tc.automation_status?.toLowerCase().replace(' ', '-')">
+                    {{ tc.automation_status }}
+                  </span>
+                </div>
+                <div v-if="tc.tags?.length" class="tc-tags">
+                  <span v-for="tag in tc.tags.slice(0, 3)" :key="tag" class="tag">{{ tag }}</span>
+                </div>
+              </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div class="form-actions">
-            <button v-if="editingTestCase" type="button" class="btn btn-danger" @click="deleteTestCase">
-              Delete
-            </button>
-            <button type="button" class="btn btn-secondary" @click="closeEditor">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save</button>
-          </div>
-        </form>
+      <!-- Right: Edit panel -->
+      <div class="split-panel" :class="{ 'split-panel--hidden': !panelOpen }">
+        <div v-if="panelOpen" class="panel-inner">
+          <TestCasePanel
+            :testCase="editingTestCase"
+            :backlinks="backlinks"
+            v-model="form"
+            @save="saveTestCase"
+            @delete="handleDelete"
+            @close="closePanel"
+            @go-to-article="goToArticle"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -199,11 +114,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useTestCasesStore } from '@/stores/testcases'
 import { entityLinksApi } from '@/services/api'
 import FolderTree from '@/components/testcases/FolderTree.vue'
-import RichEditor from '@/components/common/RichEditor.vue'
+import TestCasePanel from '@/components/testcases/TestCasePanel.vue'
 
 const store = useTestCasesStore()
 
-const showEditor = ref(false)
 const editingTestCase = ref(null)
 const backlinks = ref([])
 
@@ -212,19 +126,24 @@ const filters = ref({
   priority: ''
 })
 
-const form = ref({
-  title: '',
-  description: '',
-  descriptionJson: null,
-  preconditions: '',
-  preconditionsJson: null,
-  postconditions: '',
-  postconditionsJson: null,
-  priority: 'Medium',
-  status: 'Draft',
-  automation_status: 'Manual',
-  steps: [{ action: '', expected: '', testData: '' }]
-})
+const form = ref(getEmptyForm())
+
+function getEmptyForm() {
+  return {
+    title: '',
+    description: '',
+    descriptionJson: null,
+    preconditions: '',
+    preconditionsJson: null,
+    postconditions: '',
+    postconditionsJson: null,
+    priority: 'Medium',
+    status: 'Draft',
+    automation_status: 'Manual',
+    steps: [{ action: '', expected: '', testData: '' }],
+    tags: []
+  }
+}
 
 function parseContent(raw) {
   if (!raw) return null
@@ -235,18 +154,17 @@ function parseContent(raw) {
   return { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: raw }] }] }
 }
 
-const tagsInput = ref('')
-
 const loading = computed(() => store.loading)
 const testCases = computed(() => store.testCases)
 const treeFolders = computed(() => store.treeFolders)
+const panelOpen = computed(() => store.panelMode !== null)
 
 async function loadTestCases() {
   store.filters = { ...filters.value, folder: '' }
   await store.fetchTestCases()
 }
 
-async function openTestCase(tc) {
+function handleCardClick(tc) {
   editingTestCase.value = tc
   loadBacklinks(tc.id)
   form.value = {
@@ -260,17 +178,18 @@ async function openTestCase(tc) {
     priority: tc.priority || 'Medium',
     status: tc.status || 'Draft',
     automation_status: tc.automation_status || 'Manual',
-    steps: tc.steps?.length ? [...tc.steps] : [{ action: '', expected: '', testData: '' }]
+    steps: tc.steps?.length ? [...tc.steps] : [{ action: '', expected: '', testData: '' }],
+    tags: tc.tags || []
   }
-  tagsInput.value = tc.tags?.join(', ') || ''
-  showEditor.value = true
+  store.openTestCase(tc.id)
 }
 
-function closeEditor() {
-  showEditor.value = false
+function openNewTestCase() {
   editingTestCase.value = null
   backlinks.value = []
-  resetForm()
+  form.value = getEmptyForm()
+  store.selectedTestCaseId = null
+  store.panelMode = 'edit'
 }
 
 async function loadBacklinks(tcId) {
@@ -286,44 +205,28 @@ function goToArticle(bl) {
   window.location.href = '/#/articles'
 }
 
-function resetForm() {
-  form.value = {
-    title: '',
-    description: '',
-    descriptionJson: null,
-    preconditions: '',
-    preconditionsJson: null,
-    postconditions: '',
-    postconditionsJson: null,
-    priority: 'Medium',
-    status: 'Draft',
-    automation_status: 'Manual',
-    steps: [{ action: '', expected: '', testData: '' }]
-  }
-  tagsInput.value = ''
+function closePanel() {
+  store.closePanel()
+  editingTestCase.value = null
+  backlinks.value = []
+  form.value = getEmptyForm()
 }
 
-function addStep() {
-  form.value.steps.push({ action: '', expected: '', testData: '' })
-}
-
-function removeStep(idx) {
-  if (form.value.steps.length > 1) {
-    form.value.steps.splice(idx, 1)
-  }
-}
-
-async function saveTestCase() {
+async function saveTestCase(formData) {
   const data = {
-    title: form.value.title,
-    description: form.value.descriptionJson ? JSON.stringify(form.value.descriptionJson) : form.value.description,
-    preconditions: form.value.preconditionsJson ? JSON.stringify(form.value.preconditionsJson) : form.value.preconditions,
-    postconditions: form.value.postconditionsJson ? JSON.stringify(form.value.postconditionsJson) : form.value.postconditions,
-    priority: form.value.priority,
-    status: form.value.status,
-    automation_status: form.value.automation_status,
-    steps: form.value.steps,
-    tags: tagsInput.value.split(',').map(t => t.trim()).filter(Boolean)
+    title: formData.title,
+    description: formData.descriptionJson ? JSON.stringify(formData.descriptionJson) : formData.description,
+    preconditions: formData.preconditionsJson ? JSON.stringify(formData.preconditionsJson) : formData.preconditions,
+    postconditions: formData.postconditionsJson ? JSON.stringify(formData.postconditionsJson) : formData.postconditions,
+    priority: formData.priority,
+    status: formData.status,
+    automation_status: formData.automation_status,
+    steps: (formData.steps || []).map(s => ({
+      action: typeof s.action === 'object' ? JSON.stringify(s.action) : (s.action || ''),
+      expected: typeof s.expected === 'object' ? JSON.stringify(s.expected) : (s.expected || ''),
+      testData: s.testData || ''
+    })),
+    tags: formData.tags || []
   }
 
   if (editingTestCase.value) {
@@ -332,14 +235,14 @@ async function saveTestCase() {
     await store.createTestCase(data)
   }
 
-  closeEditor()
+  closePanel()
   await store.fetchFoldersTree()
 }
 
-async function deleteTestCase() {
-  if (editingTestCase.value && confirm('Delete this test case?')) {
-    await store.deleteTestCase(editingTestCase.value.id)
-    closeEditor()
+async function handleDelete(id) {
+  if (confirm('Delete this test case?')) {
+    await store.deleteTestCase(id)
+    closePanel()
     await store.fetchFoldersTree()
   }
 }
@@ -384,10 +287,56 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* Split layout */
+.testcases-split {
+  display: flex;
+  gap: 0;
+  margin-top: 16px;
+  height: calc(100vh - 120px);
+}
+
+.split-list {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  transition: flex 0.3s ease;
+}
+
+.split-list--collapsed {
+  flex: 0 0 40%;
+  max-width: 40%;
+}
+
+.split-panel {
+  flex: 0 0 60%;
+  max-width: 60%;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  overflow-y: auto;
+  transition: flex 0.3s ease, max-width 0.3s ease;
+}
+
+.split-panel--hidden {
+  flex: 0;
+  max-width: 0;
+  overflow: hidden;
+  border-left: none;
+}
+
+.panel-inner {
+  padding: 20px 24px;
+  height: 100%;
+}
+
+/* Selected card */
+.card-selected {
+  outline: 2px solid var(--accent, #6366f1);
+  outline-offset: -2px;
+}
+
+/* Existing layout (sidebar + main-area inside split-list) */
 .testcases-layout {
   display: flex;
   gap: 20px;
-  margin-top: 16px;
 }
 
 .sidebar {
@@ -398,7 +347,7 @@ onMounted(() => {
   padding: 12px;
   align-self: flex-start;
   position: sticky;
-  top: 20px;
+  top: 0;
   max-height: calc(100vh - 160px);
   overflow-y: auto;
 }
@@ -414,6 +363,10 @@ onMounted(() => {
   gap: 16px;
 }
 
+.grid-compact {
+  grid-template-columns: 1fr;
+}
+
 .testcase-card {
   background: var(--bg-card);
   padding: 20px;
@@ -423,7 +376,7 @@ onMounted(() => {
 }
 
 .testcase-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
@@ -442,40 +395,14 @@ onMounted(() => {
   text-transform: uppercase;
 }
 
-.tc-priority.critical {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
-}
+.tc-priority.critical { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.tc-priority.high { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.tc-priority.medium { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+.tc-priority.low { background: rgba(107, 114, 128, 0.2); color: #9ca3af; }
 
-.tc-priority.high {
-  background: rgba(245, 158, 11, 0.2);
-  color: #f59e0b;
-}
-
-.tc-priority.medium {
-  background: rgba(59, 130, 246, 0.2);
-  color: #3b82f6;
-}
-
-.tc-priority.low {
-  background: rgba(107, 114, 128, 0.2);
-  color: #9ca3af;
-}
-
-.tc-status.draft {
-  background: rgba(107, 114, 128, 0.2);
-  color: #9ca3af;
-}
-
-.tc-status.ready {
-  background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
-}
-
-.tc-status.approved {
-  background: rgba(124, 58, 237, 0.2);
-  color: #a78bfa;
-}
+.tc-status.draft { background: rgba(107, 114, 128, 0.2); color: #9ca3af; }
+.tc-status.ready { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+.tc-status.approved { background: rgba(124, 58, 237, 0.2); color: #a78bfa; }
 
 .tc-title {
   font-size: 16px;
@@ -500,13 +427,8 @@ onMounted(() => {
   color: var(--text-secondary);
 }
 
-.tc-automation.automated {
-  color: #10b981;
-}
-
-.tc-automation.manual {
-  color: #f59e0b;
-}
+.tc-automation.automated { color: #10b981; }
+.tc-automation.manual { color: #f59e0b; }
 
 .tc-tags {
   display: flex;
@@ -522,126 +444,24 @@ onMounted(() => {
   font-size: 11px;
 }
 
-/* Form styles */
-.form-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.form-group input,
-.form-group select,
-.form-group textarea {
-  width: 100%;
-}
-
-.step-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.step-num {
-  min-width: 24px;
-  height: 24px;
-  background: var(--accent);
-  color: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-}
-
-.step-action {
-  flex: 2;
-}
-
-.step-expected {
-  flex: 2;
-}
-
-.btn-icon {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  background: var(--error);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-.form-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid var(--bg-secondary);
-}
-
-.form-actions .btn-danger {
-  margin-right: auto;
-}
-
 .loading {
   display: flex;
   justify-content: center;
   padding: 60px;
 }
 
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal-content {
-  background: var(--bg-card);
-  border-radius: 16px;
-  padding: 24px;
-  max-width: 700px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  position: relative;
-}
-
-.modal-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 24px;
-  cursor: pointer;
+/* Mobile: panel overlays list */
+@media (max-width: 768px) {
+  .split-list--collapsed {
+    display: none;
+  }
+  .split-panel {
+    flex: 1;
+    max-width: 100%;
+  }
+  .sidebar {
+    display: none;
+  }
 }
 
 .backlinks-section {
