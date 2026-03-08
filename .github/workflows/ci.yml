@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: deploy-homelab
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: Lint Python
@@ -95,7 +99,7 @@ jobs:
       - name: Rebuild and restart containers
         run: |
           cd /opt/errorlens/docker
-          docker compose up --build -d --no-deps backend nginx
+          docker compose up --build -d backend nginx
 
       - name: Apply database migrations
         run: |
