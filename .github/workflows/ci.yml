@@ -97,6 +97,11 @@ jobs:
           cd /opt/errorlens/docker
           docker compose up --build -d --no-deps backend nginx
 
+      - name: Apply database migrations
+        run: |
+          cd /opt/errorlens/docker
+          docker compose exec -T backend alembic upgrade head
+
       - name: Wait for backend to be healthy
         run: |
           cd /opt/errorlens/docker
