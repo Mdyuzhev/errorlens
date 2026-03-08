@@ -131,12 +131,20 @@
 
           <div class="form-group">
             <label>Description</label>
-            <textarea v-model="form.description" rows="2" placeholder="Brief description"></textarea>
+            <RichEditor
+              v-model="form.descriptionJson"
+              placeholder="Brief description"
+              :maxLength="5000"
+            />
           </div>
 
           <div class="form-group">
             <label>Preconditions</label>
-            <textarea v-model="form.preconditions" rows="2" placeholder="What needs to be set up before test"></textarea>
+            <RichEditor
+              v-model="form.preconditionsJson"
+              placeholder="What needs to be set up before test"
+              :maxLength="5000"
+            />
           </div>
 
           <div class="form-group">
@@ -152,7 +160,11 @@
 
           <div class="form-group">
             <label>Postconditions</label>
-            <textarea v-model="form.postconditions" rows="2" placeholder="Expected state after test"></textarea>
+            <RichEditor
+              v-model="form.postconditionsJson"
+              placeholder="Expected state after test"
+              :maxLength="5000"
+            />
           </div>
 
           <div class="form-group">
@@ -177,6 +189,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useTestCasesStore } from '@/stores/testcases'
 import FolderTree from '@/components/testcases/FolderTree.vue'
+import RichEditor from '@/components/common/RichEditor.vue'
 
 const store = useTestCasesStore()
 
@@ -191,13 +204,25 @@ const filters = ref({
 const form = ref({
   title: '',
   description: '',
+  descriptionJson: null,
   preconditions: '',
+  preconditionsJson: null,
   postconditions: '',
+  postconditionsJson: null,
   priority: 'Medium',
   status: 'Draft',
   automation_status: 'Manual',
   steps: [{ action: '', expected: '', testData: '' }]
 })
+
+function parseContent(raw) {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed && parsed.type === 'doc') return parsed
+  } catch {}
+  return { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: raw }] }] }
+}
 
 const tagsInput = ref('')
 
@@ -215,8 +240,11 @@ function openTestCase(tc) {
   form.value = {
     title: tc.title || '',
     description: tc.description || '',
+    descriptionJson: parseContent(tc.description),
     preconditions: tc.preconditions || '',
+    preconditionsJson: parseContent(tc.preconditions),
     postconditions: tc.postconditions || '',
+    postconditionsJson: parseContent(tc.postconditions),
     priority: tc.priority || 'Medium',
     status: tc.status || 'Draft',
     automation_status: tc.automation_status || 'Manual',
@@ -236,8 +264,11 @@ function resetForm() {
   form.value = {
     title: '',
     description: '',
+    descriptionJson: null,
     preconditions: '',
+    preconditionsJson: null,
     postconditions: '',
+    postconditionsJson: null,
     priority: 'Medium',
     status: 'Draft',
     automation_status: 'Manual',
@@ -258,7 +289,14 @@ function removeStep(idx) {
 
 async function saveTestCase() {
   const data = {
-    ...form.value,
+    title: form.value.title,
+    description: form.value.descriptionJson ? JSON.stringify(form.value.descriptionJson) : form.value.description,
+    preconditions: form.value.preconditionsJson ? JSON.stringify(form.value.preconditionsJson) : form.value.preconditions,
+    postconditions: form.value.postconditionsJson ? JSON.stringify(form.value.postconditionsJson) : form.value.postconditions,
+    priority: form.value.priority,
+    status: form.value.status,
+    automation_status: form.value.automation_status,
+    steps: form.value.steps,
     tags: tagsInput.value.split(',').map(t => t.trim()).filter(Boolean)
   }
 
