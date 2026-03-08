@@ -83,6 +83,10 @@ async def check_project_access(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    # Admin bypass — full access to any project
+    if user.is_admin:
+        return project
+
     # Check if user is owner
     if project.owner_id == user.id:
         return project
@@ -164,4 +168,15 @@ async def get_default_project(user: User, db: AsyncSession) -> Project | None:
         .order_by(ProjectMember.added_at)
         .limit(1)
     )
-    return member_result.scalar_one_or_none()
+    member_project = member_result.scalar_one_or_none()
+    if member_project:
+        return member_project
+
+    # Admin fallback: return first project in system
+    if user.is_admin:
+        any_result = await db.execute(
+            select(Project).order_by(Project.created_at).limit(1)
+        )
+        return any_result.scalar_one_or_none()
+
+    return None
