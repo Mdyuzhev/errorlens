@@ -4,9 +4,11 @@ import re
 from datetime import datetime
 from typing import Any
 
+from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.db_models import Article
+from app.models.db_models import Article, ArticleFolder
 from app.repositories.article_repo import ArticleRepository
 
 
@@ -45,6 +47,14 @@ class ArticleService:
         existing = await self.repo.get_by_slug(slug, project_id=project_id)
         if existing:
             slug = f"{slug}-{datetime.now().strftime('%Y%m%d%H%M')}"
+
+        # Validate folder_id exists if provided
+        if folder_id:
+            folder_result = await self.db.execute(
+                select(ArticleFolder).where(ArticleFolder.id == folder_id)
+            )
+            if not folder_result.scalar_one_or_none():
+                raise HTTPException(status_code=400, detail=f"Folder not found: {folder_id}")
 
         article_data = {
             "title": title,
