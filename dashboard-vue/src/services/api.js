@@ -170,6 +170,23 @@ export const entityLinksApi = {
   getBacklinks: (type, id) => api.get(`/entities/${type}/${id}/backlinks`),
 }
 
+// Test Plans API
+export const testPlansApi = {
+  list: (params) => api.get('/api/v1/test-plans', { params }),
+  get: (id) => api.get(`/api/v1/test-plans/${id}`),
+  create: (data) => api.post('/api/v1/test-plans', data),
+  update: (id, data) => api.put(`/api/v1/test-plans/${id}`, data),
+  remove: (id) => api.delete(`/api/v1/test-plans/${id}`),
+  addCases: (id, ids) => api.post(`/api/v1/test-plans/${id}/cases`, { testcase_ids: ids }),
+  removeCase: (id, tcId) => api.delete(`/api/v1/test-plans/${id}/cases/${tcId}`),
+  reorderCases: (id, orderedIds) => api.put(`/api/v1/test-plans/${id}/cases/reorder`, { ordered_ids: orderedIds }),
+  getRuns: (id) => api.get(`/api/v1/test-plans/${id}/runs`),
+  getRun: (runId) => api.get(`/api/v1/test-plans/runs/${runId}`),
+  startRun: (id, data) => api.post(`/api/v1/test-plans/${id}/runs`, data),
+  recordResult: (runId, tcId, data) => api.put(`/api/v1/test-plans/runs/${runId}/results/${tcId}`, data),
+  finishRun: (runId) => api.post(`/api/v1/test-plans/runs/${runId}/finish`),
+}
+
 // Test Runs API
 export const testRunsApi = {
   list: (limit = 5) => api.get('/test-runs', { params: { limit } }),
