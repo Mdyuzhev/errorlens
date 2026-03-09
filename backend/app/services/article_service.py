@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.db_models import Article, ArticleFolder
 from app.repositories.article_repo import ArticleRepository
 from app.services.entity_link_service import EntityLinkService
+from app.services.project_service import ProjectService
 
 
 def slugify(text: str) -> str:
@@ -72,6 +73,13 @@ class ArticleService:
             "folder_id": folder_id,
             "published_at": datetime.utcnow() if status == "published" else None,
         }
+
+        # Generate human_id if project has a key
+        if project_id:
+            project_service = ProjectService(self.db)
+            human_id = await project_service.next_human_id(project_id)
+            if human_id:
+                article_data["human_id"] = human_id
 
         article = await self.repo.create(article_data)
         await self.db.commit()
@@ -168,6 +176,7 @@ class ArticleService:
         """Convert article to list response dict."""
         return {
             "id": article.id,
+            "human_id": article.human_id,
             "title": article.title,
             "slug": article.slug,
             "excerpt": article.excerpt,
@@ -185,6 +194,7 @@ class ArticleService:
         """Convert article to detailed response dict."""
         return {
             "id": article.id,
+            "human_id": article.human_id,
             "title": article.title,
             "slug": article.slug,
             "content": article.content,

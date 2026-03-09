@@ -35,7 +35,10 @@
             @click="openTask(task)"
           >
             <div class="task-priority" :class="task.priority"></div>
-            <h4>{{ task.title }}</h4>
+            <h4>
+              <span v-if="task.human_id" class="human-id-badge">{{ task.human_id }}</span>
+              {{ task.title }}
+            </h4>
             <div class="task-meta">
               <span v-if="task.assignee" class="assignee">
                 {{ task.assignee }}
@@ -368,6 +371,17 @@ onMounted(() => {
 
 .task-card:has(.task-priority.low) {
   border-left-color: #6b7280;
+}
+
+.human-id-badge {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-right: 4px;
+  vertical-align: middle;
 }
 
 .task-card h4 {

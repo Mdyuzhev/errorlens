@@ -21,6 +21,11 @@ class ProjectRepository(BaseRepository[Project]):
         result = await self.session.execute(select(Project).where(Project.slug == slug))
         return result.scalar_one_or_none()
 
+    async def get_by_key(self, key: str) -> Project | None:
+        """Get project by key."""
+        result = await self.session.execute(select(Project).where(Project.key == key))
+        return result.scalar_one_or_none()
+
     async def get_by_owner(self, owner_id: str) -> list[Project]:
         """Get all projects owned by user."""
         result = await self.session.execute(

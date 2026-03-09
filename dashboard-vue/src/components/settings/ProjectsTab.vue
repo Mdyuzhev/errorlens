@@ -9,7 +9,21 @@
         </div>
 
         <div v-if="showCreateForm" class="create-form">
-          <input v-model="newProject.name" placeholder="Project name" class="input" />
+          <input v-model="newProject.name" placeholder="Project name" class="input" @input="onNameInput" />
+          <div class="key-field">
+            <input
+              v-model="newProject.key"
+              placeholder="EL"
+              class="input key-input"
+              :class="{ 'key-error': keyStatus === 'taken', 'key-ok': keyStatus === 'available' }"
+              maxlength="4"
+              @input="onKeyInput"
+            />
+            <span class="key-hint">2-4 буквы, уникальный ключ проекта</span>
+            <span v-if="keySuggestion && keyStatus === 'taken'" class="key-suggestion">
+              Свободен: {{ keySuggestion }}
+            </span>
+          </div>
           <input v-model="newProject.description" placeholder="Description (optional)" class="input" />
           <div class="form-actions">
             <button class="btn-primary" @click="handleCreateProject" :disabled="!newProject.name.trim()">Create</button>
@@ -27,7 +41,10 @@
           :class="{ active: store.selectedProject?.id === project.id }"
           @click="selectProject(project)"
         >
-          <div class="project-name">{{ project.name }}</div>
+          <div class="project-name">
+            <span v-if="project.key" class="project-key">{{ project.key }}</span>
+            {{ project.name }}
+          </div>
           <div class="project-desc" v-if="project.description">{{ project.description }}</div>
         </div>
       </div>
@@ -35,7 +52,10 @@
       <!-- Right: project details -->
       <div class="project-detail" v-if="store.selectedProject">
         <div class="detail-header">
-          <h3>{{ store.selectedProject.name }}</h3>
+          <h3>
+            <span v-if="store.selectedProject.key" class="project-key-badge">{{ store.selectedProject.key }}</span>
+            {{ store.selectedProject.name }}
+          </h3>
           <button class="btn-danger" @click="handleDeleteProject">Delete</button>
         </div>
         <p v-if="store.selectedProject.description" class="detail-desc">{{ store.selectedProject.description }}</p>
@@ -82,13 +102,17 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useAdminStore } from '@/stores/admin'
+import { projectsApi } from '@/services/api'
 
 const store = useAdminStore()
 
 const showCreateForm = ref(false)
 const showAddMember = ref(false)
-const newProject = ref({ name: '', description: '' })
+const newProject = ref({ name: '', description: '', key: '' })
 const newMember = ref({ username: '', role: 'member' })
+const keyStatus = ref('')  // '', 'available', 'taken'
+const keySuggestion = ref('')
+let keyCheckTimer = null
 
 onMounted(() => {
   store.fetchProjects()
@@ -99,13 +123,66 @@ async function selectProject(project) {
   await store.fetchMembers(project.id)
 }
 
+function onNameInput() {
+  if (!newProject.value.key) {
+    clearTimeout(keyCheckTimer)
+    keyCheckTimer = setTimeout(async () => {
+      const name = newProject.value.name.trim()
+      if (!name) return
+      // Auto-suggest key from backend
+      const words = name.match(/[a-zA-Z]+/g) || []
+      let suggested = ''
+      if (words.length >= 2) {
+        suggested = words.map(w => w[0]).join('').toUpperCase().slice(0, 4)
+      } else if (words.length === 1) {
+        suggested = words[0].slice(0, 3).toUpperCase()
+      }
+      if (suggested.length >= 2) {
+        newProject.value.key = suggested
+        checkKey(suggested)
+      }
+    }, 300)
+  }
+}
+
+function onKeyInput() {
+  newProject.value.key = newProject.value.key.toUpperCase().replace(/[^A-Z]/g, '')
+  clearTimeout(keyCheckTimer)
+  keyCheckTimer = setTimeout(() => {
+    checkKey(newProject.value.key)
+  }, 300)
+}
+
+async function checkKey(key) {
+  if (!key || key.length < 2) {
+    keyStatus.value = ''
+    keySuggestion.value = ''
+    return
+  }
+  try {
+    const res = await projectsApi.checkKey(key)
+    if (res.data.available) {
+      keyStatus.value = 'available'
+      keySuggestion.value = ''
+    } else {
+      keyStatus.value = 'taken'
+      keySuggestion.value = res.data.suggestion || ''
+    }
+  } catch {
+    keyStatus.value = ''
+  }
+}
+
 async function handleCreateProject() {
   if (!newProject.value.name.trim()) return
   await store.createProject({
     name: newProject.value.name,
     description: newProject.value.description || null,
+    key: newProject.value.key || null,
   })
-  newProject.value = { name: '', description: '' }
+  newProject.value = { name: '', description: '', key: '' }
+  keyStatus.value = ''
+  keySuggestion.value = ''
   showCreateForm.value = false
 }
 
@@ -254,7 +331,54 @@ async function handleRoleChange(member, event) {
   color: white;
 }
 
-.project-name { font-weight: 600; font-size: 14px; }
+.project-name { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+
+.project-key, .project-key-badge {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.project-key-badge {
+  font-size: 13px;
+  margin-right: 4px;
+}
+
+.key-field {
+  margin-bottom: 8px;
+}
+
+.key-input {
+  text-transform: uppercase;
+  font-family: monospace;
+  letter-spacing: 1px;
+}
+
+.key-input.key-error {
+  border-color: #e74c3c;
+}
+
+.key-input.key-ok {
+  border-color: #10b981;
+}
+
+.key-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: -4px;
+}
+
+.key-suggestion {
+  display: block;
+  font-size: 11px;
+  color: #f59e0b;
+  margin-top: 2px;
+}
 .project-desc { font-size: 12px; opacity: 0.7; margin-top: 4px; }
 
 .detail-desc { color: var(--text-secondary); margin-bottom: 20px; }

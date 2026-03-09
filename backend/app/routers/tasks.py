@@ -24,6 +24,7 @@ class TaskCreate(BaseModel):
     due_date: datetime | None = None
     session_id: str | None = None
     testcase_id: str | None = None
+    project_id: str | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -110,6 +111,7 @@ async def create_task(
         due_date=data.due_date,
         session_id=data.session_id,
         testcase_id=data.testcase_id,
+        project_id=data.project_id,
     )
     return {"id": task.id, "message": "Task created"}
 

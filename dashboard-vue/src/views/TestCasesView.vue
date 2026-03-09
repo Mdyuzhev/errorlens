@@ -74,7 +74,10 @@
                     {{ tc.status }}
                   </span>
                 </div>
-                <h3 class="tc-title">{{ tc.title }}</h3>
+                <h3 class="tc-title">
+                  <span v-if="tc.human_id" class="human-id-badge">{{ tc.human_id }}</span>
+                  {{ tc.title }}
+                </h3>
                 <p class="tc-description">{{ tc.description || 'No description' }}</p>
                 <div class="tc-footer">
                   <span class="tc-steps">{{ tc.steps?.length || 0 }} steps</span>
@@ -403,6 +406,17 @@ onMounted(() => {
 .tc-status.draft { background: rgba(107, 114, 128, 0.2); color: #9ca3af; }
 .tc-status.ready { background: rgba(16, 185, 129, 0.2); color: #10b981; }
 .tc-status.approved { background: rgba(124, 58, 237, 0.2); color: #a78bfa; }
+
+.human-id-badge {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
 
 .tc-title {
   font-size: 16px;

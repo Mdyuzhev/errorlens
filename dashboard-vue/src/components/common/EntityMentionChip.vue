@@ -14,6 +14,7 @@
     <!-- Loaded -->
     <span v-else class="chip-content">
       <span class="chip-icon">{{ typeIcon }}</span>
+      <span v-if="preview?.human_id" class="chip-human-id">{{ preview.human_id }}</span>
       <span class="chip-title">{{ preview?.title || node.attrs.entityTitle }}</span>
       <span v-if="preview?.status" class="chip-status" :class="statusClass">
         {{ preview.status }}
@@ -157,6 +158,12 @@ onBeforeUnmount(() => {
 
 .chip-icon {
   font-size: 12px;
+}
+
+.chip-human-id {
+  font-size: 10px;
+  font-family: monospace;
+  opacity: 0.7;
 }
 
 .chip-title {

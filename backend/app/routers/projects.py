@@ -49,6 +49,16 @@ async def list_projects(
     return await service.get_user_projects(user.id)
 
 
+@router.get("/check-key")
+async def check_key(
+    key: str,
+    user: User = Depends(require_auth),
+    service: ProjectService = Depends(get_service),
+):
+    """Check if project key is available."""
+    return await service.check_key_available(key)
+
+
 @router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project(
     project_id: str,

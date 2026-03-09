@@ -25,6 +25,7 @@ class TestCaseCreate(BaseModel):
     tags: list[str] = []
     steps: list[dict] = []
     session_id: str | None = None
+    project_id: str | None = None
 
 
 class TestCaseUpdate(BaseModel):
@@ -149,6 +150,7 @@ async def create_testcase(
         tags=data.tags,
         steps=data.steps,
         session_id=data.session_id,
+        project_id=data.project_id,
     )
     return {"id": tc.id, "message": "Test case created"}
 

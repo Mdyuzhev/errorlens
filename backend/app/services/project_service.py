@@ -7,6 +7,7 @@ import re
 from datetime import datetime
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import Folder, Project, ProjectMember
@@ -29,6 +30,32 @@ from app.schemas.project import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def validate_key(key: str) -> str:
+    """Validate project key: 2-4 uppercase letters only."""
+    key = key.strip().upper()
+    if not re.match(r"^[A-Z]{2,4}$", key):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Key must be 2-4 uppercase letters",
+        )
+    return key
+
+
+def suggest_key(name: str) -> str:
+    """Auto-suggest project key from name."""
+    words = re.findall(r"[a-zA-Z]+", name)
+    if len(words) >= 2:
+        key = "".join(w[0] for w in words[:4]).upper()
+    elif words:
+        key = words[0][:3].upper()
+    else:
+        key = "PRJ"
+    key = re.sub(r"[^A-Z]", "", key)
+    if len(key) < 2:
+        key = "PRJ"
+    return key[:4]
 
 
 def generate_slug(name: str) -> str:
@@ -76,6 +103,9 @@ class ProjectService:
             slug = f"{base_slug}-{counter}"
             counter += 1
 
+        # Resolve project key
+        project_key = await self._resolve_key(data.key, data.name)
+
         # Create project
         project = Project(
             name=data.name,
@@ -83,6 +113,8 @@ class ProjectService:
             description=data.description,
             owner_id=owner_id,
             plan=ProjectPlan.FREE,
+            key=project_key,
+            entity_counter=0,
         )
         self.db.add(project)
         await self.db.commit()
@@ -329,3 +361,63 @@ class ProjectService:
             return member.role
 
         raise HTTPException(status_code=403, detail="Access denied")
+
+    async def _resolve_key(self, key: str | None, name: str) -> str | None:
+        """Resolve and validate project key, ensuring uniqueness."""
+        if key:
+            key = validate_key(key)
+            if await self.project_repo.get_by_key(key):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Key '{key}' is already taken",
+                )
+            return key
+
+        # Auto-suggest from name
+        base_key = suggest_key(name)
+        candidate = base_key
+        suffix = 2
+        while await self.project_repo.get_by_key(candidate):
+            candidate = f"{base_key}{suffix}"[:4]
+            suffix += 1
+            if suffix > 99:
+                return None
+        return candidate
+
+    async def next_human_id(self, project_id: str) -> str | None:
+        """Generate next human-readable ID for entity in project.
+
+        Uses SELECT ... FOR UPDATE to prevent concurrent duplicates.
+        """
+        result = await self.db.execute(
+            select(Project).where(Project.id == project_id).with_for_update()
+        )
+        project = result.scalar_one_or_none()
+        if not project or not project.key:
+            return None
+
+        project.entity_counter += 1
+        await self.db.flush()
+        return f"{project.key}-{project.entity_counter}"
+
+    async def check_key_available(self, key: str) -> dict:
+        """Check if key is available and suggest alternative."""
+        try:
+            key = validate_key(key)
+        except HTTPException:
+            return {"available": False, "suggestion": None}
+
+        existing = await self.project_repo.get_by_key(key)
+        if not existing:
+            return {"available": True, "suggestion": key}
+
+        # Suggest alternative
+        base = key
+        suffix = 2
+        while True:
+            candidate = f"{base}{suffix}"[:4]
+            if not await self.project_repo.get_by_key(candidate):
+                return {"available": False, "suggestion": candidate}
+            suffix += 1
+            if suffix > 99:
+                return {"available": False, "suggestion": None}

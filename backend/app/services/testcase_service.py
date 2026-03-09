@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import TestCase
 from app.repositories.testcase_repo import TestCaseRepository
+from app.services.project_service import ProjectService
 
 # Valid values
 VALID_STATUSES = ["Draft", "Ready", "Approved", "Deprecated"]
@@ -36,6 +37,7 @@ class TestCaseService:
         tags: list[str] | None = None,
         steps: list[dict] | None = None,
         session_id: str | None = None,
+        project_id: str | None = None,
     ) -> TestCase:
         """Create new test case."""
         # Validate enums
@@ -60,7 +62,15 @@ class TestCaseService:
             "steps": steps or [],
             "session_id": session_id,
             "created_by": created_by,
+            "project_id": project_id,
         }
+
+        # Generate human_id if project has a key
+        if project_id:
+            project_service = ProjectService(self.db)
+            human_id = await project_service.next_human_id(project_id)
+            if human_id:
+                testcase_data["human_id"] = human_id
 
         testcase = await self.repo.create(testcase_data)
         await self.db.commit()
@@ -176,6 +186,7 @@ class TestCaseService:
         """Convert test case to list response dict."""
         return {
             "id": tc.id,
+            "human_id": tc.human_id,
             "title": tc.title,
             "description": tc.description,
             "preconditions": tc.preconditions,

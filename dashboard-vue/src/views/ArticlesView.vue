@@ -81,6 +81,7 @@
             @dragstart="onArticleDragStart($event, article)"
           >
             <span class="row-icon">📄</span>
+            <span v-if="article.human_id" class="human-id-badge">{{ article.human_id }}</span>
             <span class="row-title">{{ article.title }}</span>
             <span class="row-status" :class="article.status">{{ article.status }}</span>
             <span class="row-category">{{ article.category || '—' }}</span>
@@ -587,6 +588,16 @@ onMounted(() => {
 
 .article-row:hover {
   background: var(--bg-secondary);
+}
+
+.human-id-badge {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .row-icon {

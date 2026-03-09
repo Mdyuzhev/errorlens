@@ -76,6 +76,7 @@ class EntityLinkService:
                 "title": article.title,
                 "status": article.status,
                 "slug": article.slug,
+                "human_id": article.human_id,
             }
 
         if entity_type == "testcase":
@@ -90,6 +91,7 @@ class EntityLinkService:
                 "type": "testcase",
                 "title": tc.title,
                 "status": tc.status,
+                "human_id": tc.human_id,
             }
 
         if entity_type == "task":
@@ -104,6 +106,7 @@ class EntityLinkService:
                 "type": "task",
                 "title": task.title,
                 "status": task.status,
+                "human_id": task.human_id,
             }
 
         return None
