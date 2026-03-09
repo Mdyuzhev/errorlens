@@ -19,13 +19,24 @@
 
 ## 1. Архитектура сервисов
 
-Весь стек запускается через единый `docker/docker-compose.yml`. Четыре сервиса, каждый со своей зоной ответственности:
+Весь стек запускается через единый `docker/docker-compose.yml`. Восемь сервисов:
 
-| Сервис | Образ / Источник | Внешний порт | Назначение |
+**Stateful (не пересобираются при деплое):**
+
+| Сервис | Образ | Внешний порт | Назначение |
 |---|---|---|---|
 | `postgres` | `postgres:16-alpine` | 5432 | Единственная БД проекта |
 | `minio` | `minio/minio:latest` | 9000, 9001 | S3-хранилище для изображений статей |
-| `backend` | `../backend` (build) | 8000 | FastAPI + uvicorn |
+| `redis` | `redis:7-alpine` | 6379 | Кэш, event streaming (Redis Streams), pub/sub |
+
+**Application (пересобираются при деплое):**
+
+| Сервис | Образ / Источник | Внешний порт | Назначение |
+|---|---|---|---|
+| `backend` | `../backend` (build) | 8002→8000 | FastAPI + uvicorn |
+| `generator` | `../backend` (build) | — | Worker: обработка задач генерации тестов |
+| `notification-worker` | `../backend` (build) | — | Worker: consumer Redis Streams → notifications |
+| `collab` | `../collab` (build) | 1234 | Hocuspocus: collaborative editing через WebSocket |
 | `nginx` | `nginx/Dockerfile` (build) | **3000** | Landing + Vue Dashboard + API proxy |
 
 Точки входа для пользователей и диагностики:
@@ -35,11 +46,11 @@
 | `http://192.168.1.74:3000` | Landing page |
 | `http://192.168.1.74:3000/dashboard/` | Vue Dashboard |
 | `http://192.168.1.74:3000/api/` | API через nginx proxy |
-| `http://192.168.1.74:8000` | API напрямую (без nginx) |
-| `http://192.168.1.74:8000/docs` | Swagger UI |
+| `http://192.168.1.74:8002` | API напрямую (без nginx) |
+| `http://192.168.1.74:8002/docs` | Swagger UI |
 | `http://192.168.1.74:9001` | MinIO Console (UI) |
 
-Nginx проксирует `/api/` → `backend:8000/` (без префикса), то есть фронтенд обращается на `/api/sessions/`, а backend видит `/sessions/`.
+Nginx проксирует `/api/` → `backend:8000/` (без префикса), то есть фронтенд обращается на `/api/sessions/`, а backend видит `/sessions/`. Также проксирует `/collab/` → `collab:1234/` для WebSocket collaborative editing.
 
 ---
 
@@ -160,10 +171,31 @@ COMPOSE_DIR="$REPO_DIR/docker"
 echo "[$(date)] Starting deploy..."
 
 cd "$REPO_DIR"
-git pull origin main
+git fetch origin main
+git reset --hard origin/main
 
 cd "$COMPOSE_DIR"
-docker compose up --build -d --no-deps backend nginx
+# 1. Ensure stateful services are running
+docker compose up -d redis
+
+# 2. Rebuild and restart application services (not postgres/minio/redis)
+docker compose up --build -d backend generator notification-worker collab
+
+# 3. Apply database migrations
+docker compose exec -T backend alembic upgrade head
+
+# 4. Wait for backend to be healthy before restarting nginx
+for i in $(seq 1 30); do
+    if docker compose exec -T backend curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+        echo "[$(date)] Backend is healthy"
+        break
+    fi
+    echo "Waiting for backend... ($i/30)"
+    sleep 5
+done
+
+# 5. Force-recreate nginx so it re-resolves backend IP via Docker DNS
+docker compose up --build --force-recreate -d nginx
 
 echo "[$(date)] Deploy finished."
 ```
@@ -267,7 +299,17 @@ sudo systemctl status errorlens-webhook
 
 ### 4.4 Что происходит при штатном деплое
 
-При push в `main` полная последовательность событий такова: GitHub запускает CI pipeline → если тесты прошли, отправляет webhook → сервер делает `git pull` → пересобирает образы `backend` и `nginx` → перезапускает только эти два контейнера (postgres и minio не трогаются). Downtime минимален благодаря `--no-deps` и последовательному рестарту.
+При push в `main` полная последовательность событий:
+
+1. GitHub запускает CI pipeline (lint + тесты с реальным PostgreSQL и Redis)
+2. Если тесты прошли — webhook на сервер
+3. Сервер делает `git fetch + reset --hard` (устойчиво к force push)
+4. Пересобирает `backend`, `generator`, `notification-worker`, `collab`
+5. Применяет миграции (`alembic upgrade head`)
+6. Ждёт пока backend станет healthy
+7. **Force-recreate** nginx (чтобы Docker DNS разрешил новый IP backend)
+
+Stateful сервисы (postgres, minio, redis) НЕ пересоздаются при деплое.
 
 Логи деплоя пишутся в `/var/log/errorlens_deploy.log`. Смотреть в реальном времени:
 
@@ -408,12 +450,16 @@ out, _ = run(ssh, "cd /opt/errorlens/docker && docker compose logs --tail=100 ba
 print(out)
 ```
 
-**Принудительно пересобрать и перезапустить (только backend и nginx, БД не трогать):**
+**Принудительно пересобрать и перезапустить (БД не трогать):**
 
 ```python
 commands = [
-    "cd /opt/errorlens && git pull origin main",
-    "cd /opt/errorlens/docker && docker compose up --build -d --no-deps backend nginx",
+    "cd /opt/errorlens && git fetch origin main && git reset --hard origin/main",
+    "cd /opt/errorlens/docker && docker compose up --build -d backend generator notification-worker collab",
+    "cd /opt/errorlens/docker && docker compose exec -T backend alembic upgrade head",
+    # Ждём backend, затем force-recreate nginx (иначе 502 из-за кэша DNS)
+    "sleep 10",
+    "cd /opt/errorlens/docker && docker compose up --build --force-recreate -d nginx",
 ]
 for cmd in commands:
     out, err = run(ssh, cmd)
@@ -545,12 +591,33 @@ docker compose logs backend --tail=50
 
 ### Nginx отдаёт 502 Bad Gateway
 
-Это значит nginx запустился, но backend недоступен. Проверь:
+502 = nginx не может подключиться к upstream (backend). Три сценария:
+
+**1. Backend не запущен или упал:**
 
 ```bash
 docker compose ps backend
 docker compose logs backend --tail=20
 ```
+
+**2. Nginx кэширует старый IP backend (самая частая причина после деплоя):**
+
+Nginx резолвит DNS имя `backend` при старте и кэширует IP на весь lifecycle процесса. Если backend был пересоздан (получил новый IP), а nginx не был перезапущен — nginx продолжает обращаться к мёртвому IP.
+
+Диагностика: backend отвечает 200 на внутренний healthcheck (`docker compose exec -T backend curl http://localhost:8000/health`), но nginx в логах показывает `connect() failed (111: Connection refused) while connecting to upstream`.
+
+Решение:
+
+```bash
+# Force-recreate заставляет nginx пересоздаться и разрешить DNS заново
+docker compose up --force-recreate -d nginx
+```
+
+**Важно:** обычный `docker compose up -d nginx` НЕ пересоздаст контейнер, если образ и конфиг не менялись. Нужен именно `--force-recreate`. Поэтому в `deploy.sh` и `ci.yml` nginx пересобирается ПОСЛЕ того как backend стал healthy, и всегда с `--force-recreate`.
+
+**3. Backend стартует медленно (миграции, seed):**
+
+Подожди 30-60 секунд. Docker Compose `restart: unless-stopped` перезапустит backend автоматически.
 
 ### Деплой завис, старый код всё ещё работает
 
@@ -592,6 +659,38 @@ docker compose restart minio
 ```bash
 docker compose up minio-init
 ```
+
+### Деплой падает на `git pull` (divergent branches)
+
+После `git filter-repo`, `git rebase` или `git push --force` история на сервере расходится с remote. `git pull` не может смержить.
+
+Решение: в `deploy.sh` используется `git fetch origin main && git reset --hard origin/main` вместо `git pull`. Это безусловно ставит рабочую директорию на состояние remote, без попыток мержа.
+
+**Важно:** `.env` и другие файлы из `.gitignore` не затрагиваются `git reset --hard` — они остаются на месте.
+
+### Миграция падает: `relation already exists`
+
+Таблица была создана вручную (или через `create_all()`), но `alembic_version` не обновлён. Alembic не знает, что таблица уже есть, и пытается создать её заново.
+
+Решение 1 (быстрое): пометить миграцию как выполненную без фактического выполнения:
+
+```bash
+docker compose exec -T backend alembic stamp <revision_id>
+```
+
+Решение 2 (правильное): сделать миграцию идемпотентной — добавить проверку `if table not in inspector.get_table_names()` перед `create_table()`.
+
+### Секреты в git-истории (secret scanning alert)
+
+Если GitHub Secret Scanning обнаружил утечку:
+
+1. **Немедленно ротировать** скомпрометированные токены (GitHub PAT, Telegram Bot Token, etc.)
+2. Удалить файл из истории: `git filter-repo --path <file> --invert-paths --force`
+3. Force push: `git push origin main --force`
+4. После force push на сервере нужен `git fetch + reset --hard` (не `git pull`)
+5. Удалить все ветки, содержащие коммит с секретом
+
+**Важно:** удаление из git-истории НЕ отменяет утечку. Токены уже скомпрометированы и должны быть ротированы.
 
 ### API отвечает 404 на `/api/...`
 
