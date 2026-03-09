@@ -9,16 +9,22 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useThemeStore } from '@/stores/theme'
 import Navbar from '@/components/common/Navbar.vue'
 import Toasts from '@/components/common/Toasts.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
+const themeStore = useThemeStore()
 
 const isAuthenticated = computed(() => auth.isAuthenticated)
+
+onMounted(() => {
+  themeStore.init()
+})
 </script>
 
 <style scoped>

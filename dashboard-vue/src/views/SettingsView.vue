@@ -48,14 +48,12 @@
         <div class="settings-card" data-testid="theme-section">
           <h2>Theme</h2>
           <div class="setting-item">
-            <label>Dark Mode</label>
-            <button
-              class="theme-toggle"
-              data-testid="theme-toggle"
-              @click="toggleTheme"
-            >
-              {{ isDarkMode ? '🌙 Dark' : '☀️ Light' }}
-            </button>
+            <label>{{ isDarkMode ? 'Dark' : 'Light' }} Mode</label>
+            <label class="toggle-switch" data-testid="theme-toggle">
+              <input type="checkbox" :checked="!isDarkMode" @change="toggleTheme" />
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">{{ isDarkMode ? 'Dark' : 'Light' }}</span>
+            </label>
           </div>
         </div>
 
@@ -189,25 +187,25 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useThemeStore } from '@/stores/theme'
 import api from '@/services/api'
 import LLMSettings from '@/components/generator/ProviderSelector.vue'
 import ProjectsTab from '@/components/settings/ProjectsTab.vue'
 import UsersTab from '@/components/settings/UsersTab.vue'
 
 const auth = useAuthStore()
+const themeStore = useThemeStore()
 
 const activeTab = ref('general')
 
 const apiUrl = import.meta.env.VITE_API_URL || '/api'
 const apiStatus = ref('Checking...')
-const isDarkMode = ref(true)
+const isDarkMode = computed(() => themeStore.theme === 'dark')
 
 function toggleTheme() {
-  isDarkMode.value = !isDarkMode.value
-  document.documentElement.classList.toggle('light-mode', !isDarkMode.value)
-  localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light')
+  themeStore.toggle()
 }
 
 const bookmarkletCode = ref('')
@@ -561,18 +559,51 @@ function copyBookmarklet() {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
-.theme-toggle {
-  padding: 8px 16px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  color: var(--text-primary);
+.toggle-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   cursor: pointer;
-  transition: all 0.2s;
 }
 
-.theme-toggle:hover {
+.toggle-switch input {
+  display: none;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  transition: all 0.3s;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+}
+
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  background: var(--text-secondary);
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
   background: var(--accent);
-  color: white;
+}
+
+.toggle-switch input:checked + .toggle-slider::after {
+  left: 23px;
+  background: white;
+}
+
+.toggle-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  min-width: 36px;
 }
 </style>
