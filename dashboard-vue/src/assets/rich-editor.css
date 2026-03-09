@@ -105,14 +105,7 @@
   margin: 1em 0;
 }
 
-/* Images */
-.rich-editor__content .ProseMirror img {
-  max-width: 100%;
-  height: auto;
-  border-radius: 8px;
-  margin: 12px 0;
-  display: block;
-}
+/* Images — styled via ImageNodeView.vue */
 
 /* Paragraphs */
 .rich-editor__content .ProseMirror p {
