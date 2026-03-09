@@ -91,8 +91,8 @@
                 <tbody>
                   <tr v-for="(step, idx) in parsedSteps" :key="idx">
                     <td class="step-num">{{ idx + 1 }}</td>
-                    <td>{{ step.action || step.step || '' }}</td>
-                    <td>{{ step.expected || step.expected_result || '' }}</td>
+                    <td>{{ step.action }}</td>
+                    <td>{{ step.expected }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -197,14 +197,46 @@ const selectedCase = computed(() => {
   return run.value.results.find(r => r.testcase_id === selectedId.value) || null
 })
 
+function extractText(value) {
+  if (!value) return ''
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      if (parsed?.type === 'doc') return extractTextFromTipTap(parsed)
+      return value
+    } catch {
+      return value
+    }
+  }
+  if (typeof value === 'object' && value.type === 'doc') {
+    return extractTextFromTipTap(value)
+  }
+  return String(value)
+}
+
+function extractTextFromTipTap(node) {
+  if (!node) return ''
+  if (node.type === 'text') return node.text || ''
+  if (node.type === 'entityMention') return node.attrs?.entityTitle || ''
+  if (!node.content) return ''
+  const parts = node.content.map(child => extractTextFromTipTap(child))
+  if (node.type === 'paragraph' || node.type === 'doc') {
+    return parts.join('')
+  }
+  return parts.join('')
+}
+
 const parsedSteps = computed(() => {
   if (!selectedCase.value?.steps) return []
-  const steps = selectedCase.value.steps
-  if (Array.isArray(steps)) return steps
+  let steps = selectedCase.value.steps
   if (typeof steps === 'string') {
-    try { return JSON.parse(steps) } catch { return [] }
+    try { steps = JSON.parse(steps) } catch { return [] }
   }
-  return []
+  if (!Array.isArray(steps)) return []
+  return steps.map(s => ({
+    action: extractText(s.action || s.step || ''),
+    expected: extractText(s.expected || s.expected_result || ''),
+  }))
 })
 
 function selectCase(item) {
