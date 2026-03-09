@@ -57,6 +57,18 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/test-plans',
+    name: 'test-plans',
+    component: () => import('@/views/TestPlansView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/test-plans/runs/:runId',
+    name: 'test-plan-run',
+    component: () => import('@/views/TestPlanRunView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/results',
     name: 'results',
     component: () => import('@/views/ResultsView.vue'),
