@@ -80,7 +80,7 @@
             @click="openArticle(article)"
             @dragstart="onArticleDragStart($event, article)"
           >
-            <span class="row-icon">📄</span>
+            <span class="row-icon"><AppIcon name="file" :size="16" /></span>
             <span v-if="article.human_id" class="human-id-badge">{{ article.human_id }}</span>
             <span class="row-title">{{ article.title }}</span>
             <span class="row-status" :class="article.status">{{ article.status }}</span>
@@ -158,6 +158,7 @@ import FolderTree from '@/components/articles/FolderTree.vue'
 import GridEditor from '@/components/articles/GridEditor.vue'
 import EditorToolbar from '@/components/common/EditorToolbar.vue'
 import ArticleViewer from '@/components/articles/ArticleViewer.vue'
+import AppIcon from '@/components/common/AppIcon.vue'
 
 const route = useRoute()
 const store = useArticlesStore()

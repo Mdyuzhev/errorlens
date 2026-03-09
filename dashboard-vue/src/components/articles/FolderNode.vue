@@ -18,10 +18,10 @@
         class="tree-arrow"
         @click.stop="$emit('toggle', folder.id)"
       >
-        {{ expanded ? '&#9660;' : '&#9654;' }}
+        <AppIcon :name="expanded ? 'chevron-down' : 'chevron-right'" :size="14" :glow="false" />
       </span>
       <span v-else class="tree-arrow-spacer"></span>
-      <span class="tree-icon">&#128193;</span>
+      <span class="tree-icon"><AppIcon name="folder" :size="14" /></span>
       <span class="folder-name">{{ folder.name }}</span>
       <span v-if="folder.articles_count" class="folder-count">{{ folder.articles_count }}</span>
     </div>
@@ -37,7 +37,7 @@
         @dragstart="onArticleDragStart($event, article)"
         @click="$emit('select', folder.id)"
       >
-        <span class="tree-icon">&#128196;</span>
+        <span class="tree-icon"><AppIcon name="file" :size="14" /></span>
         <span class="article-name">{{ article.title }}</span>
       </div>
 
@@ -76,6 +76,7 @@
 
 <script setup>
 import { ref, computed, onUnmounted } from 'vue'
+import AppIcon from '@/components/common/AppIcon.vue'
 
 const props = defineProps({
   folder: { type: Object, required: true },

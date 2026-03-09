@@ -18,7 +18,7 @@
           class="plan-row"
           @click="openPlan(plan)"
         >
-          <span class="row-icon">📋</span>
+          <span class="row-icon"><AppIcon name="clipboard-list" :size="16" /></span>
           <span v-if="plan.human_id" class="human-id-badge">{{ plan.human_id }}</span>
           <span class="row-title">{{ plan.name }}</span>
           <span class="row-status" :class="plan.status">{{ plan.status }}</span>
@@ -145,6 +145,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTestPlansStore } from '@/stores/testPlans'
 import TestCasePicker from '@/components/testplans/TestCasePicker.vue'
+import AppIcon from '@/components/common/AppIcon.vue'
 
 const route = useRoute()
 const router = useRouter()

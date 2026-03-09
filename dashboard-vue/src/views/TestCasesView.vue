@@ -64,7 +64,7 @@
             @click="handleCardClick(tc)"
             @dragstart="onTestCaseDragStart($event, tc)"
           >
-            <span class="row-icon">🧪</span>
+            <span class="row-icon"><AppIcon name="flask" :size="16" /></span>
             <span v-if="tc.human_id" class="human-id-badge">{{ tc.human_id }}</span>
             <span class="row-title">{{ tc.title }}</span>
             <span class="row-priority" :class="tc.priority?.toLowerCase()">{{ tc.priority }}</span>
@@ -120,6 +120,7 @@ import { entityLinksApi } from '@/services/api'
 import FolderTree from '@/components/testcases/FolderTree.vue'
 import TestCasePanel from '@/components/testcases/TestCasePanel.vue'
 import TestCaseViewer from '@/components/testcases/TestCaseViewer.vue'
+import AppIcon from '@/components/common/AppIcon.vue'
 
 const route = useRoute()
 const store = useTestCasesStore()

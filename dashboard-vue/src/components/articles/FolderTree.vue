@@ -8,7 +8,7 @@
       @dragleave="onDragLeave"
       @drop="onDrop($event, null)"
     >
-      <span class="tree-icon">&#128196;</span>
+      <span class="tree-icon"><AppIcon name="file" :size="14" /></span>
       <span>All Articles</span>
     </div>
 
@@ -51,6 +51,7 @@
 <script setup>
 import { ref, nextTick } from 'vue'
 import FolderNode from './FolderNode.vue'
+import AppIcon from '@/components/common/AppIcon.vue'
 
 const props = defineProps({
   folders: { type: Array, default: () => [] },
