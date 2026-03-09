@@ -27,7 +27,10 @@ async def close_redis() -> None:
     """Close Redis connection on shutdown."""
     global _redis
     if _redis is not None:
-        await _redis.aclose()
+        try:
+            await _redis.aclose()
+        except RuntimeError:
+            pass  # Event loop already closed
         _redis = None
         logger.info("Redis connection closed")
 
