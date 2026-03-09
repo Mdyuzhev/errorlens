@@ -268,31 +268,45 @@ class TestPlanService:
         return finished
 
     async def get_run_detail(self, run_id: str) -> dict[str, Any] | None:
-        """Get run with all results and testcase info."""
+        """Get run with all results and testcase info.
+
+        Returns ALL plan cases, merging with recorded results.
+        Cases without results have status=None.
+        """
         run = await self.repo.get_run(run_id)
         if not run:
             return None
 
         results = await self.repo.get_results(run_id)
 
-        # Get plan name
-        plan = await self.repo.get_by_id(run.plan_id)
+        # Get plan with all cases
+        plan = await self.repo.get_with_cases(run.plan_id)
         plan_name = plan.name if plan else None
 
-        results_list = []
+        # Build results map by testcase_id
+        results_map: dict[str, Any] = {}
         for r in results:
-            tc = r.testcase
-            results_list.append({
-                "testcase_id": r.testcase_id,
-                "title": tc.title if tc else None,
-                "priority": tc.priority if tc else None,
-                "steps": tc.steps if tc else None,
-                "human_id": tc.human_id if tc else None,
-                "status": r.status,
-                "comment": r.comment,
-                "error_details": r.error_details,
-                "executed_at": r.executed_at.isoformat() if r.executed_at else None,
-            })
+            results_map[r.testcase_id] = r
+
+        # Build list from ALL plan cases, merging with results
+        results_list = []
+        if plan:
+            for pc in sorted(plan.cases, key=lambda c: c.sort_order):
+                tc = pc.testcase
+                if not tc:
+                    continue
+                r = results_map.get(tc.id)
+                results_list.append({
+                    "testcase_id": tc.id,
+                    "title": tc.title,
+                    "priority": tc.priority,
+                    "steps": tc.steps,
+                    "human_id": tc.human_id,
+                    "status": r.status if r else None,
+                    "comment": r.comment if r else None,
+                    "error_details": r.error_details if r else None,
+                    "executed_at": r.executed_at.isoformat() if r and r.executed_at else None,
+                })
 
         return {
             "id": run.id,

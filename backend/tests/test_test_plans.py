@@ -317,28 +317,37 @@ class TestGetRunWithResults:
         service = _make_service()
         run = _make_run(total=3, passed=1)
         service.repo.get_run.return_value = run
-        plan = _make_plan()
-        service.repo.get_by_id.return_value = plan
 
+        # Mock plan with cases (get_with_cases returns plan with .cases)
         tc1 = MagicMock()
+        tc1.id = "tc-1"
         tc1.title = "TC 1"
         tc1.priority = "High"
         tc1.steps = []
         tc1.human_id = "EL-1"
 
         tc2 = MagicMock()
+        tc2.id = "tc-2"
         tc2.title = "TC 2"
         tc2.priority = "Medium"
         tc2.steps = []
         tc2.human_id = "EL-2"
 
+        pc1 = MagicMock()
+        pc1.sort_order = 0
+        pc1.testcase = tc1
+
+        pc2 = MagicMock()
+        pc2.sort_order = 1
+        pc2.testcase = tc2
+
+        plan = _make_plan(cases=[pc1, pc2])
+        service.repo.get_with_cases.return_value = plan
+
+        # Only tc-1 has a recorded result
         r1 = _make_result(testcase_id="tc-1", status="passed")
         r1.testcase = tc1
-
-        r2 = _make_result(testcase_id="tc-2", status=None)
-        r2.testcase = tc2
-
-        service.repo.get_results.return_value = [r1, r2]
+        service.repo.get_results.return_value = [r1]
 
         detail = await service.get_run_detail("run-1")
 
