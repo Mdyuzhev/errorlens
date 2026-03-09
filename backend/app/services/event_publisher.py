@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -24,16 +24,15 @@ async def publish(
     Never raises exceptions — logs errors and returns None on failure.
     """
     event_id = str(uuid4())
-    envelope = {
-        "event_id": event_id,
-        "type": event_type,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "actor_id": actor_id or "",
-        "project_id": project_id or "",
-        "payload": json.dumps(payload),
-    }
-
     try:
+        envelope = {
+            "event_id": event_id,
+            "type": event_type,
+            "timestamp": datetime.now(UTC).isoformat(),
+            "actor_id": actor_id or "",
+            "project_id": project_id or "",
+            "payload": json.dumps(payload, default=str),
+        }
         await redis_streams.publish(STREAM_EVENTS, envelope)
         logger.info(f"Event published: {event_type} ({event_id[:8]})")
         return event_id
