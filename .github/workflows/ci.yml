@@ -138,10 +138,10 @@ jobs:
           docker compose logs backend --tail=20
           exit 1
 
-      - name: Rebuild and restart nginx
+      - name: Restart nginx (force re-resolve backend DNS)
         run: |
           cd /opt/errorlens/docker
-          docker compose up --build -d nginx
+          docker compose up --build --force-recreate -d nginx
 
       - name: Verify deployment
         run: |
