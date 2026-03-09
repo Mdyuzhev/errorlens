@@ -1,5 +1,5 @@
 <template>
-  <NodeViewWrapper as="span" class="entity-mention-chip" :class="[chipClass]" @click="showPreview = !showPreview">
+  <NodeViewWrapper as="span" class="entity-mention-chip" :class="[chipClass]" @click.stop="navigateToEntity">
     <!-- Loading -->
     <span v-if="loading" class="chip-loading">
       <span class="chip-spinner"></span>
@@ -20,24 +20,11 @@
         {{ preview.status }}
       </span>
     </span>
-
-    <!-- Preview popup -->
-    <div v-if="showPreview && preview" class="chip-preview-popup" @click.stop>
-      <div class="preview-header">
-        <span class="chip-icon">{{ typeIcon }}</span>
-        <strong>{{ preview.title }}</strong>
-      </div>
-      <div v-if="preview.status" class="preview-status">
-        Status: <span :class="statusClass">{{ preview.status }}</span>
-      </div>
-      <div class="preview-type">Type: {{ typeLabel }}</div>
-      <button class="btn-open" @click.stop="navigateToEntity">Open</button>
-    </div>
   </NodeViewWrapper>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { NodeViewWrapper } from '@tiptap/vue-3'
 import { entityLinksApi } from '@/services/api'
 
@@ -49,13 +36,9 @@ const props = defineProps({
 const loading = ref(true)
 const error = ref(false)
 const preview = ref(null)
-const showPreview = ref(false)
 
 const typeIcons = { testcase: '\u{1F9EA}', task: '\u2705', article: '\u{1F4C4}' }
-const typeLabels = { testcase: 'Test Case', task: 'Task', article: 'Article' }
-
 const typeIcon = computed(() => typeIcons[props.node.attrs.entityType] || '\u{1F4C4}')
-const typeLabel = computed(() => typeLabels[props.node.attrs.entityType] || 'Entity')
 
 const chipClass = computed(() => `chip-type-${props.node.attrs.entityType || 'unknown'}`)
 
@@ -88,6 +71,7 @@ function buildUrl(section, id) {
 }
 
 function navigateToEntity() {
+  if (loading.value || error.value) return
   const { entityType, entityId } = props.node.attrs
   if (entityType === 'article') {
     const slug = preview.value?.slug || entityId
@@ -97,20 +81,10 @@ function navigateToEntity() {
   } else if (entityType === 'task') {
     window.open(buildUrl('tasks', entityId), '_blank')
   }
-  showPreview.value = false
-}
-
-function handleClickOutside(e) {
-  if (showPreview.value) showPreview.value = false
 }
 
 onMounted(() => {
   fetchPreview()
-  document.addEventListener('click', handleClickOutside)
-})
-
-onBeforeUnmount(() => {
-  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -202,49 +176,4 @@ onBeforeUnmount(() => {
 .status-review { color: #f59e0b; }
 .status-done { color: #10b981; }
 
-/* Preview popup */
-.chip-preview-popup {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 4px;
-  background: var(--bg-card, #1e1e2e);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 12px;
-  min-width: 220px;
-  z-index: 1000;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-}
-
-.preview-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-  font-size: 14px;
-}
-
-.preview-status,
-.preview-type {
-  font-size: 12px;
-  color: var(--text-secondary, #9ca3af);
-  margin-bottom: 4px;
-}
-
-.btn-open {
-  margin-top: 8px;
-  width: 100%;
-  padding: 6px 12px;
-  background: var(--accent, #6366f1);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.btn-open:hover {
-  opacity: 0.9;
-}
 </style>

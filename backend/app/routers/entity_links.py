@@ -22,6 +22,7 @@ class EntityPreviewResponse(BaseModel):
     title: str
     status: str | None = None
     slug: str | None = None
+    human_id: str | None = None
 
 
 class BacklinkItem(BaseModel):
