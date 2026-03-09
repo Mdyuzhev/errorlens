@@ -13,7 +13,7 @@
     </div>
 
     <div class="viewer-body">
-      <div class="viewer-content">
+      <div class="viewer-document">
         <GridEditor
           :modelValue="gridContent"
           :readonly="true"
@@ -156,34 +156,26 @@ const articleTags = computed(() => {
 .viewer-body {
   flex: 1;
   overflow-y: auto;
+  background: var(--bg-secondary);
+  padding: 40px 20px;
 }
 
-.viewer-content {
+.viewer-document {
+  background: var(--bg-card);
   max-width: 860px;
   margin: 0 auto;
-  padding: 40px 20px 80px;
+  padding: 60px 80px;
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  min-height: calc(100vh - 180px);
 }
 
-.viewer-content :deep(.grid-editor) {
+.viewer-document :deep(.grid-editor) {
   height: auto;
 }
 
-.viewer-content :deep(.grid-body) {
+.viewer-document :deep(.grid-body) {
   padding: 0;
   overflow: visible;
-}
-
-.viewer-content :deep(.grid-col) {
-  background: none;
-  border: none;
-  padding: 0;
-  min-height: auto;
-}
-
-.viewer-content :deep(.ProseMirror) {
-  min-height: auto !important;
-  border: none !important;
-  padding: 0 !important;
-  background: none !important;
 }
 </style>
