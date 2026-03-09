@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import TestPlan, TestPlanRun
 from app.repositories.test_plan_repo import TestPlanRepository
+from app.services import event_publisher
 from app.services.project_service import ProjectService
 
 VALID_STATUSES = ["draft", "active", "archived"]
@@ -203,6 +204,13 @@ class TestPlanService:
             "total": total,
         })
         await self.db.commit()
+
+        await event_publisher.publish(
+            "testplan_run.started",
+            {"run_id": run.id, "plan_id": plan_id, "plan_name": plan.name, "total": total},
+            project_id=plan.project_id,
+        )
+
         return run
 
     async def record_result(
@@ -238,6 +246,12 @@ class TestPlanService:
         run.skipped = counts["skipped"]
         await self.db.commit()
 
+        await event_publisher.publish(
+            "testplan_run.result_recorded",
+            {"run_id": run_id, "testcase_id": testcase_id, "status": status},
+            project_id=run.plan.project_id if run.plan else None,
+        )
+
         return {
             "id": result.id,
             "run_id": result.run_id,
@@ -265,6 +279,19 @@ class TestPlanService:
         counts = await self.repo.count_results_by_status(run_id)
         finished = await self.repo.finish_run(run_id, counts)
         await self.db.commit()
+
+        plan = await self.repo.get_by_id(run.plan_id)
+        await event_publisher.publish(
+            "testplan_run.completed",
+            {
+                "run_id": run_id, "plan_id": run.plan_id,
+                "plan_name": plan.name if plan else "",
+                "total": finished.total, "passed": finished.passed,
+                "failed": finished.failed, "blocked": finished.blocked,
+            },
+            project_id=plan.project_id if plan else None,
+        )
+
         return finished
 
     async def get_run_detail(self, run_id: str) -> dict[str, Any] | None:

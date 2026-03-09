@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import Task
 from app.repositories.task_repo import TaskRepository
+from app.services import event_publisher
 from app.services.project_service import ProjectService
 
 # Valid status transitions for Kanban
@@ -63,6 +64,13 @@ class TaskService:
 
         task = await self.repo.create(task_data)
         await self.db.commit()
+
+        await event_publisher.publish(
+            "task.created",
+            {"id": task.id, "title": title, "priority": priority, "assignee_id": assignee},
+            project_id=project_id,
+        )
+
         return task
 
     async def get_task(self, task_id: str) -> Task | None:
@@ -114,6 +122,7 @@ class TaskService:
             return None
 
         old_status = task.status
+        old_assignee = task.assignee
 
         for key, value in updates.items():
             if value is not None:
@@ -130,6 +139,30 @@ class TaskService:
 
         task.updated_at = datetime.utcnow()
         await self.db.commit()
+
+        # Publish events
+        if new_status and new_status != old_status:
+            await event_publisher.publish(
+                "task.status_changed",
+                {
+                    "id": task.id, "title": task.title,
+                    "old_status": old_status, "new_status": new_status,
+                    "assignee_id": task.assignee,
+                },
+                project_id=task.project_id,
+            )
+
+        new_assignee = updates.get("assignee")
+        if new_assignee and new_assignee != old_assignee:
+            await event_publisher.publish(
+                "task.assigned",
+                {
+                    "id": task.id, "title": task.title,
+                    "old_assignee_id": old_assignee, "new_assignee_id": new_assignee,
+                },
+                project_id=task.project_id,
+            )
+
         return task
 
     async def move_task(self, task_id: str, new_status: str) -> Task | None:

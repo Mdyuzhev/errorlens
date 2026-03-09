@@ -223,3 +223,11 @@ export const adminApi = {
   changePassword: (userId, newPassword) => api.patch(`/admin/users/${userId}/password`, { new_password: newPassword }),
   toggleActive: (userId, isActive) => api.patch(`/admin/users/${userId}/active`, { is_active: isActive }),
 }
+
+// Notifications API
+export const notificationsApi = {
+  list: () => api.get('/api/v1/notifications'),
+  unreadCount: () => api.get('/api/v1/notifications/unread-count'),
+  markRead: (id) => api.post(`/api/v1/notifications/${id}/read`),
+  markAllRead: () => api.post('/api/v1/notifications/read-all'),
+}

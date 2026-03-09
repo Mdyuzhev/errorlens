@@ -678,6 +678,32 @@ class TestRun(Base):
     output: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class Notification(Base):
+    """User notification from domain events."""
+
+    __tablename__ = "notifications"
+    __table_args__ = (
+        UniqueConstraint("user_id", "event_id", name="uq_notification_user_event"),
+        Index("ix_notifications_user_unread", "user_id", "is_read", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    event_id: Mapped[str] = mapped_column(String(36), index=True)
+    type: Mapped[str] = mapped_column(String(50))
+    title: Mapped[str] = mapped_column(String(200))
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    entity_type: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    entity_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<Notification {self.type} for {self.user_id[:8]}>"
+
+
 class EntityLink(Base):
     """Link between entities (article → article/testcase/task)."""
 
