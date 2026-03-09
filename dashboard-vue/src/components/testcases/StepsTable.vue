@@ -196,7 +196,7 @@ function onDragEnd() {
   font-weight: 600;
   color: var(--text-secondary, #9ca3af);
   padding: 6px 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
 }
 
 .col-num { width: 36px; text-align: center; }
@@ -212,7 +212,7 @@ function onDragEnd() {
 .step-row td {
   padding: 4px 8px;
   vertical-align: top;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.04));
 }
 
 .step-row--dragging {

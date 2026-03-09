@@ -181,7 +181,7 @@ function onScroll() {
   align-items: center;
   gap: 12px;
   padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
   margin-bottom: 16px;
   flex-shrink: 0;
 }
@@ -192,7 +192,7 @@ function onScroll() {
   font-weight: 600;
   background: transparent;
   border: none;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 2px solid var(--border-color, rgba(255, 255, 255, 0.1));
   color: var(--text-primary, #e5e7eb);
   padding: 4px 0;
   outline: none;
@@ -223,7 +223,7 @@ function onScroll() {
   flex-direction: column;
   gap: 2px;
   padding-right: 12px;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-right: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
 }
 
 .nav-link {
@@ -243,7 +243,7 @@ function onScroll() {
 
 .nav-link:hover {
   color: var(--text-primary, #e5e7eb);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-secondary);
 }
 
 .nav-link--active {
@@ -275,7 +275,7 @@ function onScroll() {
   width: 200px;
   min-width: 200px;
   padding-left: 16px;
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
 }
 
 /* Button styles */

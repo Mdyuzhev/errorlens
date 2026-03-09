@@ -49,7 +49,7 @@ const label = computed(() => {
   color: #6b7280;
 }
 .result-badge.none {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--bg-secondary);
   color: var(--text-secondary);
 }
 </style>

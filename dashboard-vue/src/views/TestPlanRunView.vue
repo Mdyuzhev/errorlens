@@ -335,7 +335,7 @@ onMounted(async () => {
 .counter-item.failed { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 .counter-item.blocked { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
 .counter-item.skipped { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
-.counter-item.remaining { background: rgba(255, 255, 255, 0.08); color: var(--text-secondary); }
+.counter-item.remaining { background: var(--bg-secondary); color: var(--text-secondary); }
 
 .btn-back {
   background: none;

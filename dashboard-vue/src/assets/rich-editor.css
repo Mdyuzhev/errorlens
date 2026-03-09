@@ -76,7 +76,7 @@
 
 /* Code */
 .rich-editor__content .ProseMirror code {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--code-bg, rgba(255, 255, 255, 0.08));
   padding: 2px 6px;
   border-radius: 4px;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
@@ -84,7 +84,7 @@
 }
 
 .rich-editor__content .ProseMirror pre {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--code-bg, rgba(0, 0, 0, 0.3));
   padding: 16px;
   border-radius: 8px;
   overflow-x: auto;

@@ -13,7 +13,7 @@
 
     <!-- Loaded -->
     <span v-else class="chip-content">
-      <span class="chip-icon">{{ typeIcon }}</span>
+      <span class="chip-icon"><AppIcon :name="typeIconName" :size="12" /></span>
       <span v-if="preview?.human_id" class="chip-human-id">{{ preview.human_id }}</span>
       <span class="chip-title">{{ preview?.title || node.attrs.entityTitle }}</span>
       <span v-if="preview?.status" class="chip-status" :class="statusClass">
@@ -27,6 +27,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { NodeViewWrapper } from '@tiptap/vue-3'
 import { entityLinksApi } from '@/services/api'
+import AppIcon from '@/components/common/AppIcon.vue'
 
 const props = defineProps({
   node: { type: Object, required: true },
@@ -37,8 +38,8 @@ const loading = ref(true)
 const error = ref(false)
 const preview = ref(null)
 
-const typeIcons = { testcase: '\u{1F9EA}', task: '\u2705', article: '\u{1F4C4}' }
-const typeIcon = computed(() => typeIcons[props.node.attrs.entityType] || '\u{1F4C4}')
+const typeIconNames = { testcase: 'flask', task: 'check-square', article: 'file' }
+const typeIconName = computed(() => typeIconNames[props.node.attrs.entityType] || 'file')
 
 const chipClass = computed(() => `chip-type-${props.node.attrs.entityType || 'unknown'}`)
 
@@ -150,13 +151,13 @@ onMounted(() => {
   font-size: 11px;
   padding: 1px 6px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-secondary);
 }
 
 .chip-spinner {
   width: 12px;
   height: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 2px solid var(--border-color, rgba(255, 255, 255, 0.2));
   border-top-color: #9ca3af;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;

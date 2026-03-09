@@ -56,7 +56,7 @@ function selectItem(item) {
 <style scoped>
 .entity-mention-popup {
   background: var(--bg-card, #1e1e2e);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
   border-radius: 8px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   min-width: 280px;
@@ -117,7 +117,7 @@ function selectItem(item) {
   font-size: 11px;
   padding: 2px 6px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--bg-secondary);
   flex-shrink: 0;
 }
 

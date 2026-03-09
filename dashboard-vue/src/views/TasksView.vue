@@ -121,7 +121,7 @@
           <div v-if="selectedTask && backlinks.length" class="backlinks-section">
             <label>Mentioned in articles ({{ backlinks.length }}):</label>
             <div v-for="bl in backlinks" :key="bl.article_id" class="backlink-item" @click="goToArticle(bl)">
-              <span class="backlink-icon">{'\u{1F4C4}'}</span>
+              <span class="backlink-icon"><AppIcon name="file" :size="14" /></span>
               {{ bl.article_title }}
             </div>
           </div>
@@ -145,6 +145,7 @@ import { useRoute } from 'vue-router'
 import { useTasksStore } from '@/stores/tasks'
 import { entityLinksApi, tasksApi } from '@/services/api'
 import RichEditor from '@/components/common/RichEditor.vue'
+import AppIcon from '@/components/common/AppIcon.vue'
 
 const route = useRoute()
 const store = useTasksStore()
@@ -406,7 +407,7 @@ onMounted(async () => {
   font-size: 11px;
   font-family: monospace;
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-secondary);
   padding: 1px 6px;
   border-radius: 4px;
   margin-right: 4px;

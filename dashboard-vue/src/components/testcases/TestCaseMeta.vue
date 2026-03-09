@@ -106,7 +106,7 @@ function removeTag(idx) {
   width: 100%;
   padding: 6px 8px;
   background: var(--bg-secondary, #1a1a2e);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
   border-radius: 6px;
   color: var(--text-primary, #e5e7eb);
   font-size: 13px;
@@ -114,7 +114,7 @@ function removeTag(idx) {
 
 .chips-input {
   background: var(--bg-secondary, #1a1a2e);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
   border-radius: 6px;
   padding: 6px 8px;
   min-height: 36px;
