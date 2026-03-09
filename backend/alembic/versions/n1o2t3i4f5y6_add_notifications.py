@@ -7,6 +7,7 @@ Create Date: 2026-03-09
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 # revision identifiers
 revision = "n1o2t3i4f5y6"
@@ -16,6 +17,11 @@ depends_on = None
 
 
 def upgrade() -> None:
+    conn = op.get_bind()
+    inspector = inspect(conn)
+    if "notifications" in inspector.get_table_names():
+        return
+
     op.create_table(
         "notifications",
         sa.Column("id", sa.String(36), primary_key=True),
