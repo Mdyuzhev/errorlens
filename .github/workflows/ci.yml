@@ -113,10 +113,10 @@ jobs:
           docker compose up -d redis
           docker compose exec -T redis redis-cli ping
 
-      - name: Rebuild and restart containers
+      - name: Rebuild and restart backend services
         run: |
           cd /opt/errorlens/docker
-          docker compose up --build -d backend generator notification-worker collab nginx
+          docker compose up --build -d backend generator notification-worker collab
 
       - name: Apply database migrations
         run: |
@@ -137,6 +137,11 @@ jobs:
           echo "Backend failed to become healthy"
           docker compose logs backend --tail=20
           exit 1
+
+      - name: Rebuild and restart nginx
+        run: |
+          cd /opt/errorlens/docker
+          docker compose up --build -d nginx
 
       - name: Verify deployment
         run: |
