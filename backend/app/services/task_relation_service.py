@@ -1,7 +1,7 @@
 """Task relation service — blocks, duplicates, relates_to."""
 
 from fastapi import HTTPException
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import Task, TaskRelation

@@ -151,7 +151,7 @@ async def delete_status(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
     count_q = select(func.count()).select_from(Task).where(Task.status_id == status_id)
     result = await db.execute(count_q)
     count = result.scalar() or 0

@@ -278,8 +278,10 @@ async def get_activity(
 ):
     """Get combined activity feed (comments + activities)."""
     from datetime import datetime as dt
-    from sqlalchemy import select, union_all, literal_column
-    from app.models.db_models import TaskComment, TaskActivity
+
+    from sqlalchemy import literal_column, select, union_all
+
+    from app.models.db_models import TaskActivity, TaskComment
 
     # Parse before timestamp
     before_dt = None
@@ -423,8 +425,9 @@ async def update_comment(
     user: User = Depends(require_auth),
 ):
     """Edit a comment (only author or admin)."""
-    from app.models.db_models import TaskComment
     from sqlalchemy import select
+
+    from app.models.db_models import TaskComment
 
     result = await db.execute(
         select(TaskComment).where(
@@ -455,8 +458,9 @@ async def delete_comment(
     user: User = Depends(require_auth),
 ):
     """Delete a comment (only author or admin)."""
+    from sqlalchemy import delete, select
+
     from app.models.db_models import TaskComment
-    from sqlalchemy import select, delete
 
     result = await db.execute(
         select(TaskComment).where(

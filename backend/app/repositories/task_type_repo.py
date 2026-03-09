@@ -1,10 +1,10 @@
 """Repository for task types, statuses, and transitions."""
 
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.db_models import TaskType, TaskStatus, StatusTransition
+from app.models.db_models import StatusTransition, TaskStatus, TaskType
 
 
 class TaskTypeRepository:

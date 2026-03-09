@@ -2,7 +2,6 @@
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.models.db_models import Task
 from app.repositories.base import BaseRepository
