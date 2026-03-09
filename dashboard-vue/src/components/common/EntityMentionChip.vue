@@ -38,10 +38,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { NodeViewWrapper } from '@tiptap/vue-3'
-import { useRouter } from 'vue-router'
 import { entityLinksApi } from '@/services/api'
-
-const router = useRouter()
 
 const props = defineProps({
   node: { type: Object, required: true },
@@ -85,15 +82,19 @@ async function fetchPreview() {
   }
 }
 
+function buildUrl(section, id) {
+  return `${window.location.origin}${window.location.pathname}#/${section}/${id}`
+}
+
 function navigateToEntity() {
   const { entityType, entityId } = props.node.attrs
   if (entityType === 'article') {
     const slug = preview.value?.slug || entityId
-    router.push(`/articles/${slug}`)
+    window.open(buildUrl('articles', slug), '_blank')
   } else if (entityType === 'testcase') {
-    router.push(`/testcases/${entityId}`)
+    window.open(buildUrl('testcases', entityId), '_blank')
   } else if (entityType === 'task') {
-    router.push(`/tasks/${entityId}`)
+    window.open(buildUrl('tasks', entityId), '_blank')
   }
   showPreview.value = false
 }
