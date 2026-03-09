@@ -131,6 +131,9 @@ class EntityLinkService:
                 "article_title": articles[link.source_id].title
                 if link.source_id in articles
                 else "Deleted article",
+                "article_slug": articles[link.source_id].slug
+                if link.source_id in articles
+                else None,
             }
             for link in links
         ]
