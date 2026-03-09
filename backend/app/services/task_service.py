@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import Task
 from app.repositories.task_repo import TaskRepository
+from app.services.project_service import ProjectService
 
 # Valid status transitions for Kanban
 VALID_STATUSES = ["todo", "in_progress", "review", "done"]
@@ -31,6 +32,7 @@ class TaskService:
         due_date: datetime | None = None,
         session_id: str | None = None,
         testcase_id: str | None = None,
+        project_id: str | None = None,
     ) -> Task:
         """Create new task."""
         # Validate status and priority
@@ -49,7 +51,15 @@ class TaskService:
             "due_date": due_date,
             "session_id": session_id,
             "testcase_id": testcase_id,
+            "project_id": project_id,
         }
+
+        # Generate human_id if project has a key
+        if project_id:
+            project_service = ProjectService(self.db)
+            human_id = await project_service.next_human_id(project_id)
+            if human_id:
+                task_data["human_id"] = human_id
 
         task = await self.repo.create(task_data)
         await self.db.commit()
@@ -143,6 +153,7 @@ class TaskService:
         """Convert task to list response dict."""
         return {
             "id": task.id,
+            "human_id": task.human_id,
             "title": task.title,
             "description": task.description,
             "status": task.status,
