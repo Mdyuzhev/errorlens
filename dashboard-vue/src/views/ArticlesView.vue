@@ -98,63 +98,45 @@
       </div>
     </div>
 
-    <!-- Editor Modal -->
-    <div v-if="showEditor" class="modal-overlay" @click.self="closeEditor">
-      <div class="modal-content modal-large">
-        <button class="modal-close" @click="closeEditor">&times;</button>
+    <!-- Fullscreen Editor -->
+    <div v-if="showEditor" class="editor-fullscreen">
+      <div class="editor-header">
+        <button class="btn-back" @click="closeEditor">← Назад</button>
+        <input
+          v-model="form.title"
+          class="title-input"
+          placeholder="Article title"
+          required
+        />
+        <select v-model="form.status" class="status-select">
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+        </select>
+        <span v-if="autosaveStatus === 'saving'" class="autosave-indicator autosave-saving">Сохранение...</span>
+        <span v-else-if="autosaveStatus === 'saved'" class="autosave-indicator autosave-saved">✓ Сохранено {{ autosaveTime }}</span>
+        <span v-else-if="autosaveStatus === 'error'" class="autosave-indicator autosave-error">⚠ Не сохранено</span>
+        <button v-if="editingArticle" type="button" class="btn btn-danger btn-sm" @click="deleteArticle">
+          Delete
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" @click="saveArticle">Save</button>
+      </div>
 
-        <h2>{{ editingArticle ? 'Edit Article' : 'New Article' }}</h2>
+      <div class="editor-subheader">
+        <input v-model="form.category" class="subheader-input" placeholder="Category" />
+        <input v-model="tagsInput" class="subheader-input" placeholder="Tags (comma-separated)" />
+        <button type="button" class="btn-import-small" @click="triggerEditorImport" :disabled="importing">
+          {{ importing ? 'Loading...' : 'Import from file' }}
+        </button>
+      </div>
 
-        <form @submit.prevent="saveArticle">
-          <div class="form-group">
-            <label>Title *</label>
-            <input v-model="form.title" required placeholder="Article title" />
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Category</label>
-              <input v-model="form.category" placeholder="e.g., API Testing" />
-            </div>
-
-            <div class="form-group">
-              <label>Status</label>
-              <select v-model="form.status">
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <div class="content-label-row">
-              <label>Content</label>
-              <div class="editor-toolbar-actions">
-                <button type="button" class="btn-import-small" @click="triggerEditorImport" :disabled="importing">
-                  {{ importing ? 'Loading...' : 'Import from file' }}
-                </button>
-              </div>
-            </div>
-            <RichEditor
-              v-model="form.contentJson"
-              placeholder="Содержимое статьи..."
-              :uploadEnabled="true"
-            />
-          </div>
-
-          <div class="form-group">
-            <label>Tags (comma-separated)</label>
-            <input v-model="tagsInput" placeholder="api, testing, guide" />
-          </div>
-
-          <div class="form-actions">
-            <button v-if="editingArticle" type="button" class="btn btn-danger" @click="deleteArticle">
-              Delete
-            </button>
-            <button type="button" class="btn btn-secondary" @click="closeEditor">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save</button>
-          </div>
-        </form>
+      <div class="editor-body">
+        <div class="editor-content">
+          <RichEditor
+            v-model="form.contentJson"
+            placeholder="Содержимое статьи..."
+            :uploadEnabled="true"
+          />
+        </div>
       </div>
     </div>
 
@@ -193,7 +175,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useArticlesStore } from '@/stores/articles'
 import { articlesApi } from '@/services/api'
 import FolderTree from '@/components/articles/FolderTree.vue'
@@ -207,6 +189,11 @@ const viewingArticle = ref(null)
 const importing = ref(false)
 const importFileInput = ref(null)
 const editorFileInput = ref(null)
+
+const autosaveStatus = ref('idle')
+const autosaveTime = ref('')
+const isDirty = ref(false)
+let autosaveTimer = null
 
 const filters = ref({
   category: '',
@@ -270,11 +257,18 @@ function editFromView() {
   tagsInput.value = viewingArticle.value.tags?.join(', ') || ''
   viewingArticle.value = null
   showEditor.value = true
+  isDirty.value = false
+  startAutosave()
 }
 
 function closeEditor() {
+  if (isDirty.value && !confirm('Есть несохранённые изменения. Закрыть без сохранения?')) {
+    return
+  }
+  stopAutosave()
   showEditor.value = false
   editingArticle.value = null
+  isDirty.value = false
   resetForm()
 }
 
@@ -289,14 +283,18 @@ function resetForm() {
   tagsInput.value = ''
 }
 
-async function saveArticle() {
-  const data = {
+function buildArticleData() {
+  return {
     title: form.value.title,
     content: form.value.contentJson ? JSON.stringify(form.value.contentJson) : form.value.content,
     category: form.value.category,
     status: form.value.status,
     tags: tagsInput.value.split(',').map(t => t.trim()).filter(Boolean)
   }
+}
+
+async function saveArticle() {
+  const data = buildArticleData()
 
   if (editingArticle.value) {
     await store.updateArticle(editingArticle.value.id, data)
@@ -304,7 +302,11 @@ async function saveArticle() {
     await store.createArticle(data)
   }
 
-  closeEditor()
+  isDirty.value = false
+  stopAutosave()
+  showEditor.value = false
+  editingArticle.value = null
+  resetForm()
   await loadArticles()
 }
 
@@ -314,6 +316,48 @@ async function deleteArticle() {
     closeEditor()
   }
 }
+
+// Autosave
+function startAutosave() {
+  stopAutosave()
+  if (editingArticle.value) {
+    autosaveTimer = setInterval(performAutosave, 60000)
+  }
+}
+
+function stopAutosave() {
+  if (autosaveTimer) {
+    clearInterval(autosaveTimer)
+    autosaveTimer = null
+  }
+  autosaveStatus.value = 'idle'
+}
+
+async function performAutosave() {
+  if (!editingArticle.value) return
+  autosaveStatus.value = 'saving'
+  try {
+    const data = buildArticleData()
+    await store.updateArticle(editingArticle.value.id, data)
+    isDirty.value = false
+    autosaveStatus.value = 'saved'
+    autosaveTime.value = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+    setTimeout(() => {
+      if (autosaveStatus.value === 'saved') {
+        autosaveStatus.value = 'idle'
+      }
+    }, 3000)
+  } catch {
+    autosaveStatus.value = 'error'
+  }
+}
+
+// Watch form changes for isDirty
+watch(form, () => {
+  if (showEditor.value) {
+    isDirty.value = true
+  }
+}, { deep: true })
 
 function formatDate(date) {
   if (!date) return ''
@@ -436,6 +480,10 @@ function onArticleDragStart(e, article) {
   e.dataTransfer.effectAllowed = 'move'
 }
 
+onBeforeUnmount(() => {
+  stopAutosave()
+})
+
 onMounted(() => {
   loadArticles()
   store.fetchCategories()
@@ -545,7 +593,131 @@ onMounted(() => {
   font-size: 11px;
 }
 
-/* Editor */
+/* Fullscreen Editor */
+.editor-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+}
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+  padding: 0 16px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.btn-back {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.btn-back:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.title-input {
+  flex: 1;
+  background: none;
+  border: none;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  outline: none;
+  min-width: 0;
+}
+
+.title-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.status-select {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  color: var(--text-primary);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.autosave-indicator {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.autosave-saving {
+  color: var(--text-secondary);
+}
+
+.autosave-saved {
+  color: #10b981;
+}
+
+.autosave-error {
+  color: #ef4444;
+}
+
+.btn-sm {
+  padding: 4px 12px !important;
+  font-size: 13px !important;
+}
+
+.editor-subheader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 36px;
+  padding: 0 16px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.subheader-input {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  padding: 4px 0;
+  min-width: 120px;
+  max-width: 200px;
+}
+
+.subheader-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.editor-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.editor-content {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+}
+
+.editor-content :deep(.ProseMirror) {
+  min-height: 60vh;
+}
 
 /* Article View */
 .article-view h1 {
