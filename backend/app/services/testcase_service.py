@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import TestCase
 from app.repositories.testcase_repo import TestCaseRepository
+from app.services import event_publisher
 from app.services.project_service import ProjectService
 
 # Valid values
@@ -74,6 +75,13 @@ class TestCaseService:
 
         testcase = await self.repo.create(testcase_data)
         await self.db.commit()
+
+        await event_publisher.publish(
+            "testcase.created",
+            {"id": testcase.id, "title": title, "priority": priority, "folder_id": folder_id},
+            project_id=project_id,
+        )
+
         return testcase
 
     async def get_testcase(self, testcase_id: str) -> TestCase | None:
@@ -138,12 +146,26 @@ class TestCaseService:
         if not testcase:
             return None
 
+        old_status = testcase.status
+
         for key, value in updates.items():
             if value is not None:
                 setattr(testcase, key, value)
 
         testcase.updated_at = datetime.utcnow()
         await self.db.commit()
+
+        new_status = updates.get("status")
+        if new_status and new_status != old_status:
+            await event_publisher.publish(
+                "testcase.status_changed",
+                {
+                    "id": testcase.id, "title": testcase.title,
+                    "old_status": old_status, "new_status": new_status,
+                },
+                project_id=testcase.project_id,
+            )
+
         return testcase
 
     async def update_status(self, testcase_id: str, status: str) -> TestCase | None:
@@ -166,9 +188,18 @@ class TestCaseService:
 
     async def delete_testcase(self, testcase_id: str) -> bool:
         """Delete test case by ID."""
+        testcase = await self.repo.get_by_id(testcase_id)
+        title = testcase.title if testcase else ""
+        project_id = testcase.project_id if testcase else None
+
         deleted = await self.repo.delete(testcase_id)
         if deleted:
             await self.db.commit()
+            await event_publisher.publish(
+                "testcase.deleted",
+                {"id": testcase_id, "title": title},
+                project_id=project_id,
+            )
         return deleted
 
     async def link_to_external(

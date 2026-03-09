@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import Article, ArticleFolder
 from app.repositories.article_repo import ArticleRepository
+from app.services import event_publisher
 from app.services.entity_link_service import EntityLinkService
 from app.services.project_service import ProjectService
 
@@ -163,6 +164,18 @@ class ArticleService:
             )
 
         await self.db.commit()
+
+        # Publish event when article is published
+        if updates.get("status") == "published":
+            await event_publisher.publish(
+                "article.published",
+                {
+                    "id": article.id, "slug": article.slug,
+                    "title": article.title, "author_id": article.created_by,
+                },
+                project_id=article.project_id,
+            )
+
         return article
 
     async def delete_article(self, article_id: str) -> bool:
