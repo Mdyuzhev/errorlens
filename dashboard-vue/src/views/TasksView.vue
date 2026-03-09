@@ -140,11 +140,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useTasksStore } from '@/stores/tasks'
-import { entityLinksApi } from '@/services/api'
+import { entityLinksApi, tasksApi } from '@/services/api'
 import RichEditor from '@/components/common/RichEditor.vue'
 
+const route = useRoute()
 const store = useTasksStore()
 
 const columns = [
@@ -228,7 +230,8 @@ async function loadBacklinks(taskId) {
 }
 
 function goToArticle(bl) {
-  window.location.href = '/#/articles'
+  const slug = bl.article_slug || bl.article_id
+  window.open(`${window.location.origin}${window.location.pathname}#/articles/${slug}`, '_blank')
 }
 
 function resetForm() {
@@ -280,8 +283,34 @@ function isOverdue(task) {
   return task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done'
 }
 
-onMounted(() => {
-  store.fetchBoard()
+function findInBoard(id) {
+  for (const col of Object.values(store.board)) {
+    const found = col.find(t => t.id === id || String(t.id) === String(id))
+    if (found) return found
+  }
+  return null
+}
+
+async function openFromRoute() {
+  const id = route.params.id
+  if (id) {
+    const task = findInBoard(id)
+    if (task) {
+      openTask(task)
+    } else {
+      try {
+        const res = await tasksApi.get(id)
+        if (res.data) openTask(res.data)
+      } catch {}
+    }
+  }
+}
+
+watch(() => route.params.id, openFromRoute)
+
+onMounted(async () => {
+  await store.fetchBoard()
+  await openFromRoute()
 })
 </script>
 

@@ -151,6 +151,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute } from 'vue-router'
 import { useArticlesStore } from '@/stores/articles'
 import { articlesApi } from '@/services/api'
 import FolderTree from '@/components/articles/FolderTree.vue'
@@ -158,6 +159,7 @@ import GridEditor from '@/components/articles/GridEditor.vue'
 import EditorToolbar from '@/components/common/EditorToolbar.vue'
 import ArticleViewer from '@/components/articles/ArticleViewer.vue'
 
+const route = useRoute()
 const store = useArticlesStore()
 
 const showEditor = ref(false)
@@ -506,10 +508,24 @@ onBeforeUnmount(() => {
   stopAutosave()
 })
 
-onMounted(() => {
-  loadArticles()
+async function openFromRoute() {
+  const slug = route.params.slug
+  if (slug) {
+    const article = await store.fetchArticle(slug)
+    if (article) {
+      viewingArticle.value = article
+      showViewer.value = true
+    }
+  }
+}
+
+watch(() => route.params.slug, openFromRoute)
+
+onMounted(async () => {
+  await loadArticles()
   store.fetchCategories()
   store.fetchFoldersTree()
+  await openFromRoute()
 })
 </script>
 

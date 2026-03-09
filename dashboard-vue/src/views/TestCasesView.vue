@@ -7,121 +7,127 @@
       </button>
     </div>
 
-    <div class="testcases-split">
-      <!-- Left: folder tree + test cases list -->
-      <div class="split-list" :class="{ 'split-list--collapsed': panelOpen }">
-        <div class="testcases-layout">
-          <!-- Sidebar: Folder Tree -->
-          <aside class="sidebar">
-            <FolderTree
-              :folders="treeFolders"
-              :selected-folder-id="store.selectedFolderId"
-              :expanded-ids="store.expandedFolders"
-              @select="handleSelectFolder"
-              @toggle="store.toggleFolder($event)"
-              @create="handleCreateFolder"
-              @rename="handleRenameFolder"
-              @delete="handleDeleteFolder"
-              @drop="handleDrop"
-            />
-          </aside>
+    <div class="testcases-layout">
+      <!-- Sidebar: Folder Tree -->
+      <aside class="sidebar">
+        <FolderTree
+          :folders="treeFolders"
+          :selected-folder-id="store.selectedFolderId"
+          :expanded-ids="store.expandedFolders"
+          @select="handleSelectFolder"
+          @toggle="store.toggleFolder($event)"
+          @create="handleCreateFolder"
+          @rename="handleRenameFolder"
+          @delete="handleDeleteFolder"
+          @drop="handleDrop"
+        />
+      </aside>
 
-          <!-- Main Area -->
-          <div class="main-area">
-            <!-- Filters -->
-            <div class="filters">
-              <select v-model="filters.status" @change="loadTestCases">
-                <option value="">All Statuses</option>
-                <option value="Draft">Draft</option>
-                <option value="Ready">Ready</option>
-                <option value="Approved">Approved</option>
-              </select>
+      <!-- Main Area -->
+      <div class="main-area">
+        <!-- Header with filters -->
+        <div class="list-header">
+          <div class="list-filters">
+            <select v-model="filters.status" @change="loadTestCases">
+              <option value="">All Statuses</option>
+              <option value="Draft">Draft</option>
+              <option value="Ready">Ready</option>
+              <option value="Approved">Approved</option>
+            </select>
 
-              <select v-model="filters.priority" @change="loadTestCases">
-                <option value="">All Priorities</option>
-                <option value="Critical">Critical</option>
-                <option value="High">High</option>
-                <option value="Medium">Medium</option>
-                <option value="Low">Low</option>
-              </select>
-            </div>
+            <select v-model="filters.priority" @change="loadTestCases">
+              <option value="">All Priorities</option>
+              <option value="Critical">Critical</option>
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+        </div>
 
-            <!-- Test Cases Grid -->
-            <div v-if="loading" class="loading">
-              <div class="spinner"></div>
-            </div>
+        <!-- Test Cases List -->
+        <div v-if="loading" class="loading">
+          <div class="spinner"></div>
+        </div>
 
-            <div v-else-if="testCases.length === 0" class="empty-state">
-              <p>No test cases yet</p>
-              <p class="hint">Create from session or manually</p>
-            </div>
+        <div v-else-if="testCases.length === 0" class="empty-state">
+          <p>No test cases yet</p>
+          <p class="hint">Create from session or manually</p>
+        </div>
 
-            <div v-else class="testcases-grid" :class="{ 'grid-compact': panelOpen }" data-testid="testcases-list">
-              <div
-                v-for="tc in testCases"
-                :key="tc.id"
-                class="testcase-card"
-                :class="{ 'card-selected': tc.id === store.selectedTestCaseId }"
-                :draggable="true"
-                @click="handleCardClick(tc)"
-                @dragstart="onTestCaseDragStart($event, tc)"
-              >
-                <div class="tc-header">
-                  <span class="tc-priority" :class="tc.priority?.toLowerCase()">
-                    {{ tc.priority }}
-                  </span>
-                  <span class="tc-status" :class="tc.status?.toLowerCase()">
-                    {{ tc.status }}
-                  </span>
-                </div>
-                <h3 class="tc-title">
-                  <span v-if="tc.human_id" class="human-id-badge">{{ tc.human_id }}</span>
-                  {{ tc.title }}
-                </h3>
-                <p class="tc-description">{{ tc.description || 'No description' }}</p>
-                <div class="tc-footer">
-                  <span class="tc-steps">{{ tc.steps?.length || 0 }} steps</span>
-                  <span class="tc-automation" :class="tc.automation_status?.toLowerCase().replace(' ', '-')">
-                    {{ tc.automation_status }}
-                  </span>
-                </div>
-                <div v-if="tc.tags?.length" class="tc-tags">
-                  <span v-for="tag in tc.tags.slice(0, 3)" :key="tag" class="tag">{{ tag }}</span>
-                </div>
-              </div>
-            </div>
+        <div v-else class="testcases-list" data-testid="testcases-list">
+          <div
+            v-for="tc in testCases"
+            :key="tc.id"
+            class="tc-row"
+            :draggable="true"
+            @click="handleCardClick(tc)"
+            @dragstart="onTestCaseDragStart($event, tc)"
+          >
+            <span class="row-icon">🧪</span>
+            <span v-if="tc.human_id" class="human-id-badge">{{ tc.human_id }}</span>
+            <span class="row-title">{{ tc.title }}</span>
+            <span class="row-priority" :class="tc.priority?.toLowerCase()">{{ tc.priority }}</span>
+            <span class="row-status" :class="tc.status?.toLowerCase()">{{ tc.status }}</span>
+            <span class="row-steps">{{ tc.steps?.length || 0 }} steps</span>
+            <span class="row-date">{{ formatDate(tc.created_at) }}</span>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Right: Edit panel -->
-      <div class="split-panel" :class="{ 'split-panel--hidden': !panelOpen }">
-        <div v-if="panelOpen" class="panel-inner">
-          <TestCasePanel
-            :testCase="editingTestCase"
-            :backlinks="backlinks"
-            v-model="form"
-            @save="saveTestCase"
-            @delete="handleDelete"
-            @close="closePanel"
-            @go-to-article="goToArticle"
-          />
-        </div>
+    <!-- Fullscreen Viewer (read mode) -->
+    <TestCaseViewer
+      v-if="showViewer && viewingTestCase"
+      :testCase="viewingTestCase"
+      :backlinks="backlinks"
+      @close="showViewer = false; viewingTestCase = null"
+      @edit="editFromViewer"
+    />
+
+    <!-- Fullscreen Editor -->
+    <div v-if="showEditor" class="editor-fullscreen">
+      <div class="editor-header">
+        <button class="btn-back" @click="closeEditor">← Назад</button>
+        <span class="editor-title">{{ editingTestCase ? 'Edit Test Case' : 'New Test Case' }}</span>
+        <div class="editor-spacer"></div>
+        <button v-if="editingTestCase" type="button" class="btn btn-danger btn-sm" @click="handleDelete(editingTestCase.id)">
+          Delete
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" @click="closeEditor">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" @click="saveTestCase(form)">Save</button>
+      </div>
+      <div class="editor-body">
+        <TestCasePanel
+          :testCase="editingTestCase"
+          :backlinks="backlinks"
+          v-model="form"
+          @save="saveTestCase"
+          @delete="handleDelete"
+          @close="closeEditor"
+          @go-to-article="goToArticle"
+        />
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useTestCasesStore } from '@/stores/testcases'
 import { entityLinksApi } from '@/services/api'
 import FolderTree from '@/components/testcases/FolderTree.vue'
 import TestCasePanel from '@/components/testcases/TestCasePanel.vue'
+import TestCaseViewer from '@/components/testcases/TestCaseViewer.vue'
 
+const route = useRoute()
 const store = useTestCasesStore()
 
 const editingTestCase = ref(null)
+const viewingTestCase = ref(null)
+const showViewer = ref(false)
+const showEditor = ref(false)
 const backlinks = ref([])
 
 const filters = ref({
@@ -160,7 +166,6 @@ function parseContent(raw) {
 const loading = computed(() => store.loading)
 const testCases = computed(() => store.testCases)
 const treeFolders = computed(() => store.treeFolders)
-const panelOpen = computed(() => store.panelMode !== null)
 
 async function loadTestCases() {
   store.filters = { ...filters.value, folder: '' }
@@ -168,8 +173,15 @@ async function loadTestCases() {
 }
 
 function handleCardClick(tc) {
-  editingTestCase.value = tc
+  viewingTestCase.value = tc
   loadBacklinks(tc.id)
+  showViewer.value = true
+}
+
+function editFromViewer() {
+  const tc = viewingTestCase.value
+  if (!tc) return
+  editingTestCase.value = tc
   form.value = {
     title: tc.title || '',
     description: tc.description || '',
@@ -184,15 +196,22 @@ function handleCardClick(tc) {
     steps: tc.steps?.length ? [...tc.steps] : [{ action: '', expected: '', testData: '' }],
     tags: tc.tags || []
   }
-  store.openTestCase(tc.id)
+  showViewer.value = false
+  showEditor.value = true
 }
 
 function openNewTestCase() {
   editingTestCase.value = null
   backlinks.value = []
   form.value = getEmptyForm()
-  store.selectedTestCaseId = null
-  store.panelMode = 'edit'
+  showEditor.value = true
+}
+
+function closeEditor() {
+  showEditor.value = false
+  editingTestCase.value = null
+  backlinks.value = []
+  form.value = getEmptyForm()
 }
 
 async function loadBacklinks(tcId) {
@@ -205,14 +224,8 @@ async function loadBacklinks(tcId) {
 }
 
 function goToArticle(bl) {
-  window.location.href = '/#/articles'
-}
-
-function closePanel() {
-  store.closePanel()
-  editingTestCase.value = null
-  backlinks.value = []
-  form.value = getEmptyForm()
+  const slug = bl.article_slug || bl.article_id
+  window.open(`${window.location.origin}${window.location.pathname}#/articles/${slug}`, '_blank')
 }
 
 async function saveTestCase(formData) {
@@ -238,16 +251,23 @@ async function saveTestCase(formData) {
     await store.createTestCase(data)
   }
 
-  closePanel()
+  closeEditor()
   await store.fetchFoldersTree()
 }
 
 async function handleDelete(id) {
   if (confirm('Delete this test case?')) {
     await store.deleteTestCase(id)
-    closePanel()
+    closeEditor()
+    showViewer.value = false
+    viewingTestCase.value = null
     await store.fetchFoldersTree()
   }
+}
+
+function formatDate(date) {
+  if (!date) return ''
+  return new Date(date).toLocaleDateString()
 }
 
 // Folder handlers
@@ -283,63 +303,32 @@ function onTestCaseDragStart(e, tc) {
   e.dataTransfer.effectAllowed = 'move'
 }
 
-onMounted(() => {
-  loadTestCases()
+async function openFromRoute() {
+  const id = route.params.id
+  if (id) {
+    const tc = await store.fetchTestCase(id)
+    if (tc) {
+      viewingTestCase.value = tc
+      loadBacklinks(tc.id)
+      showViewer.value = true
+    }
+  }
+}
+
+watch(() => route.params.id, openFromRoute)
+
+onMounted(async () => {
+  await loadTestCases()
   store.fetchFoldersTree()
+  await openFromRoute()
 })
 </script>
 
 <style scoped>
-/* Split layout */
-.testcases-split {
-  display: flex;
-  gap: 0;
-  margin-top: 16px;
-  height: calc(100vh - 120px);
-}
-
-.split-list {
-  flex: 1;
-  min-width: 0;
-  overflow-y: auto;
-  transition: flex 0.3s ease;
-}
-
-.split-list--collapsed {
-  flex: 0 0 40%;
-  max-width: 40%;
-}
-
-.split-panel {
-  flex: 0 0 60%;
-  max-width: 60%;
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-  overflow-y: auto;
-  transition: flex 0.3s ease, max-width 0.3s ease;
-}
-
-.split-panel--hidden {
-  flex: 0;
-  max-width: 0;
-  overflow: hidden;
-  border-left: none;
-}
-
-.panel-inner {
-  padding: 20px 24px;
-  height: 100%;
-}
-
-/* Selected card */
-.card-selected {
-  outline: 2px solid var(--accent, #6366f1);
-  outline-offset: -2px;
-}
-
-/* Existing layout (sidebar + main-area inside split-list) */
 .testcases-layout {
   display: flex;
   gap: 20px;
+  margin-top: 16px;
 }
 
 .sidebar {
@@ -350,7 +339,7 @@ onMounted(() => {
   padding: 12px;
   align-self: flex-start;
   position: sticky;
-  top: 0;
+  top: 20px;
   max-height: calc(100vh - 160px);
   overflow-y: auto;
 }
@@ -360,52 +349,59 @@ onMounted(() => {
   min-width: 0;
 }
 
-.testcases-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 16px;
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 12px;
 }
 
-.grid-compact {
-  grid-template-columns: 1fr;
-}
-
-.testcase-card {
-  background: var(--bg-card);
-  padding: 20px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.testcase-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-}
-
-.tc-header {
+.list-filters {
   display: flex;
   gap: 8px;
-  margin-bottom: 12px;
 }
 
-.tc-priority,
-.tc-status {
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
+.list-filters select {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  color: var(--text-primary);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 13px;
 }
 
-.tc-priority.critical { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-.tc-priority.high { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
-.tc-priority.medium { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
-.tc-priority.low { background: rgba(107, 114, 128, 0.2); color: #9ca3af; }
+/* List rows */
+.testcases-list {
+  background: var(--bg-card);
+  border-radius: 12px;
+  overflow: hidden;
+}
 
-.tc-status.draft { background: rgba(107, 114, 128, 0.2); color: #9ca3af; }
-.tc-status.ready { background: rgba(16, 185, 129, 0.2); color: #10b981; }
-.tc-status.approved { background: rgba(124, 58, 237, 0.2); color: #a78bfa; }
+.tc-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  padding: 0 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--bg-secondary);
+  transition: background 0.15s;
+}
+
+.tc-row:last-child {
+  border-bottom: none;
+}
+
+.tc-row:hover {
+  background: var(--bg-secondary);
+}
+
+.row-icon {
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
 
 .human-id-badge {
   font-size: 11px;
@@ -414,48 +410,122 @@ onMounted(() => {
   background: var(--bg-secondary);
   padding: 1px 6px;
   border-radius: 4px;
-  margin-right: 6px;
-  vertical-align: middle;
+  flex-shrink: 0;
 }
 
-.tc-title {
-  font-size: 16px;
+.row-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.row-priority {
+  width: 90px;
+  flex-shrink: 0;
+  text-align: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
   font-weight: 600;
-  margin: 0 0 8px 0;
+  text-transform: uppercase;
 }
 
-.tc-description {
+.row-priority.critical { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.row-priority.high { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.row-priority.medium { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+.row-priority.low { background: rgba(107, 114, 128, 0.2); color: #9ca3af; }
+
+.row-status {
+  width: 90px;
+  flex-shrink: 0;
+  text-align: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.row-status.draft { background: rgba(107, 114, 128, 0.2); color: #9ca3af; }
+.row-status.ready { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+.row-status.approved { background: rgba(124, 58, 237, 0.2); color: #a78bfa; }
+
+.row-steps {
+  width: 80px;
+  flex-shrink: 0;
   font-size: 13px;
   color: var(--text-secondary);
-  margin: 0 0 12px 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  text-align: center;
 }
 
-.tc-footer {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
+.row-date {
+  width: 100px;
+  flex-shrink: 0;
+  font-size: 13px;
   color: var(--text-secondary);
+  text-align: right;
 }
 
-.tc-automation.automated { color: #10b981; }
-.tc-automation.manual { color: #f59e0b; }
-
-.tc-tags {
+/* Fullscreen Editor */
+.editor-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
   display: flex;
-  gap: 6px;
-  margin-top: 12px;
+  flex-direction: column;
+  background: var(--bg-primary);
 }
 
-.tag {
-  background: var(--accent);
-  color: white;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
+.editor-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+  padding: 0 16px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.editor-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.editor-spacer {
+  flex: 1;
+}
+
+.editor-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+.btn-back {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.btn-back:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.btn-sm {
+  padding: 4px 12px !important;
+  font-size: 13px !important;
 }
 
 .loading {
@@ -464,51 +534,9 @@ onMounted(() => {
   padding: 60px;
 }
 
-/* Mobile: panel overlays list */
 @media (max-width: 768px) {
-  .split-list--collapsed {
-    display: none;
-  }
-  .split-panel {
-    flex: 1;
-    max-width: 100%;
-  }
   .sidebar {
     display: none;
   }
-}
-
-.backlinks-section {
-  margin-top: 16px;
-  padding: 12px;
-  background: rgba(99, 102, 241, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(99, 102, 241, 0.15);
-}
-
-.backlinks-section label {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.backlink-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: background 0.15s;
-}
-
-.backlink-item:hover {
-  background: rgba(99, 102, 241, 0.1);
-}
-
-.backlink-icon {
-  font-size: 14px;
 }
 </style>
