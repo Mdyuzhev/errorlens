@@ -104,8 +104,8 @@ jobs:
       - name: Pull latest code
         run: |
           cd /opt/errorlens
-          git stash --include-untracked || true
-          git pull origin main
+          git fetch origin main
+          git reset --hard origin/main
 
       - name: Ensure Redis is running
         run: |
