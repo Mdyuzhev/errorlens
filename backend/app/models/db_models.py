@@ -38,6 +38,10 @@ class Project(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     slug: Mapped[str] = mapped_column(String(100), unique=True, index=True)
 
+    # Project key for human-readable IDs (e.g. "EL")
+    key: Mapped[str | None] = mapped_column(String(4), unique=True, index=True, nullable=True)
+    entity_counter: Mapped[int] = mapped_column(Integer, default=0)
+
     # Owner
     owner_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
 
@@ -246,6 +250,7 @@ class TestCase(Base):
     __tablename__ = "test_cases"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    human_id: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(500))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     preconditions: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -294,6 +299,7 @@ class Task(Base):
     __tablename__ = "tasks"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    human_id: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(500))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -426,6 +432,7 @@ class Article(Base):
     __tablename__ = "articles"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    human_id: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(500))
     slug: Mapped[str] = mapped_column(String(200), unique=True)
     content: Mapped[str] = mapped_column(Text)

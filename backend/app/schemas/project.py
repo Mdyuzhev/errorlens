@@ -26,6 +26,7 @@ class MemberRole(StrEnum):
 class ProjectCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     description: str | None = None
+    key: str | None = None
 
 
 class ProjectUpdate(BaseModel):
@@ -40,6 +41,8 @@ class ProjectResponse(BaseModel):
     description: str | None
     plan: ProjectPlan
     owner_id: str
+    key: str | None = None
+    entity_counter: int = 0
     created_at: datetime
     updated_at: datetime | None
 
