@@ -36,6 +36,7 @@ from app.routers import (
     tests,
 )
 from app.services.auth import init_admin_user
+from app.services.redis_client import close_redis, get_redis
 from app.services.seed_demo import seed_demo_data
 from app.services.seed_test_users import seed_test_users
 from app.websocket import ws_router
@@ -50,6 +51,13 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing database...")
     await init_db()
     logger.info("Database initialized")
+
+    # Initialize Redis
+    try:
+        await get_redis()
+        logger.info("Redis connected")
+    except Exception as e:
+        logger.error(f"Redis connection failed: {e}")
 
     async with async_session_maker() as db:
         try:
@@ -75,6 +83,9 @@ async def lifespan(app: FastAPI):
             logger.error(f"Failed to seed test users: {e}")
 
     yield
+
+    # Shutdown Redis
+    await close_redis()
     logger.info("Shutting down...")
 
 
