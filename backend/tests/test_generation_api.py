@@ -59,8 +59,9 @@ class TestGenerationHealthEndpoint:
 class TestGenerateFromSwagger:
     """Tests for /api/v1/generation/from-swagger endpoint."""
 
+    @patch("app.routers.generation.publish", new_callable=AsyncMock)
     @patch("app.services.generation_service.GenerationService.create_task")
-    def test_upload_valid_swagger_json(self, mock_create_task, mock_swagger_spec):
+    def test_upload_valid_swagger_json(self, mock_create_task, mock_publish, mock_swagger_spec):
         """Upload valid Swagger JSON creates task."""
         mock_create_task.return_value = "test-task-id"
 
@@ -89,8 +90,9 @@ class TestGenerateFromSwagger:
         assert response.status_code == 400
         assert "missing 'paths'" in response.json()["detail"]
 
+    @patch("app.routers.generation.publish", new_callable=AsyncMock)
     @patch("app.services.generation_service.GenerationService.create_task")
-    def test_upload_swagger_yaml(self, mock_create_task, mock_swagger_spec):
+    def test_upload_swagger_yaml(self, mock_create_task, mock_publish, mock_swagger_spec):
         """Upload Swagger YAML is parsed correctly."""
         mock_create_task.return_value = "yaml-task-id"
 

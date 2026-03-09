@@ -50,6 +50,20 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-errorlens}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-errorlens_secret}
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   backend:
     build: ../backend
     ports:
@@ -58,6 +72,7 @@ services:
       - ../.env
     environment:
       DATABASE_URL: postgresql+asyncpg://errorlens:${POSTGRES_PASSWORD:-errorlens_secret}@postgres:5432/errorlens
+      REDIS_URL: redis://redis:6379/0
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-errorlens}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-errorlens_secret}
@@ -66,12 +81,42 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+
+  generator:
+    build: ../backend
+    command: python -m app.worker.generator_worker
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://errorlens:${POSTGRES_PASSWORD:-errorlens_secret}@postgres:5432/errorlens
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  collab:
+    build: ../collab
+    ports:
+      - "1234:1234"
+    environment:
+      BACKEND_URL: http://backend:8000
+      REDIS_HOST: redis
+      PORT: "1234"
+    depends_on:
+      - redis
+      - backend
+    restart: unless-stopped
 
   nginx:
     build:
@@ -87,6 +132,7 @@ services:
 volumes:
   postgres_data:
   minio_data:
+  redis_data:
 
 # =============================================================================
 # USAGE:

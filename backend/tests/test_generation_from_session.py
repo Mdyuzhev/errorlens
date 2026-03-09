@@ -66,10 +66,12 @@ def mock_auth_token():
 class TestGenerateFromSession:
     """Tests for /api/v1/generation/from-session/{session_id} endpoint."""
 
+    @patch("app.routers.generation.publish", new_callable=AsyncMock)
     @patch("app.services.generation_service.GenerationService.create_task_from_session")
     def test_from_session_success(
         self,
         mock_create_task,
+        mock_publish,
         mock_auth_token
     ):
         """Generate from session with valid data returns task_id."""
@@ -163,10 +165,12 @@ class TestGenerateFromSession:
 
         assert response.status_code == 401
 
+    @patch("app.routers.generation.publish", new_callable=AsyncMock)
     @patch("app.services.generation_service.GenerationService.create_task_from_session")
     def test_from_session_custom_provider(
         self,
         mock_create_task,
+        mock_publish,
         mock_auth_token
     ):
         """Generate from session with custom provider and model."""
@@ -303,8 +307,8 @@ class TestCreateTaskFromSession:
             assert all(r == "task-concurrent" for r in results)
 
     async def test_memory_cleanup(self):
-        """Verify no memory leaks when creating multiple tasks."""
-        from app.services.generation_service import GenerationService, _tasks
+        """Verify multiple tasks can be created without leaks (Redis TTL handles cleanup)."""
+        from app.services.generation_service import GenerationService
 
         session = MagicMock(spec=Session)
         session.id = "memory-test"
@@ -317,9 +321,7 @@ class TestCreateTaskFromSession:
         mock_db.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=session)))
         mock_db.refresh = AsyncMock()
 
-        initial_task_count = len(_tasks)
-
-        # Create multiple tasks
+        # Create multiple tasks — Redis TTL handles cleanup automatically
         task_ids = []
         for i in range(5):
             with patch("app.services.generation_service.GenerationService.create_task") as mock_create:
@@ -330,9 +332,8 @@ class TestCreateTaskFromSession:
                 )
                 task_ids.append(task_id)
 
-        # Verify tasks are cleaned after execution
-        # (In real scenario, tasks are removed after run_task completes)
         assert len(task_ids) == 5
+        assert len(set(task_ids)) == 5
 
     async def test_error_recovery(self):
         """Handle database errors gracefully."""

@@ -1,268 +1,220 @@
-"""Tests for GenerationService including memory management and concurrency."""
+"""Tests for GenerationService with Redis-backed storage."""
 import asyncio
-import time
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.services.generation_service import (
     GenerationService,
-    _results,
-    _tasks,
-    _cleanup_expired_results,
-    StoredResult,
+    TaskConfig,
+    TASK_TTL,
     RESULT_TTL,
-    MAX_RESULTS,
 )
-from app.generators.llm_generator import GenerationResult, GeneratedTest
-
-
-@pytest.fixture(autouse=True)
-def clear_storage():
-    """Clear global storage before each test."""
-    _tasks.clear()
-    _results.clear()
-    yield
-    _tasks.clear()
-    _results.clear()
 
 
 @pytest.fixture
-def mock_result():
-    """Create mock GenerationResult."""
-    return GenerationResult(
-        tests=[GeneratedTest(endpoint="GET /test", code="def test(): pass", is_valid=True)],
-        conftest=None,
-        total_endpoints=1,
-        successful=1,
-        failed=0,
-        errors=[],
-    )
+def mock_redis():
+    """Create mock Redis client."""
+    r = AsyncMock()
+    r.ping.return_value = True
+    r.setex.return_value = True
+    r.get.return_value = None
+    r.delete.return_value = 1
+    r.publish.return_value = 1
+    return r
 
 
-class TestMemoryCleanup:
-    """Tests for TTL-based memory cleanup."""
-
-    def test_cleanup_expired_results(self):
-        """Expired results are removed by cleanup."""
-        # Add expired result
-        _results["old"] = StoredResult(
-            result=MagicMock(),
-            created_at=time.time() - RESULT_TTL - 100,
-        )
-        # Add fresh result
-        _results["new"] = StoredResult(result=MagicMock(), created_at=time.time())
-
-        _cleanup_expired_results()
-
-        assert "old" not in _results
-        assert "new" in _results
-
-    def test_cleanup_enforces_max_size(self):
-        """Cleanup removes oldest when exceeding MAX_RESULTS."""
-        # Add MAX_RESULTS + 10 items
-        for i in range(MAX_RESULTS + 10):
-            _results[f"result_{i}"] = StoredResult(
-                result=MagicMock(),
-                created_at=time.time() - i,  # Older items have larger i
-            )
-
-        _cleanup_expired_results()
-
-        assert len(_results) == MAX_RESULTS
-
-    def test_memory_cleanup_called_on_store(self, mock_result):
-        """Cleanup is called when storing new result."""
-        # Add expired result
-        _results["expired"] = StoredResult(
-            result=MagicMock(),
-            created_at=time.time() - RESULT_TTL - 100,
-        )
-
-        with patch("app.services.generation_service._cleanup_expired_results") as mock_cleanup:
-            # Simulate storing result (we can't easily call run_task, so test cleanup directly)
-            _cleanup_expired_results()
-            # Verify expired is removed
-            assert "expired" not in _results
-
-    def test_result_ttl_expiration(self):
-        """Results expire after TTL."""
-        _results["test"] = StoredResult(
-            result=MagicMock(),
-            created_at=time.time() - RESULT_TTL - 1,
-        )
-
-        _cleanup_expired_results()
-
-        assert "test" not in _results
-        assert GenerationService.get_result("test") is None
-
-    def test_fresh_result_persists(self, mock_result):
-        """Fresh results are not removed."""
-        _results["fresh"] = StoredResult(result=mock_result, created_at=time.time())
-
-        _cleanup_expired_results()
-
-        assert "fresh" in _results
-        assert GenerationService.get_result("fresh") == mock_result
+@pytest.fixture(autouse=True)
+def patch_redis(mock_redis):
+    """Patch get_redis to return mock."""
+    with patch(
+        "app.services.generation_service.get_redis",
+        new_callable=AsyncMock,
+        return_value=mock_redis,
+    ):
+        yield mock_redis
 
 
-class TestTaskMemoryLeak:
-    """Tests ensuring no memory leaks in task storage."""
+@pytest.fixture
+def mock_manager():
+    """Mock WebSocket manager."""
+    with patch("app.services.generation_service.manager") as m:
+        m.send_started = AsyncMock(return_value=True)
+        m.send_progress = AsyncMock(return_value=True)
+        m.send_completed = AsyncMock(return_value=True)
+        m.send_error = AsyncMock(return_value=True)
+        yield m
+
+
+class TestTaskCreation:
+    """Tests for task creation in Redis."""
 
     @pytest.mark.asyncio
-    async def test_task_removed_after_completion(self):
-        """Task is removed from _tasks after run_task completes."""
-        valid_swagger = {
-            "openapi": "3.0.0",
-            "info": {"title": "Test", "version": "1.0"},
-            "paths": {"/test": {"get": {"responses": {"200": {"description": "OK"}}}}}
-        }
+    async def test_create_task(self, patch_redis):
+        """create_task stores config in Redis with TTL."""
         task_id = await GenerationService.create_task(
-            input_type="swagger",
-            input_data=valid_swagger,
-            framework="pytest",
-            provider="anthropic",
+            "swagger", {"paths": {}}, "pytest", "anthropic", None
         )
-        assert task_id in _tasks
+        assert task_id is not None
+        patch_redis.setex.assert_awaited_once()
+        call_args = patch_redis.setex.call_args[0]
+        assert f"el:task:{task_id}" == call_args[0]
+        assert call_args[1] == TASK_TTL
+
+    @pytest.mark.asyncio
+    async def test_get_task_config(self, patch_redis):
+        """get_task_config reads from Redis."""
+        config = TaskConfig("swagger", {"paths": {}}, "pytest", "anthropic", None)
+        patch_redis.get.return_value = config.to_json()
+
+        result = await GenerationService.get_task_config("test-id")
+        assert result is not None
+        assert result.input_type == "swagger"
+
+    @pytest.mark.asyncio
+    async def test_get_task_config_not_found(self, patch_redis):
+        """get_task_config returns None for missing task."""
+        patch_redis.get.return_value = None
+        result = await GenerationService.get_task_config("missing")
+        assert result is None
+
+
+class TestTaskExecution:
+    """Tests for task execution."""
+
+    @pytest.mark.asyncio
+    async def test_task_removed_after_completion(self, patch_redis, mock_manager):
+        """Task is deleted from Redis after run_task completes."""
+        config = TaskConfig("swagger", {"paths": {"/test": {"get": {}}}}, "pytest", "anthropic", None)
+        patch_redis.get.return_value = config.to_json()
 
         with patch("app.services.generation_service.LLMTestGenerator") as mock_gen:
             mock_gen.return_value.generate = AsyncMock(
-                return_value=GenerationResult([], None, 0, 0, 0, [])
+                return_value=MagicMock(
+                    total_endpoints=0, successful=0, failed=0, errors=[], tests=[], conftest=None
+                )
             )
-            with patch("app.services.generation_service.manager") as mock_mgr:
-                mock_mgr.send_started = AsyncMock()
-                mock_mgr.send_completed = AsyncMock()
-                mock_mgr.send_error = AsyncMock()
-                await GenerationService.run_task(task_id)
+            with patch("app.services.generation_service.SwaggerInput") as mock_input:
+                mock_input.return_value.to_endpoints.return_value = []
+                await GenerationService.run_task("task-123")
 
-        assert task_id not in _tasks
+        patch_redis.delete.assert_awaited()
 
     @pytest.mark.asyncio
-    async def test_task_removed_on_error(self):
-        """Task is removed from _tasks even when error occurs."""
-        task_id = await GenerationService.create_task(
-            input_type="swagger",
-            input_data={"paths": {"/test": {"get": {}}}},
-            framework="pytest",
-            provider="anthropic",
-        )
+    async def test_task_removed_on_error(self, patch_redis, mock_manager):
+        """Task is deleted from Redis even on error."""
+        config = TaskConfig("swagger", {"paths": {}}, "pytest", "anthropic", None)
+        patch_redis.get.return_value = config.to_json()
 
         with patch("app.services.generation_service.LLMTestGenerator") as mock_gen:
-            mock_gen.return_value.generate = AsyncMock(side_effect=Exception("Test error"))
-            with patch("app.services.generation_service.manager") as mock_mgr:
-                mock_mgr.send_started = AsyncMock()
-                mock_mgr.send_error = AsyncMock()
-                await GenerationService.run_task(task_id)
+            mock_gen.return_value.generate = AsyncMock(side_effect=Exception("LLM error"))
+            with patch("app.services.generation_service.SwaggerInput") as mock_input:
+                mock_input.return_value.to_endpoints.return_value = ["/test"]
+                await GenerationService.run_task("task-err")
 
-        assert task_id not in _tasks
+        patch_redis.delete.assert_awaited()
+        mock_manager.send_error.assert_awaited()
 
     @pytest.mark.asyncio
-    async def test_task_not_found(self):
+    async def test_task_not_found(self, patch_redis, mock_manager):
         """Running non-existent task returns None."""
-        with patch("app.services.generation_service.manager") as mock_mgr:
-            mock_mgr.send_error = AsyncMock()
-            result = await GenerationService.run_task("nonexistent")
+        patch_redis.get.return_value = None
+        result = await GenerationService.run_task("nonexistent")
+        assert result is None
+        mock_manager.send_error.assert_awaited()
 
+
+class TestResultStorage:
+    """Tests for result storage."""
+
+    @pytest.mark.asyncio
+    async def test_store_result(self, patch_redis):
+        """store_result writes serialized result to Redis."""
+        mock_result = MagicMock()
+        mock_result.total_endpoints = 2
+        mock_result.successful = 1
+        mock_result.failed = 1
+        mock_result.errors = ["error"]
+        mock_result.tests = []
+        mock_result.conftest = "import pytest"
+
+        await GenerationService.store_result("res-1", mock_result)
+
+        call_args = patch_redis.setex.call_args[0]
+        assert call_args[0] == "el:result:res-1"
+        assert call_args[1] == RESULT_TTL
+        data = json.loads(call_args[2])
+        assert data["total_endpoints"] == 2
+        assert data["conftest"] == "import pytest"
+
+    @pytest.mark.asyncio
+    async def test_get_result(self, patch_redis):
+        """get_result deserializes correctly."""
+        patch_redis.get.return_value = json.dumps({
+            "total_endpoints": 1,
+            "successful": 1,
+            "failed": 0,
+            "errors": [],
+            "tests": [{"endpoint": "GET /", "code": "def test(): pass", "is_valid": True, "validation_error": None}],
+            "conftest": None,
+        })
+        result = await GenerationService.get_result("res-1")
+        assert result is not None
+        assert result.total_endpoints == 1
+        assert result.tests[0].endpoint == "GET /"
+
+    @pytest.mark.asyncio
+    async def test_get_result_not_found(self, patch_redis):
+        """get_result returns None for missing result."""
+        patch_redis.get.return_value = None
+        result = await GenerationService.get_result("missing")
         assert result is None
 
 
 class TestConcurrentAccess:
-    """Tests for concurrent task execution."""
+    """Tests for concurrent task creation."""
 
     @pytest.mark.asyncio
-    async def test_concurrent_task_creation(self):
-        """Multiple tasks can be created concurrently."""
+    async def test_concurrent_task_creation(self, patch_redis):
+        """Multiple tasks created concurrently have unique IDs."""
         tasks = await asyncio.gather(
             *[
-                GenerationService.create_task(
-                    input_type="swagger",
-                    input_data={"paths": {}},
-                    framework="pytest",
-                    provider="anthropic",
-                )
+                GenerationService.create_task("swagger", {"paths": {}}, "pytest", "anthropic")
                 for _ in range(10)
             ]
         )
-
         assert len(tasks) == 10
-        assert len(set(tasks)) == 10  # All unique IDs
-
-    @pytest.mark.asyncio
-    async def test_concurrent_result_access(self, mock_result):
-        """Multiple concurrent reads of same result work correctly."""
-        _results["concurrent"] = StoredResult(result=mock_result, created_at=time.time())
-
-        async def get_result():
-            return GenerationService.get_result("concurrent")
-
-        results = await asyncio.gather(*[get_result() for _ in range(100)])
-
-        assert all(r == mock_result for r in results)
-
-
-class TestCleanupFunction:
-    """Tests for manual cleanup function."""
-
-    def test_cleanup_returns_count(self, mock_result):
-        """cleanup_results returns count of removed items."""
-        # Add 3 expired
-        for i in range(3):
-            _results[f"expired_{i}"] = StoredResult(
-                result=mock_result,
-                created_at=time.time() - RESULT_TTL - 100,
-            )
-        # Add 2 fresh
-        for i in range(2):
-            _results[f"fresh_{i}"] = StoredResult(
-                result=mock_result,
-                created_at=time.time(),
-            )
-
-        removed = GenerationService.cleanup_results()
-
-        assert removed == 3
-        assert len(_results) == 2
+        assert len(set(tasks)) == 10
 
 
 class TestEdgeCases:
     """Edge case tests."""
 
     @pytest.mark.asyncio
-    async def test_empty_input(self):
+    async def test_empty_input(self, patch_redis):
         """Empty input data is handled."""
-        task_id = await GenerationService.create_task(
-            input_type="swagger",
-            input_data={},
-            framework="pytest",
-            provider="anthropic",
-        )
-        assert task_id in _tasks
+        task_id = await GenerationService.create_task("swagger", {}, "pytest", "anthropic")
+        assert task_id is not None
 
     @pytest.mark.asyncio
-    async def test_none_model(self):
+    async def test_none_model(self, patch_redis):
         """None model parameter is handled."""
-        task_id = await GenerationService.create_task(
-            input_type="swagger",
-            input_data={"paths": {}},
-            framework="pytest",
-            provider="anthropic",
-            model=None,
-        )
-        config = _tasks[task_id]
-        assert config.model is None
+        config = TaskConfig("swagger", {"paths": {}}, "pytest", "anthropic", None)
+        serialized = config.to_json()
+        deserialized = TaskConfig.from_json(serialized)
+        assert deserialized.model is None
 
-    def test_get_nonexistent_result(self):
+    @pytest.mark.asyncio
+    async def test_get_nonexistent_result(self, patch_redis):
         """Getting nonexistent result returns None."""
-        assert GenerationService.get_result("nonexistent") is None
+        patch_redis.get.return_value = None
+        assert await GenerationService.get_result("nonexistent") is None
 
-    def test_duplicate_result_ids(self, mock_result):
-        """Result IDs are unique (UUID)."""
-        ids = set()
-        for i in range(100):
-            _results[f"result_{i}"] = StoredResult(
-                result=mock_result,
-                created_at=time.time(),
-            )
-            ids.add(f"result_{i}")
-        assert len(ids) == 100
+    def test_task_config_round_trip(self):
+        """TaskConfig serialization round-trip."""
+        config = TaskConfig("har", [{"req": "data"}], "pytest", "groq", "llama3")
+        restored = TaskConfig.from_json(config.to_json())
+        assert restored.input_type == "har"
+        assert restored.provider == "groq"
+        assert restored.model == "llama3"

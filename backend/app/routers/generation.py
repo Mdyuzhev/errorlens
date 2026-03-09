@@ -3,7 +3,7 @@ import io
 import json
 import zipfile
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,7 @@ from app.database import get_db
 from app.middleware.jwt_auth import require_auth
 from app.models.user import User
 from app.services.generation_service import GenerationService
+from app.services.redis_streams import STREAM_GENERATION, publish
 
 router = APIRouter(prefix="/api/v1/generation", tags=["generation"])
 
@@ -31,11 +32,12 @@ class ResultResponse(BaseModel):
 
 
 @router.post("/from-swagger", response_model=TaskResponse)
-async def generate_from_swagger(background_tasks: BackgroundTasks,
-                                file: UploadFile = File(...),
-                                framework: str = Form("pytest"),
-                                provider: str = Form("anthropic"),
-                                model: str | None = Form(None)):
+async def generate_from_swagger(
+    file: UploadFile = File(...),
+    framework: str = Form("pytest"),
+    provider: str = Form("anthropic"),
+    model: str | None = Form(None),
+):
     """Generate tests from Swagger/OpenAPI spec."""
     content = await file.read()
     try:
@@ -51,14 +53,14 @@ async def generate_from_swagger(background_tasks: BackgroundTasks,
         raise HTTPException(400, "Invalid Swagger: missing 'paths'")
 
     task_id = await GenerationService.create_task("swagger", spec, framework, provider, model)
-    background_tasks.add_task(_delayed_run, task_id)
+    await publish(STREAM_GENERATION, {"task_id": task_id})
     return TaskResponse(task_id=task_id, websocket_url=f"/ws/generation/{task_id}")
 
 
 @router.get("/result/{result_id}", response_model=ResultResponse)
 async def get_result(result_id: str):
     """Get generation result by ID."""
-    result = GenerationService.get_result(result_id)
+    result = await GenerationService.get_result(result_id)
     if not result:
         raise HTTPException(404, "Result not found")
     return ResultResponse(
@@ -74,7 +76,7 @@ async def get_result(result_id: str):
 @router.get("/download/{result_id}")
 async def download_result(result_id: str):
     """Download tests as ZIP archive."""
-    result = GenerationService.get_result(result_id)
+    result = await GenerationService.get_result(result_id)
     if not result:
         raise HTTPException(404, "Result not found")
 
@@ -94,7 +96,6 @@ async def download_result(result_id: str):
 @router.post("/from-session/{session_id}", response_model=TaskResponse)
 async def generate_from_session(
     session_id: str,
-    background_tasks: BackgroundTasks,
     framework: str = Form("pytest"),
     provider: str = Form("anthropic"),
     model: str | None = Form(None),
@@ -107,9 +108,9 @@ async def generate_from_session(
         db=db,
         framework=framework,
         provider=provider,
-        model=model
+        model=model,
     )
-    background_tasks.add_task(_delayed_run, task_id)
+    await publish(STREAM_GENERATION, {"task_id": task_id})
     return TaskResponse(task_id=task_id, websocket_url=f"/ws/generation/{task_id}")
 
 
@@ -117,10 +118,3 @@ async def generate_from_session(
 async def health():
     """Health check endpoint."""
     return {"status": "ok"}
-
-
-async def _delayed_run(task_id: str):
-    """Run task after small delay to ensure WS connection established."""
-    import asyncio
-    await asyncio.sleep(0.5)
-    await GenerationService.run_task(task_id)

@@ -1,5 +1,15 @@
 <template>
   <div class="grid-editor">
+    <!-- Collaboration presence indicators -->
+    <div v-if="collabUsers.length > 1" class="collab-presence">
+      <span
+        v-for="user in collabUsers"
+        :key="user.name"
+        class="collab-avatar"
+        :style="{ background: user.color }"
+        :title="user.name"
+      >{{ user.name?.[0]?.toUpperCase() || '?' }}</span>
+    </div>
     <div class="grid-body">
       <div
         v-for="(row, rowIdx) in grid.rows"
@@ -73,13 +83,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onBeforeUnmount } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import RichEditor from '@/components/common/RichEditor.vue'
 
 const props = defineProps({
   modelValue: { type: Object, required: true },
   uploadEnabled: { type: Boolean, default: false },
-  readonly: { type: Boolean, default: false }
+  readonly: { type: Boolean, default: false },
+  articleSlug: { type: String, default: null }
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -88,6 +99,72 @@ const grid = computed(() => props.modelValue)
 const activeEditor = ref(null)
 const activeColId = ref(null)
 const colRefs = {}
+
+// Collaboration state
+const collabUsers = ref([])
+let ydoc = null
+let wsProvider = null
+
+const COLLAB_COLORS = [
+  '#ef4444', '#f97316', '#eab308', '#22c55e',
+  '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899',
+]
+
+function randomUserColor() {
+  return COLLAB_COLORS[Math.floor(Math.random() * COLLAB_COLORS.length)]
+}
+
+async function initCollaboration() {
+  if (!props.articleSlug || props.readonly) return
+
+  try {
+    const { useAuthStore } = await import('@/stores/auth')
+    const authStore = useAuthStore()
+    if (!authStore.accessToken) return
+
+    const Y = await import('yjs')
+    const { WebsocketProvider } = await import('y-websocket')
+
+    ydoc = new Y.Doc()
+    const wsUrl = `${window.location.origin.replace('http', 'ws')}/collab/`
+    wsProvider = new WebsocketProvider(wsUrl, `article:${props.articleSlug}`, ydoc, {
+      params: { token: authStore.accessToken }
+    })
+
+    // Track presence
+    wsProvider.awareness.on('change', () => {
+      const users = []
+      wsProvider.awareness.getStates().forEach((state) => {
+        if (state.user) users.push(state.user)
+      })
+      collabUsers.value = users
+    })
+
+    // Set local user info
+    wsProvider.awareness.setLocalStateField('user', {
+      name: authStore.user?.username || 'Anonymous',
+      color: randomUserColor(),
+    })
+  } catch (err) {
+    console.warn('[Collab] Init failed:', err.message)
+  }
+}
+
+function destroyCollaboration() {
+  if (wsProvider) {
+    wsProvider.destroy()
+    wsProvider = null
+  }
+  if (ydoc) {
+    ydoc.destroy()
+    ydoc = null
+  }
+  collabUsers.value = []
+}
+
+onMounted(() => {
+  initCollaboration()
+})
 
 function setColRef(colId, el) {
   if (el) {
@@ -243,6 +320,7 @@ function contentNotEmpty(content) {
 }
 
 onBeforeUnmount(() => {
+  destroyCollaboration()
   Object.keys(colRefs).forEach(k => delete colRefs[k])
 })
 </script>
@@ -395,5 +473,24 @@ onBeforeUnmount(() => {
 
 .grid-col :deep(.ProseMirror) {
   min-height: 80px;
+}
+
+.collab-presence {
+  display: flex;
+  gap: 4px;
+  padding: 8px 40px 0;
+  justify-content: flex-end;
+}
+
+.collab-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
 }
 </style>
