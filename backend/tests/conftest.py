@@ -6,6 +6,10 @@ import os
 if "DATABASE_URL" not in os.environ:
     os.environ["DATABASE_URL"] = "postgresql+asyncpg://errorlens:errorlens_secret@localhost:5432/errorlens"
 
+# Set REDIS_URL before any app imports
+if "REDIS_URL" not in os.environ:
+    os.environ["REDIS_URL"] = "redis://localhost:6379/0"
+
 import pytest
 from app.main import app
 from fastapi.testclient import TestClient

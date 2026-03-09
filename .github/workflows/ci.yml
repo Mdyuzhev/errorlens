@@ -60,6 +60,16 @@ jobs:
           --health-timeout=5s
           --health-retries=5
 
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -80,6 +90,7 @@ jobs:
           pytest tests/ -v --tb=short
         env:
           DATABASE_URL: postgresql+asyncpg://errorlens:test_password@localhost:5432/errorlens_test
+          REDIS_URL: redis://localhost:6379/0
           GEMINI_API_KEY: ""
           GROQ_API_KEY: ""
 
@@ -96,10 +107,16 @@ jobs:
           git stash --include-untracked || true
           git pull origin main
 
+      - name: Ensure Redis is running
+        run: |
+          cd /opt/errorlens/docker
+          docker compose up -d redis
+          docker compose exec -T redis redis-cli ping
+
       - name: Rebuild and restart containers
         run: |
           cd /opt/errorlens/docker
-          docker compose up --build -d backend nginx
+          docker compose up --build -d backend generator collab nginx
 
       - name: Apply database migrations
         run: |
@@ -133,3 +150,6 @@ jobs:
           done
           curl -sf http://localhost:3000 > /dev/null && echo "Landing: OK"
           curl -sf http://localhost:3000/api/health && echo " API: OK"
+          cd /opt/errorlens/docker
+          docker compose exec -T redis redis-cli ping && echo " Redis: OK"
+          docker compose ps generator --format '{{.State}}' | grep -q running && echo " Generator: OK"
