@@ -1,0 +1,360 @@
+<template>
+  <div class="grid-editor">
+    <div class="grid-body">
+      <div
+        v-for="(row, rowIdx) in grid.rows"
+        :key="row.id"
+        class="grid-row-wrapper"
+      >
+        <div class="grid-row">
+          <div
+            v-for="col in row.columns"
+            :key="col.id"
+            class="grid-col"
+            :data-span="col.span"
+          >
+            <div class="col-toolbar">
+              <button
+                class="col-btn"
+                title="Разделить"
+                :disabled="!canSplit(row, col)"
+                @click="splitColumn(row.id, col.id)"
+              >÷</button>
+              <button
+                v-if="row.columns.length > 1"
+                class="col-btn col-btn-danger"
+                title="Удалить колонку"
+                @click="deleteColumn(row, col)"
+              >×</button>
+            </div>
+            <RichEditor
+              :modelValue="col.content"
+              @update:modelValue="updateColContent(row.id, col.id, $event)"
+              placeholder="Начните писать..."
+              :uploadEnabled="uploadEnabled"
+            />
+          </div>
+        </div>
+
+        <div class="row-actions">
+          <button
+            v-if="row.columns.length < 3"
+            class="row-btn"
+            title="Добавить колонку"
+            @click="addColumn(row)"
+          >+</button>
+          <button
+            class="row-btn"
+            title="Вверх"
+            :disabled="rowIdx === 0"
+            @click="moveRow(rowIdx, -1)"
+          >↑</button>
+          <button
+            class="row-btn"
+            title="Вниз"
+            :disabled="rowIdx === grid.rows.length - 1"
+            @click="moveRow(rowIdx, 1)"
+          >↓</button>
+          <button
+            class="row-btn row-btn-danger"
+            title="Удалить строку"
+            @click="deleteRow(row, rowIdx)"
+          >×</button>
+        </div>
+      </div>
+
+      <button class="add-row-btn" @click="addRow">+ Добавить строку</button>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed } from 'vue'
+import RichEditor from '@/components/common/RichEditor.vue'
+
+const props = defineProps({
+  modelValue: { type: Object, required: true },
+  uploadEnabled: { type: Boolean, default: false }
+})
+
+const emit = defineEmits(['update:modelValue'])
+
+const grid = computed(() => props.modelValue)
+
+function uuid() {
+  return crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2, 10)
+}
+
+function emitUpdate(newGrid) {
+  emit('update:modelValue', { ...newGrid, rows: [...newGrid.rows] })
+}
+
+function makeEmptyContent() {
+  return { type: 'doc', content: [{ type: 'paragraph' }] }
+}
+
+function addRow() {
+  const newRow = {
+    id: uuid(),
+    columns: [{ id: uuid(), span: 12, content: makeEmptyContent() }]
+  }
+  const updated = { ...grid.value, rows: [...grid.value.rows, newRow] }
+  emitUpdate(updated)
+}
+
+function deleteRow(row, rowIdx) {
+  const hasContent = row.columns.some(c => contentNotEmpty(c.content))
+  if (hasContent && !confirm('Удалить строку с содержимым?')) return
+  const rows = grid.value.rows.filter((_, i) => i !== rowIdx)
+  emitUpdate({ ...grid.value, rows })
+}
+
+function moveRow(idx, dir) {
+  const rows = [...grid.value.rows]
+  const target = idx + dir
+  if (target < 0 || target >= rows.length) return
+  ;[rows[idx], rows[target]] = [rows[target], rows[idx]]
+  emitUpdate({ ...grid.value, rows })
+}
+
+function canSplit(row, col) {
+  return row.columns.length < 3 && col.span >= 4
+}
+
+function splitColumn(rowId, colId) {
+  const rows = grid.value.rows.map(row => {
+    if (row.id !== rowId) return row
+    if (row.columns.length >= 3) return row
+
+    const colIdx = row.columns.findIndex(c => c.id === colId)
+    if (colIdx === -1) return row
+
+    const col = row.columns[colIdx]
+    if (col.span < 4) return row
+
+    const leftSpan = Math.ceil(col.span / 2)
+    const rightSpan = Math.floor(col.span / 2)
+
+    const newColumns = [...row.columns]
+    newColumns[colIdx] = { ...col, span: leftSpan }
+    newColumns.splice(colIdx + 1, 0, {
+      id: uuid(),
+      span: rightSpan,
+      content: makeEmptyContent()
+    })
+    return { ...row, columns: newColumns }
+  })
+  emitUpdate({ ...grid.value, rows })
+}
+
+function deleteColumn(row, col) {
+  if (row.columns.length <= 1) return
+  if (contentNotEmpty(col.content) && !confirm('Удалить колонку с содержимым?')) return
+
+  const rows = grid.value.rows.map(r => {
+    if (r.id !== row.id) return r
+    const idx = r.columns.findIndex(c => c.id === col.id)
+    if (idx === -1) return r
+
+    const newColumns = r.columns.filter(c => c.id !== col.id)
+    // Redistribute span to neighbor
+    const neighborIdx = idx > 0 ? idx - 1 : 0
+    newColumns[neighborIdx] = {
+      ...newColumns[neighborIdx],
+      span: newColumns[neighborIdx].span + col.span
+    }
+    return { ...r, columns: newColumns }
+  })
+  emitUpdate({ ...grid.value, rows })
+}
+
+function addColumn(row) {
+  if (row.columns.length >= 3) return
+  const rows = grid.value.rows.map(r => {
+    if (r.id !== row.id) return r
+    // Take space from the last column
+    const cols = [...r.columns]
+    const last = cols[cols.length - 1]
+    if (last.span < 4) return r
+    const newSpan = Math.floor(last.span / 2)
+    cols[cols.length - 1] = { ...last, span: Math.ceil(last.span / 2) }
+    cols.push({ id: uuid(), span: newSpan, content: makeEmptyContent() })
+    return { ...r, columns: cols }
+  })
+  emitUpdate({ ...grid.value, rows })
+}
+
+function updateColContent(rowId, colId, newContent) {
+  const rows = grid.value.rows.map(row => {
+    if (row.id !== rowId) return row
+    return {
+      ...row,
+      columns: row.columns.map(col =>
+        col.id === colId ? { ...col, content: newContent } : col
+      )
+    }
+  })
+  emitUpdate({ ...grid.value, rows })
+}
+
+function contentNotEmpty(content) {
+  if (!content) return false
+  if (!content.content || content.content.length === 0) return false
+  return content.content.some(node => {
+    if (node.content && node.content.length > 0) return true
+    if (node.type === 'image') return true
+    return false
+  })
+}
+</script>
+
+<style scoped>
+.grid-editor {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.grid-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 40px;
+}
+
+.grid-row-wrapper {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: flex-start;
+}
+
+.grid-row {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 16px;
+  min-width: 0;
+}
+
+.grid-col[data-span="12"] { grid-column: span 12; }
+.grid-col[data-span="8"]  { grid-column: span 8; }
+.grid-col[data-span="6"]  { grid-column: span 6; }
+.grid-col[data-span="4"]  { grid-column: span 4; }
+.grid-col[data-span="3"]  { grid-column: span 3; }
+
+.grid-col {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 120px;
+}
+
+.grid-col:hover .col-toolbar {
+  opacity: 1;
+}
+
+.col-toolbar {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 5;
+}
+
+.col-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.col-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: white;
+}
+
+.col-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.col-btn-danger:hover:not(:disabled) {
+  background: #ef4444;
+}
+
+.row-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  padding-top: 4px;
+}
+
+.grid-row-wrapper:hover .row-actions {
+  opacity: 1;
+}
+
+.row-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.row-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: white;
+}
+
+.row-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.row-btn-danger:hover:not(:disabled) {
+  background: #ef4444;
+}
+
+.add-row-btn {
+  width: 100%;
+  padding: 12px;
+  border: 2px dashed var(--border-color, rgba(255,255,255,0.15));
+  border-radius: 8px;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+
+.add-row-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.grid-col :deep(.ProseMirror) {
+  min-height: 80px;
+}
+</style>
