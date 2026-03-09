@@ -3,16 +3,29 @@
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.db_models import Task
+from app.models.db_models import Task, TaskActivity
 from app.repositories.task_repo import TaskRepository
 from app.services import event_publisher
 from app.services.project_service import ProjectService
+from app.services.task_workflow_service import TaskWorkflowService
 
-# Valid status transitions for Kanban
+# Valid status transitions for Kanban (legacy, kept for backward compat)
 VALID_STATUSES = ["todo", "in_progress", "review", "done"]
 VALID_PRIORITIES = ["low", "medium", "high"]
+VALID_SEVERITIES = ["critical", "major", "minor", "trivial"]
+VALID_ENVIRONMENTS = ["production", "staging", "local", "all"]
+
+# Fields tracked in activity log
+TRACKED_FIELDS = [
+    "title", "description", "status", "priority", "assignee", "assignee_id",
+    "type_id", "status_id", "severity", "environment", "due_date",
+    "estimated_hours", "spent_hours", "parent_id", "labels",
+]
+
+MAX_TASK_DEPTH = 4
 
 
 class TaskService:
@@ -29,11 +42,19 @@ class TaskService:
         status: str = "todo",
         priority: str = "medium",
         assignee: str | None = None,
+        assignee_id: str | None = None,
+        reporter_id: str | None = None,
         labels: list[str] | None = None,
         due_date: datetime | None = None,
         session_id: str | None = None,
         testcase_id: str | None = None,
         project_id: str | None = None,
+        type_id: str | None = None,
+        severity: str | None = None,
+        environment: str | None = None,
+        estimated_hours: float | None = None,
+        spent_hours: float | None = None,
+        parent_id: str | None = None,
     ) -> Task:
         """Create new task."""
         # Validate status and priority
@@ -42,17 +63,35 @@ class TaskService:
         if priority not in VALID_PRIORITIES:
             priority = "medium"
 
-        task_data = {
+        # Validate depth if parent_id is set
+        if parent_id:
+            depth = await self.get_depth(parent_id)
+            if depth >= MAX_TASK_DEPTH:
+                from fastapi import HTTPException
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Maximum task depth ({MAX_TASK_DEPTH}) exceeded",
+                )
+
+        task_data: dict[str, Any] = {
             "title": title,
             "description": description,
             "status": status,
             "priority": priority,
             "assignee": assignee,
+            "assignee_id": assignee_id,
+            "reporter_id": reporter_id,
             "labels": labels or [],
             "due_date": due_date,
             "session_id": session_id,
             "testcase_id": testcase_id,
             "project_id": project_id,
+            "type_id": type_id,
+            "severity": severity,
+            "environment": environment,
+            "estimated_hours": estimated_hours,
+            "spent_hours": spent_hours,
+            "parent_id": parent_id,
         }
 
         # Generate human_id if project has a key
@@ -62,12 +101,26 @@ class TaskService:
             if human_id:
                 task_data["human_id"] = human_id
 
+        # Set initial status_id from workflow if type_id is provided
+        if type_id and project_id:
+            workflow = TaskWorkflowService(self.db)
+            initial_status = await workflow.get_initial_status(type_id, project_id)
+            if initial_status:
+                task_data["status_id"] = initial_status.id
+                task_data["status"] = initial_status.slug
+
         task = await self.repo.create(task_data)
+        await self.db.commit()
+
+        # Record creation activity
+        await self._record_activity(
+            task.id, reporter_id, "created", new_value={"title": title}
+        )
         await self.db.commit()
 
         await event_publisher.publish(
             "task.created",
-            {"id": task.id, "title": title, "priority": priority, "assignee_id": assignee},
+            {"id": task.id, "title": title, "priority": priority, "assignee_id": assignee_id or assignee},
             project_id=project_id,
         )
 
@@ -82,14 +135,24 @@ class TaskService:
         status: str | None = None,
         priority: str | None = None,
         assignee: str | None = None,
+        assignee_id: str | None = None,
+        reporter_id: str | None = None,
+        type_id: str | None = None,
+        severity: str | None = None,
         session_id: str | None = None,
+        project_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """List tasks with filters."""
         tasks = await self.repo.list_with_filters(
             status=status,
             priority=priority,
             assignee=assignee,
+            assignee_id=assignee_id,
+            reporter_id=reporter_id,
+            type_id=type_id,
+            severity=severity,
             session_id=session_id,
+            project_id=project_id,
         )
         return [self._to_list_dict(t) for t in tasks]
 
@@ -102,11 +165,14 @@ class TaskService:
         tasks = await self.repo.search(q, limit=limit)
         return [self._to_list_dict(t) for t in tasks]
 
-    async def get_board(self) -> dict[str, list[dict[str, Any]]]:
+    async def get_board(self, project_id: str | None = None, type_slug: str | None = None) -> dict[str, list[dict[str, Any]]]:
         """Get tasks grouped by status for Kanban board."""
-        tasks = await self.repo.get_all_tasks()
+        tasks = await self.repo.get_all_tasks(project_id=project_id)
 
-        board = {status: [] for status in VALID_STATUSES}
+        if type_slug:
+            tasks = [t for t in tasks if t.task_type and t.task_type.slug == type_slug]
+
+        board: dict[str, list[dict[str, Any]]] = {status: [] for status in VALID_STATUSES}
 
         for task in tasks:
             task_dict = self._to_list_dict(task)
@@ -115,7 +181,7 @@ class TaskService:
 
         return board
 
-    async def update_task(self, task_id: str, **updates) -> Task | None:
+    async def update_task(self, task_id: str, actor_id: str | None = None, **updates) -> Task | None:
         """Update task fields."""
         task = await self.repo.get_by_id(task_id)
         if not task:
@@ -123,6 +189,19 @@ class TaskService:
 
         old_status = task.status
         old_assignee = task.assignee
+
+        # Track changes for activity log
+        for field in TRACKED_FIELDS:
+            if field in updates and updates[field] is not None:
+                old_val = getattr(task, field, None)
+                new_val = updates[field]
+                if old_val != new_val:
+                    await self._record_activity(
+                        task_id, actor_id, "field_updated",
+                        field_name=field,
+                        old_value={"value": str(old_val) if old_val is not None else None},
+                        new_value={"value": str(new_val) if new_val is not None else None},
+                    )
 
         for key, value in updates.items():
             if value is not None:
@@ -147,12 +226,12 @@ class TaskService:
                 {
                     "id": task.id, "title": task.title,
                     "old_status": old_status, "new_status": new_status,
-                    "assignee_id": task.assignee,
+                    "assignee_id": task.assignee_id or task.assignee,
                 },
                 project_id=task.project_id,
             )
 
-        new_assignee = updates.get("assignee")
+        new_assignee = updates.get("assignee_id") or updates.get("assignee")
         if new_assignee and new_assignee != old_assignee:
             await event_publisher.publish(
                 "task.assigned",
@@ -165,11 +244,69 @@ class TaskService:
 
         return task
 
-    async def move_task(self, task_id: str, new_status: str) -> Task | None:
+    async def move_task(self, task_id: str, new_status: str, actor_id: str | None = None) -> Task | None:
         """Move task to new status (Kanban operation)."""
         if new_status not in VALID_STATUSES:
             return None
-        return await self.update_task(task_id, status=new_status)
+
+        task = await self.repo.get_by_id(task_id)
+        if not task:
+            return None
+
+        old_status = task.status
+
+        # Validate workflow transition if status_id is set
+        if task.status_id:
+            workflow = TaskWorkflowService(self.db)
+            allowed = await workflow.get_allowed_transitions(task)
+            target = next((s for s in allowed if s.slug == new_status), None)
+            if not target:
+                from fastapi import HTTPException
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Transition from '{old_status}' to '{new_status}' is not allowed",
+                )
+            # Update both status_id and status slug
+            return await self.update_task(task_id, actor_id=actor_id, status=new_status, status_id=target.id)
+
+        return await self.update_task(task_id, actor_id=actor_id, status=new_status)
+
+    async def move_task_by_status_id(self, task_id: str, new_status_id: str, actor_id: str | None = None) -> Task | None:
+        """Move task to new status by status_id with workflow validation."""
+        task = await self.repo.get_by_id(task_id)
+        if not task:
+            return None
+
+        workflow = TaskWorkflowService(self.db)
+        if task.status_id and not await workflow.validate_transition(task, new_status_id):
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=400,
+                detail="Status transition not allowed",
+            )
+
+        # Get status slug for backward compat
+        from app.repositories.task_type_repo import TaskTypeRepository
+        repo = TaskTypeRepository(self.db)
+        new_status = await repo.get_status_by_id(new_status_id)
+        if not new_status:
+            return None
+
+        # Record status change activity
+        old_status_name = task.status
+        if task.task_status:
+            old_status_name = task.task_status.name
+
+        await self._record_activity(
+            task_id, actor_id, "status_changed",
+            old_value={"status": old_status_name},
+            new_value={"status": new_status.name},
+        )
+
+        return await self.update_task(
+            task_id, actor_id=actor_id,
+            status=new_status.slug, status_id=new_status_id,
+        )
 
     async def delete_task(self, task_id: str) -> bool:
         """Delete task by ID."""
@@ -182,9 +319,54 @@ class TaskService:
         """Get task counts by status."""
         return await self.repo.count_by_status()
 
+    async def get_children(self, task_id: str) -> list[dict[str, Any]]:
+        """Get direct child tasks."""
+        tasks = await self.repo.get_children(task_id)
+        return [self._to_list_dict(t) for t in tasks]
+
+    async def get_depth(self, task_id: str) -> int:
+        """Get task depth using recursive CTE."""
+        cte_query = text("""
+            WITH RECURSIVE task_tree AS (
+                SELECT id, parent_id, 1 AS depth
+                FROM tasks
+                WHERE id = :task_id
+                UNION ALL
+                SELECT t.id, t.parent_id, tt.depth + 1
+                FROM tasks t
+                JOIN task_tree tt ON t.id = tt.parent_id
+            )
+            SELECT MAX(depth) FROM task_tree
+        """)
+        result = await self.db.execute(cte_query, {"task_id": task_id})
+        depth = result.scalar()
+        return depth or 1
+
+    async def _record_activity(
+        self,
+        task_id: str,
+        actor_id: str | None,
+        action_type: str,
+        field_name: str | None = None,
+        old_value: dict | None = None,
+        new_value: dict | None = None,
+    ) -> TaskActivity:
+        """Create a TaskActivity record."""
+        activity = TaskActivity(
+            task_id=task_id,
+            actor_id=actor_id,
+            action_type=action_type,
+            field_name=field_name,
+            old_value=old_value,
+            new_value=new_value,
+        )
+        self.db.add(activity)
+        await self.db.flush()
+        return activity
+
     def _to_list_dict(self, task: Task) -> dict[str, Any]:
         """Convert task to list response dict."""
-        return {
+        result: dict[str, Any] = {
             "id": task.id,
             "human_id": task.human_id,
             "title": task.title,
@@ -196,11 +378,65 @@ class TaskService:
             "due_date": task.due_date.isoformat() if task.due_date else None,
             "created_at": task.created_at.isoformat() if task.created_at else None,
             "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+            # New fields
+            "type_id": task.type_id,
+            "status_id": task.status_id,
+            "assignee_id": task.assignee_id,
+            "reporter_id": task.reporter_id,
+            "severity": task.severity,
+            "environment": task.environment,
+            "estimated_hours": task.estimated_hours,
+            "spent_hours": task.spent_hours,
+            "parent_id": task.parent_id,
         }
+
+        # Include type info if loaded
+        if task.task_type:
+            result["type"] = {
+                "id": task.task_type.id,
+                "name": task.task_type.name,
+                "slug": task.task_type.slug,
+                "icon": task.task_type.icon,
+                "color": task.task_type.color,
+            }
+
+        # Include status info if loaded
+        if task.task_status:
+            result["task_status"] = {
+                "id": task.task_status.id,
+                "name": task.task_status.name,
+                "slug": task.task_status.slug,
+                "color": task.task_status.color,
+            }
+
+        # Include user info if loaded
+        if task.assignee_user:
+            result["assignee_user"] = {
+                "id": task.assignee_user.id,
+                "username": task.assignee_user.username,
+                "display_name": task.assignee_user.display_name,
+            }
+        if task.reporter:
+            result["reporter"] = {
+                "id": task.reporter.id,
+                "username": task.reporter.username,
+                "display_name": task.reporter.display_name,
+            }
+
+        return result
 
     def to_detail_dict(self, task: Task) -> dict[str, Any]:
         """Convert task to detailed response dict."""
         result = self._to_list_dict(task)
         result["session_id"] = task.session_id
         result["testcase_id"] = task.testcase_id
+        result["updated_at"] = task.updated_at.isoformat() if task.updated_at else None
+
+        # Children
+        if task.children:
+            result["children"] = [
+                {"id": c.id, "human_id": c.human_id, "title": c.title, "status": c.status}
+                for c in task.children
+            ]
+
         return result

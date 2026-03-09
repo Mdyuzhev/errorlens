@@ -29,6 +29,7 @@ from app.routers import (
     notifications,
     projects,
     sessions,
+    task_settings,
     tasks,
     test_plans,
     testcase_folders,
@@ -114,6 +115,7 @@ app.include_router(testcase_folders.router)  # Must be before testcases (path co
 app.include_router(testcase_folders.move_router)  # /testcases/{id}/move-to-folder
 app.include_router(testcases.router)
 app.include_router(tasks.router)
+app.include_router(task_settings.router)  # EL019: Task workflow settings
 app.include_router(article_folders.router)  # Must be before articles (path conflict)
 app.include_router(article_folders.move_router)  # /articles/{id}/move-to-folder
 app.include_router(article_images.router)  # /articles/images/* — before articles

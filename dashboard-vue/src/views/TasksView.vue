@@ -7,6 +7,28 @@
       </button>
     </div>
 
+    <!-- Type filter tabs -->
+    <div class="type-tabs">
+      <button
+        class="type-tab"
+        :class="{ active: activeTypeFilter === 'all' }"
+        @click="filterByType('all')"
+      >
+        All
+      </button>
+      <button
+        v-for="t in taskTypes"
+        :key="t.slug"
+        class="type-tab"
+        :class="{ active: activeTypeFilter === t.slug }"
+        :style="activeTypeFilter === t.slug ? { borderBottomColor: t.color } : {}"
+        @click="filterByType(t.slug)"
+      >
+        <AppIcon :name="t.icon" :size="14" />
+        {{ t.name }}
+      </button>
+    </div>
+
     <!-- Kanban Board -->
     <div v-if="loading" class="loading">
       <div class="spinner"></div>
@@ -35,14 +57,21 @@
             @click="openTask(task)"
           >
             <div class="task-priority" :class="task.priority"></div>
-            <h4>
+            <div class="card-top">
+              <span v-if="task.type" class="type-indicator" :style="{ background: task.type.color }" :title="task.type.name">
+                <AppIcon :name="task.type.icon" :size="10" />
+              </span>
               <span v-if="task.human_id" class="human-id-badge">{{ task.human_id }}</span>
-              {{ task.title }}
-            </h4>
+            </div>
+            <h4>{{ task.title }}</h4>
             <div class="task-meta">
-              <span v-if="task.assignee" class="assignee">
+              <span v-if="task.assignee_user" class="assignee">
+                {{ task.assignee_user.display_name || task.assignee_user.username }}
+              </span>
+              <span v-else-if="task.assignee" class="assignee">
                 {{ task.assignee }}
               </span>
+              <span v-if="task.severity" class="severity-badge" :class="task.severity">{{ task.severity }}</span>
               <span v-if="task.due_date" class="due-date" :class="{ overdue: isOverdue(task) }">
                 {{ formatDate(task.due_date) }}
               </span>
@@ -57,12 +86,20 @@
       </div>
     </div>
 
-    <!-- Create/Edit Modal -->
-    <div v-if="showCreateModal || selectedTask" class="modal-overlay" @click.self="closeModal">
-      <div class="modal-content">
-        <button class="modal-close" @click="closeModal">&times;</button>
+    <!-- Fullscreen Task Detail -->
+    <TaskDetailView
+      v-if="selectedTask"
+      :task="selectedTask"
+      @close="closeTask"
+      @updated="refreshTask"
+      @open-task="openTaskById"
+    />
 
-        <h2>{{ selectedTask ? 'Edit Task' : 'New Task' }}</h2>
+    <!-- Create Modal -->
+    <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
+      <div class="modal-content">
+        <button class="modal-close" @click="showCreateModal = false">&times;</button>
+        <h2>New Task</h2>
 
         <form @submit.prevent="saveTask">
           <div class="form-group">
@@ -80,22 +117,41 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label>Status</label>
-              <select v-model="form.status">
-                <option value="todo">To Do</option>
-                <option value="in_progress">In Progress</option>
-                <option value="review">Review</option>
-                <option value="done">Done</option>
+              <label>Type</label>
+              <select v-model="form.type_id">
+                <option value="">None</option>
+                <option v-for="t in taskTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
               </select>
             </div>
-
             <div class="form-group">
               <label>Priority</label>
               <select v-model="form.priority">
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
-                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Severity</label>
+              <select v-model="form.severity">
+                <option value="">None</option>
+                <option value="critical">Critical</option>
+                <option value="major">Major</option>
+                <option value="minor">Minor</option>
+                <option value="trivial">Trivial</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Environment</label>
+              <select v-model="form.environment">
+                <option value="">None</option>
+                <option value="production">Production</option>
+                <option value="staging">Staging</option>
+                <option value="local">Local</option>
+                <option value="all">All</option>
               </select>
             </div>
           </div>
@@ -105,7 +161,6 @@
               <label>Assignee</label>
               <input v-model="form.assignee" placeholder="Username" />
             </div>
-
             <div class="form-group">
               <label>Due Date</label>
               <input v-model="form.due_date" type="datetime-local" />
@@ -117,21 +172,9 @@
             <input v-model="labelsInput" placeholder="bug, feature, urgent" />
           </div>
 
-          <!-- Backlinks -->
-          <div v-if="selectedTask && backlinks.length" class="backlinks-section">
-            <label>Mentioned in articles ({{ backlinks.length }}):</label>
-            <div v-for="bl in backlinks" :key="bl.article_id" class="backlink-item" @click="goToArticle(bl)">
-              <span class="backlink-icon"><AppIcon name="file" :size="14" /></span>
-              {{ bl.article_title }}
-            </div>
-          </div>
-
           <div class="form-actions">
-            <button v-if="selectedTask" type="button" class="btn btn-danger" @click="deleteTask">
-              Delete
-            </button>
-            <button type="button" class="btn btn-secondary" @click="closeModal">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" class="btn btn-secondary" @click="showCreateModal = false">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create</button>
           </div>
         </form>
       </div>
@@ -143,9 +186,10 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTasksStore } from '@/stores/tasks'
-import { entityLinksApi, tasksApi } from '@/services/api'
+import { tasksApi, taskSettingsApi, projectsApi } from '@/services/api'
 import RichEditor from '@/components/common/RichEditor.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
+import TaskDetailView from '@/components/tasks/TaskDetailView.vue'
 
 const route = useRoute()
 const store = useTasksStore()
@@ -159,28 +203,21 @@ const columns = [
 
 const showCreateModal = ref(false)
 const selectedTask = ref(null)
-const backlinks = ref([])
+const taskTypes = ref([])
+const activeTypeFilter = ref('all')
 let draggedTask = null
 
 const form = ref({
   title: '',
-  description: '',
   descriptionJson: null,
   status: 'todo',
   priority: 'medium',
   assignee: '',
   due_date: '',
-  labels: []
+  type_id: '',
+  severity: '',
+  environment: '',
 })
-
-function parseContent(raw) {
-  if (!raw) return null
-  try {
-    const parsed = JSON.parse(raw)
-    if (parsed && parsed.type === 'doc') return parsed
-  } catch {}
-  return { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: raw }] }] }
-}
 
 const labelsInput = ref('')
 
@@ -199,51 +236,43 @@ async function onDrop(event, status) {
   draggedTask = null
 }
 
-function openTask(task) {
-  selectedTask.value = task
-  loadBacklinks(task.id)
-  form.value = {
-    title: task.title || '',
-    description: task.description || '',
-    descriptionJson: parseContent(task.description),
-    status: task.status || 'todo',
-    priority: task.priority || 'medium',
-    assignee: task.assignee || '',
-    due_date: task.due_date ? task.due_date.slice(0, 16) : ''
+async function openTask(task) {
+  const fullTask = await store.fetchTask(task.id)
+  if (fullTask) {
+    selectedTask.value = fullTask
   }
-  labelsInput.value = task.labels?.join(', ') || ''
 }
 
-function closeModal() {
-  showCreateModal.value = false
+async function openTaskById(id) {
+  const fullTask = await store.fetchTask(id)
+  if (fullTask) {
+    selectedTask.value = fullTask
+  }
+}
+
+function closeTask() {
   selectedTask.value = null
-  backlinks.value = []
-  resetForm()
 }
 
-async function loadBacklinks(taskId) {
-  try {
-    const res = await entityLinksApi.getBacklinks('task', taskId)
-    backlinks.value = res.data.items || []
-  } catch {
-    backlinks.value = []
+async function refreshTask() {
+  if (selectedTask.value) {
+    const updated = await store.fetchTask(selectedTask.value.id)
+    if (updated) selectedTask.value = updated
   }
-}
-
-function goToArticle(bl) {
-  const slug = bl.article_slug || bl.article_id
-  window.open(`${window.location.origin}${window.location.pathname}#/articles/${slug}`, '_blank')
+  await store.fetchBoard(activeTypeFilter.value !== 'all' ? { type_slug: activeTypeFilter.value } : {})
 }
 
 function resetForm() {
   form.value = {
     title: '',
-    description: '',
     descriptionJson: null,
     status: 'todo',
     priority: 'medium',
     assignee: '',
-    due_date: ''
+    due_date: '',
+    type_id: '',
+    severity: '',
+    environment: '',
   }
   labelsInput.value = ''
 }
@@ -251,28 +280,26 @@ function resetForm() {
 async function saveTask() {
   const data = {
     title: form.value.title,
-    description: form.value.descriptionJson ? JSON.stringify(form.value.descriptionJson) : form.value.description,
+    description: form.value.descriptionJson ? JSON.stringify(form.value.descriptionJson) : null,
     status: form.value.status,
     priority: form.value.priority,
-    assignee: form.value.assignee,
+    assignee: form.value.assignee || null,
     labels: labelsInput.value.split(',').map(l => l.trim()).filter(Boolean),
-    due_date: form.value.due_date || null
+    due_date: form.value.due_date || null,
+    type_id: form.value.type_id || null,
+    severity: form.value.severity || null,
+    environment: form.value.environment || null,
   }
 
-  if (selectedTask.value) {
-    await store.updateTask(selectedTask.value.id, data)
-  } else {
-    await store.createTask(data)
-  }
-
-  closeModal()
+  await store.createTask(data)
+  showCreateModal.value = false
+  resetForm()
 }
 
-async function deleteTask() {
-  if (selectedTask.value && confirm('Delete this task?')) {
-    await store.deleteTask(selectedTask.value.id)
-    closeModal()
-  }
+async function filterByType(slug) {
+  activeTypeFilter.value = slug
+  const params = slug !== 'all' ? { type_slug: slug } : {}
+  await store.fetchBoard(params)
 }
 
 function formatDate(date) {
@@ -284,26 +311,21 @@ function isOverdue(task) {
   return task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done'
 }
 
-function findInBoard(id) {
-  for (const col of Object.values(store.board)) {
-    const found = col.find(t => t.id === id || String(t.id) === String(id))
-    if (found) return found
-  }
-  return null
+async function loadTaskTypes() {
+  try {
+    const projectsRes = await projectsApi.list()
+    const projects = projectsRes.data.items || projectsRes.data
+    if (projects.length > 0) {
+      const typesRes = await taskSettingsApi.getTypes(projects[0].id)
+      taskTypes.value = typesRes.data.filter(t => t.is_active)
+    }
+  } catch { taskTypes.value = [] }
 }
 
 async function openFromRoute() {
   const id = route.params.id
   if (id) {
-    const task = findInBoard(id)
-    if (task) {
-      openTask(task)
-    } else {
-      try {
-        const res = await tasksApi.get(id)
-        if (res.data) openTask(res.data)
-      } catch {}
-    }
+    await openTaskById(id)
   }
 }
 
@@ -311,11 +333,42 @@ watch(() => route.params.id, openFromRoute)
 
 onMounted(async () => {
   await store.fetchBoard()
+  await loadTaskTypes()
   await openFromRoute()
 })
 </script>
 
 <style scoped>
+.type-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.type-tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.type-tab:hover { color: var(--text-primary); }
+.type-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
 .kanban-board {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -363,7 +416,7 @@ onMounted(async () => {
   padding: 12px;
   border-radius: 8px;
   margin-bottom: 8px;
-  cursor: grab;
+  cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
   position: relative;
   border-left: 4px solid transparent;
@@ -372,10 +425,6 @@ onMounted(async () => {
 .task-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.task-card:active {
-  cursor: grabbing;
 }
 
 .task-priority {
@@ -387,31 +436,34 @@ onMounted(async () => {
   border-radius: 8px 0 0 8px;
 }
 
-.task-card:has(.task-priority.urgent) {
-  border-left-color: #ef4444;
+.task-card:has(.task-priority.high) { border-left-color: #f59e0b; }
+.task-card:has(.task-priority.medium) { border-left-color: #3b82f6; }
+.task-card:has(.task-priority.low) { border-left-color: #6b7280; }
+
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
-.task-card:has(.task-priority.high) {
-  border-left-color: #f59e0b;
-}
-
-.task-card:has(.task-priority.medium) {
-  border-left-color: #3b82f6;
-}
-
-.task-card:has(.task-priority.low) {
-  border-left-color: #6b7280;
+.type-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  color: white;
 }
 
 .human-id-badge {
   font-size: 11px;
   font-family: monospace;
   color: var(--text-secondary);
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
   padding: 1px 6px;
   border-radius: 4px;
-  margin-right: 4px;
-  vertical-align: middle;
 }
 
 .task-card h4 {
@@ -425,17 +477,29 @@ onMounted(async () => {
   gap: 8px;
   font-size: 12px;
   color: var(--text-secondary);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
 }
 
-.due-date.overdue {
-  color: #ef4444;
+.severity-badge {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
 }
+
+.severity-badge.critical { background: rgba(239,68,68,0.15); color: #ef4444; }
+.severity-badge.major { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.severity-badge.minor { background: rgba(59,130,246,0.15); color: #3b82f6; }
+.severity-badge.trivial { background: rgba(107,114,128,0.15); color: #6b7280; }
+
+.due-date.overdue { color: #ef4444; }
 
 .task-labels {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  margin-top: 4px;
 }
 
 .label {
@@ -478,10 +542,6 @@ onMounted(async () => {
   border-top: 1px solid var(--bg-secondary);
 }
 
-.form-actions .btn-danger {
-  margin-right: auto;
-}
-
 .loading {
   display: flex;
   justify-content: center;
@@ -506,7 +566,7 @@ onMounted(async () => {
   background: var(--bg-card);
   border-radius: 16px;
   padding: 24px;
-  max-width: 500px;
+  max-width: 600px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
@@ -522,40 +582,6 @@ onMounted(async () => {
   color: var(--text-secondary);
   font-size: 24px;
   cursor: pointer;
-}
-
-.backlinks-section {
-  margin-top: 16px;
-  padding: 12px;
-  background: rgba(99, 102, 241, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(99, 102, 241, 0.15);
-}
-
-.backlinks-section label {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.backlink-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: background 0.15s;
-}
-
-.backlink-item:hover {
-  background: rgba(99, 102, 241, 0.1);
-}
-
-.backlink-icon {
-  font-size: 14px;
 }
 
 @media (max-width: 1024px) {

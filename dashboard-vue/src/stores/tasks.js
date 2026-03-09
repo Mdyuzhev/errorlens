@@ -12,16 +12,18 @@ export const useTasksStore = defineStore('tasks', {
     },
     currentTask: null,
     loading: false,
-    error: null
+    error: null,
+    activity: [],
+    relations: [],
   }),
 
   actions: {
-    async fetchTasks() {
+    async fetchTasks(params) {
       this.loading = true
       this.error = null
 
       try {
-        const response = await tasksApi.list()
+        const response = await tasksApi.list(params)
         this.tasks = response.data
       } catch (error) {
         this.error = error.response?.data?.detail || 'Failed to load tasks'
@@ -30,17 +32,28 @@ export const useTasksStore = defineStore('tasks', {
       }
     },
 
-    async fetchBoard() {
+    async fetchBoard(params) {
       this.loading = true
       this.error = null
 
       try {
-        const response = await tasksApi.getBoard()
+        const response = await tasksApi.getBoard(params)
         this.board = response.data
       } catch (error) {
         this.error = error.response?.data?.detail || 'Failed to load board'
       } finally {
         this.loading = false
+      }
+    },
+
+    async fetchTask(id) {
+      try {
+        const response = await tasksApi.get(id)
+        this.currentTask = response.data
+        return response.data
+      } catch (error) {
+        this.error = error.response?.data?.detail || 'Failed to load task'
+        return null
       }
     },
 
@@ -79,6 +92,63 @@ export const useTasksStore = defineStore('tasks', {
 
     async moveTask(taskId, newStatus) {
       return this.updateTask(taskId, { status: newStatus })
-    }
+    },
+
+    // Activity
+    async fetchActivity(taskId, params) {
+      try {
+        const response = await tasksApi.getActivity(taskId, params)
+        this.activity = response.data
+        return response.data
+      } catch {
+        this.activity = []
+        return []
+      }
+    },
+
+    async addComment(taskId, content) {
+      try {
+        const response = await tasksApi.createComment(taskId, content)
+        await this.fetchActivity(taskId)
+        return response.data
+      } catch (error) {
+        this.error = error.response?.data?.detail || 'Failed to add comment'
+        return null
+      }
+    },
+
+    // Relations
+    async fetchRelations(taskId) {
+      try {
+        const response = await tasksApi.getRelations(taskId)
+        this.relations = response.data
+        return response.data
+      } catch {
+        this.relations = []
+        return []
+      }
+    },
+
+    async createRelation(taskId, data) {
+      try {
+        const response = await tasksApi.createRelation(taskId, data)
+        await this.fetchRelations(taskId)
+        return response.data
+      } catch (error) {
+        this.error = error.response?.data?.detail || 'Failed to create relation'
+        return null
+      }
+    },
+
+    async deleteRelation(taskId, relationId) {
+      try {
+        await tasksApi.deleteRelation(taskId, relationId)
+        await this.fetchRelations(taskId)
+        return true
+      } catch (error) {
+        this.error = error.response?.data?.detail || 'Failed to delete relation'
+        return false
+      }
+    },
   }
 })

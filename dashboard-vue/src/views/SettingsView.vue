@@ -19,6 +19,13 @@
         Projects
       </button>
       <button
+        class="tab"
+        :class="{ active: activeTab === 'tasks' }"
+        @click="activeTab = 'tasks'"
+      >
+        Tasks
+      </button>
+      <button
         v-if="auth.user?.is_admin"
         class="tab"
         :class="{ active: activeTab === 'users' }"
@@ -176,6 +183,11 @@
       <ProjectsTab />
     </div>
 
+    <!-- Tasks tab -->
+    <div v-if="activeTab === 'tasks'" class="tab-content">
+      <TaskSettingsTab />
+    </div>
+
     <!-- Users tab (admin only) -->
     <div v-if="activeTab === 'users'" class="tab-content">
       <UsersTab v-if="auth.user?.is_admin" />
@@ -193,6 +205,7 @@ import { useThemeStore } from '@/stores/theme'
 import api from '@/services/api'
 import LLMSettings from '@/components/generator/ProviderSelector.vue'
 import ProjectsTab from '@/components/settings/ProjectsTab.vue'
+import TaskSettingsTab from '@/components/settings/TaskSettingsTab.vue'
 import UsersTab from '@/components/settings/UsersTab.vue'
 
 const auth = useAuthStore()

@@ -1,7 +1,7 @@
 """Tests for TaskService."""
 
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from app.services.task_service import VALID_PRIORITIES, VALID_STATUSES, TaskService
@@ -27,6 +27,8 @@ class TestTaskService:
         """Create mock database session."""
         db = AsyncMock()
         db.commit = AsyncMock()
+        db.flush = AsyncMock()
+        db.add = MagicMock()
         return db
 
     @pytest.fixture
@@ -213,7 +215,9 @@ class TestTaskService:
         assert len(result) == 1
         assert result[0]["id"] == "task-1"
         mock_repo.list_with_filters.assert_called_once_with(
-            status="todo", priority="high", assignee="user@example.com", session_id=None
+            status="todo", priority="high", assignee="user@example.com",
+            assignee_id=None, reporter_id=None, type_id=None,
+            severity=None, session_id=None, project_id=None,
         )
 
     # ========== Kanban Board Tests ==========
@@ -278,11 +282,15 @@ class TestTaskService:
         mock_task = MagicMock()
         mock_task.id = "task-123"
         mock_task.status = "todo"
+        mock_task.status_id = None
         mock_task.completed_at = None
+        mock_task.project_id = None
         mock_repo.get_by_id.return_value = mock_task
 
         # Act
-        result = await task_service.move_task("task-123", "in_progress")
+        with patch("app.services.task_service.event_publisher") as mock_pub:
+            mock_pub.publish = AsyncMock()
+            result = await task_service.move_task("task-123", "in_progress")
 
         # Assert
         assert result == mock_task
@@ -305,11 +313,15 @@ class TestTaskService:
         mock_task = MagicMock()
         mock_task.id = "task-123"
         mock_task.status = "review"
+        mock_task.status_id = None
         mock_task.completed_at = None
+        mock_task.project_id = None
         mock_repo.get_by_id.return_value = mock_task
 
         # Act
-        await task_service.move_task("task-123", "done")
+        with patch("app.services.task_service.event_publisher") as mock_pub:
+            mock_pub.publish = AsyncMock()
+            await task_service.move_task("task-123", "done")
 
         # Assert
         assert mock_task.completed_at is not None
@@ -321,11 +333,15 @@ class TestTaskService:
         mock_task = MagicMock()
         mock_task.id = "task-123"
         mock_task.status = "done"
+        mock_task.status_id = None
         mock_task.completed_at = datetime(2025, 1, 15)
+        mock_task.project_id = None
         mock_repo.get_by_id.return_value = mock_task
 
         # Act
-        await task_service.move_task("task-123", "review")
+        with patch("app.services.task_service.event_publisher") as mock_pub:
+            mock_pub.publish = AsyncMock()
+            await task_service.move_task("task-123", "review")
 
         # Assert
         assert mock_task.completed_at is None

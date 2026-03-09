@@ -120,6 +120,12 @@ class ProjectService:
         await self.db.commit()
         await self.db.refresh(project)
 
+        # Seed default task types, statuses, and transitions
+        from app.services.task_workflow_service import TaskWorkflowService
+        workflow_service = TaskWorkflowService(self.db)
+        await workflow_service.seed_defaults(project.id)
+        await self.db.commit()
+
         logger.info(f"Created project {project.id} for user {owner_id}")
         return project
 

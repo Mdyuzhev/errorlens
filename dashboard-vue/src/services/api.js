@@ -104,7 +104,35 @@ export const tasksApi = {
   create: (data) => api.post('/tasks', data),
   update: (id, data) => api.put(`/tasks/${id}`, data),
   delete: (id) => api.delete(`/tasks/${id}`),
-  getBoard: () => api.get('/tasks/board')
+  getBoard: (params) => api.get('/tasks/board', { params }),
+  getBoardByType: (typeSlug, params) => api.get(`/tasks/board/${typeSlug}`, { params }),
+  getChildren: (id) => api.get(`/tasks/${id}/children`),
+  getAllowedTransitions: (id) => api.get(`/tasks/${id}/allowed-transitions`),
+  moveStatus: (id, statusId) => api.patch(`/tasks/${id}/move-status`, { status_id: statusId }),
+  // Activity & Comments
+  getActivity: (id, params) => api.get(`/tasks/${id}/activity`, { params }),
+  createComment: (id, content) => api.post(`/tasks/${id}/comments`, { content }),
+  updateComment: (taskId, commentId, content) => api.put(`/tasks/${taskId}/comments/${commentId}`, { content }),
+  deleteComment: (taskId, commentId) => api.delete(`/tasks/${taskId}/comments/${commentId}`),
+  // Relations
+  getRelations: (id) => api.get(`/tasks/${id}/relations`),
+  createRelation: (id, data) => api.post(`/tasks/${id}/relations`, data),
+  deleteRelation: (taskId, relationId) => api.delete(`/tasks/${taskId}/relations/${relationId}`),
+}
+
+// Task Settings API
+export const taskSettingsApi = {
+  getTypes: (projectId) => api.get('/task-settings/types', { params: { project_id: projectId } }),
+  createType: (projectId, data) => api.post('/task-settings/types', data, { params: { project_id: projectId } }),
+  updateType: (typeId, data) => api.put(`/task-settings/types/${typeId}`, data),
+  getStatuses: (typeId, projectId) => api.get(`/task-settings/types/${typeId}/statuses`, { params: { project_id: projectId } }),
+  createStatus: (typeId, projectId, data) => api.post(`/task-settings/types/${typeId}/statuses`, data, { params: { project_id: projectId } }),
+  updateStatus: (statusId, data) => api.put(`/task-settings/statuses/${statusId}`, data),
+  deleteStatus: (statusId) => api.delete(`/task-settings/statuses/${statusId}`),
+  getTransitions: (typeId, projectId) => api.get(`/task-settings/types/${typeId}/transitions`, { params: { project_id: projectId } }),
+  createTransition: (typeId, projectId, data) => api.post(`/task-settings/types/${typeId}/transitions`, data, { params: { project_id: projectId } }),
+  deleteTransition: (typeId, data) => api.delete(`/task-settings/types/${typeId}/transitions`, { data }),
+  seedDefaults: (projectId) => api.post('/task-settings/seed', null, { params: { project_id: projectId } }),
 }
 
 // Articles API

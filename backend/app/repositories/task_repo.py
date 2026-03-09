@@ -2,6 +2,7 @@
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.db_models import Task
 from app.repositories.base import BaseRepository
@@ -18,7 +19,12 @@ class TaskRepository(BaseRepository[Task]):
         status: str | None = None,
         priority: str | None = None,
         assignee: str | None = None,
+        assignee_id: str | None = None,
+        reporter_id: str | None = None,
+        type_id: str | None = None,
+        severity: str | None = None,
         session_id: str | None = None,
+        project_id: str | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list[Task]:
@@ -31,8 +37,18 @@ class TaskRepository(BaseRepository[Task]):
             query = query.where(Task.priority == priority)
         if assignee:
             query = query.where(Task.assignee == assignee)
+        if assignee_id:
+            query = query.where(Task.assignee_id == assignee_id)
+        if reporter_id:
+            query = query.where(Task.reporter_id == reporter_id)
+        if type_id:
+            query = query.where(Task.type_id == type_id)
+        if severity:
+            query = query.where(Task.severity == severity)
         if session_id:
             query = query.where(Task.session_id == session_id)
+        if project_id:
+            query = query.where(Task.project_id == project_id)
 
         query = query.limit(limit).offset(offset)
         result = await self.session.execute(query)
@@ -56,9 +72,12 @@ class TaskRepository(BaseRepository[Task]):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_all_tasks(self) -> list[Task]:
+    async def get_all_tasks(self, project_id: str | None = None) -> list[Task]:
         """Get all tasks (for board view)."""
-        result = await self.session.execute(select(Task))
+        query = select(Task)
+        if project_id:
+            query = query.where(Task.project_id == project_id)
+        result = await self.session.execute(query)
         return list(result.scalars().all())
 
     async def get_by_session(self, session_id: str) -> list[Task]:
@@ -70,6 +89,12 @@ class TaskRepository(BaseRepository[Task]):
     async def get_by_testcase(self, testcase_id: str) -> list[Task]:
         """Get tasks linked to a test case."""
         query = select(Task).where(Task.testcase_id == testcase_id)
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+    async def get_children(self, parent_id: str) -> list[Task]:
+        """Get direct child tasks."""
+        query = select(Task).where(Task.parent_id == parent_id).order_by(Task.created_at)
         result = await self.session.execute(query)
         return list(result.scalars().all())
 
