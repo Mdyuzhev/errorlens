@@ -192,6 +192,7 @@ export const projectsApi = {
   create: (data) => api.post('/projects', data),
   update: (id, data) => api.put(`/projects/${id}`, data),
   remove: (id) => api.delete(`/projects/${id}`),
+  checkKey: (key) => api.get(`/projects/check-key`, { params: { key } }),
   listMembers: (projectId) => api.get(`/projects/${projectId}/members`),
   addMember: (projectId, data) => api.post(`/projects/${projectId}/members`, data),
   updateMember: (projectId, userId, data) => api.put(`/projects/${projectId}/members/${userId}`, data),
