@@ -1,7 +1,7 @@
 <template>
   <div class="rich-editor" :class="{ 'rich-editor--readonly': !editable }">
     <EditorToolbar
-      v-if="editable"
+      v-if="editable && showToolbar"
       :editor="editor"
       :uploadEnabled="uploadEnabled"
       @upload-image="triggerImageUpload"
@@ -20,15 +20,23 @@
     />
     <Teleport to="body">
       <EntityMentionPopup />
+      <ImageLightbox
+        :visible="lightboxVisible"
+        :src="lightboxSrc"
+        :alt="lightboxAlt"
+        @close="lightboxVisible = false"
+      />
     </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, onBeforeUnmount } from 'vue'
-import { useEditor, EditorContent } from '@tiptap/vue-3'
+import { ref, provide, watch, onBeforeUnmount } from 'vue'
+import { useEditor, EditorContent, VueNodeViewRenderer } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
+import ImageNodeView from './ImageNodeView.vue'
+import ImageLightbox from './ImageLightbox.vue'
 import Placeholder from '@tiptap/extension-placeholder'
 import CharacterCount from '@tiptap/extension-character-count'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
@@ -47,19 +55,35 @@ const props = defineProps({
   placeholder: { type: String, default: 'Начните писать...' },
   editable: { type: Boolean, default: true },
   uploadEnabled: { type: Boolean, default: false },
-  maxLength: { type: Number, default: null }
+  maxLength: { type: Number, default: null },
+  showToolbar: { type: Boolean, default: true }
 })
 
-const emit = defineEmits(['update:modelValue', 'word-count'])
+const emit = defineEmits(['update:modelValue', 'word-count', 'focus'])
 
 const imageInput = ref(null)
 const characterCount = ref(0)
+const lightboxSrc = ref('')
+const lightboxAlt = ref('')
+const lightboxVisible = ref(false)
+
+provide('openLightbox', (src, alt) => {
+  lightboxSrc.value = src
+  lightboxAlt.value = alt || ''
+  lightboxVisible.value = true
+})
+
+const ImageWithNodeView = Image.extend({
+  addNodeView() {
+    return VueNodeViewRenderer(ImageNodeView)
+  }
+})
 
 const extensions = [
   StarterKit.configure({
     codeBlock: false
   }),
-  Image,
+  ImageWithNodeView,
   Placeholder.configure({
     placeholder: props.placeholder
   }),
@@ -76,6 +100,9 @@ const editor = useEditor({
   extensions,
   content: props.modelValue,
   editable: props.editable,
+  onFocus: () => {
+    emit('focus')
+  },
   onUpdate: ({ editor: ed }) => {
     const json = ed.getJSON()
     emit('update:modelValue', json)
@@ -130,6 +157,8 @@ async function handleImageSelect(event) {
     event.target.value = ''
   }
 }
+
+defineExpose({ editor })
 
 onBeforeUnmount(() => {
   editor.value?.destroy()

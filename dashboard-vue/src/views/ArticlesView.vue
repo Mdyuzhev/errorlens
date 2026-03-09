@@ -90,10 +90,23 @@
       </div>
     </div>
 
+    <!-- Fullscreen Viewer (read mode) -->
+    <ArticleViewer
+      v-if="showViewer && viewingArticle"
+      :article="viewingArticle"
+      @close="showViewer = false; viewingArticle = null"
+      @edit="editFromViewer"
+    />
+
     <!-- Fullscreen Editor -->
     <div v-if="showEditor" class="editor-fullscreen">
       <div class="editor-header">
         <button class="btn-back" @click="closeEditor">← Назад</button>
+        <EditorToolbar
+          :editor="gridEditorRef?.activeEditor"
+          :uploadEnabled="true"
+          @upload-image="gridEditorRef?.triggerImageUpload()"
+        />
         <input
           v-model="form.title"
           class="title-input"
@@ -123,6 +136,7 @@
 
       <div class="editor-body">
         <GridEditor
+          ref="gridEditorRef"
           v-model="form.gridContent"
           :uploadEnabled="true"
         />
@@ -139,13 +153,17 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useArticlesStore } from '@/stores/articles'
 import { articlesApi } from '@/services/api'
 import FolderTree from '@/components/articles/FolderTree.vue'
-import RichEditor from '@/components/common/RichEditor.vue'
 import GridEditor from '@/components/articles/GridEditor.vue'
+import EditorToolbar from '@/components/common/EditorToolbar.vue'
+import ArticleViewer from '@/components/articles/ArticleViewer.vue'
 
 const store = useArticlesStore()
 
 const showEditor = ref(false)
+const showViewer = ref(false)
+const viewingArticle = ref(null)
 const editingArticle = ref(null)
+const gridEditorRef = ref(null)
 const importing = ref(false)
 const importFileInput = ref(null)
 const editorFileInput = ref(null)
@@ -223,6 +241,13 @@ function createArticle() {
 async function openArticle(article) {
   const full = await store.fetchArticle(article.id)
   const a = full || article
+  viewingArticle.value = a
+  showViewer.value = true
+}
+
+function editFromViewer() {
+  const a = viewingArticle.value
+  if (!a) return
   editingArticle.value = a
   form.value = {
     title: a.title || '',
@@ -233,6 +258,23 @@ async function openArticle(article) {
     status: a.status || 'draft'
   }
   tagsInput.value = a.tags?.join(', ') || ''
+  showViewer.value = false
+  showEditor.value = true
+  isDirty.value = false
+  startAutosave()
+}
+
+function openEditorDirect(article) {
+  editingArticle.value = article
+  form.value = {
+    title: article.title || '',
+    content: article.content || '',
+    contentJson: parseContent(article.content),
+    gridContent: parseArticleContent(article.content),
+    category: article.category || '',
+    status: article.status || 'draft'
+  }
+  tagsInput.value = article.tags?.join(', ') || ''
   showEditor.value = true
   isDirty.value = false
   startAutosave()
@@ -616,11 +658,19 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 48px;
-  padding: 0 16px;
+  min-height: 48px;
+  padding: 4px 16px;
   background: var(--bg-card);
   border-bottom: 1px solid var(--bg-secondary);
   flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.editor-header :deep(.editor-toolbar) {
+  border: none;
+  border-radius: 0;
+  background: none;
+  padding: 0;
 }
 
 .btn-back {

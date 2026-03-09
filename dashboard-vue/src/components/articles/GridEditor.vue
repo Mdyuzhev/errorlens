@@ -13,7 +13,7 @@
             class="grid-col"
             :data-span="col.span"
           >
-            <div class="col-toolbar">
+            <div v-if="!readonly" class="col-toolbar">
               <button
                 class="col-btn"
                 title="Разделить"
@@ -28,15 +28,19 @@
               >×</button>
             </div>
             <RichEditor
+              :ref="el => setColRef(col.id, el)"
               :modelValue="col.content"
               @update:modelValue="updateColContent(row.id, col.id, $event)"
               placeholder="Начните писать..."
               :uploadEnabled="uploadEnabled"
+              :editable="!readonly"
+              :showToolbar="false"
+              @focus="handleEditorFocus(col.id)"
             />
           </div>
         </div>
 
-        <div class="row-actions">
+        <div v-if="!readonly" class="row-actions">
           <button
             v-if="row.columns.length < 3"
             class="row-btn"
@@ -63,23 +67,54 @@
         </div>
       </div>
 
-      <button class="add-row-btn" @click="addRow">+ Добавить строку</button>
+      <button v-if="!readonly" class="add-row-btn" @click="addRow">+ Добавить строку</button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 import RichEditor from '@/components/common/RichEditor.vue'
 
 const props = defineProps({
   modelValue: { type: Object, required: true },
-  uploadEnabled: { type: Boolean, default: false }
+  uploadEnabled: { type: Boolean, default: false },
+  readonly: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['update:modelValue'])
 
 const grid = computed(() => props.modelValue)
+const activeEditor = ref(null)
+const activeColId = ref(null)
+const colRefs = {}
+
+function setColRef(colId, el) {
+  if (el) {
+    colRefs[colId] = el
+  }
+}
+
+function handleEditorFocus(colId) {
+  const colRef = colRefs[colId]
+  if (colRef?.editor) {
+    activeEditor.value = colRef.editor
+    activeColId.value = colId
+  }
+}
+
+function triggerImageUpload() {
+  if (activeColId.value && colRefs[activeColId.value]) {
+    const richEditor = colRefs[activeColId.value]
+    // Access the hidden file input inside RichEditor
+    if (richEditor.$el) {
+      const input = richEditor.$el.querySelector('input[type="file"]')
+      if (input) input.click()
+    }
+  }
+}
+
+defineExpose({ activeEditor, triggerImageUpload })
 
 function uuid() {
   return crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2, 10)
@@ -206,6 +241,10 @@ function contentNotEmpty(content) {
     return false
   })
 }
+
+onBeforeUnmount(() => {
+  Object.keys(colRefs).forEach(k => delete colRefs[k])
+})
 </script>
 
 <style scoped>
