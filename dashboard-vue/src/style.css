@@ -14,6 +14,63 @@
   --success: #10b981;
   --error: #ef4444;
   --warning: #f59e0b;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  --code-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* Light theme */
+body.theme-light {
+  --bg-primary: #f0f4f8;
+  --bg-secondary: #e8edf2;
+  --bg-card: #ffffff;
+  --text-primary: #172b4d;
+  --text-secondary: #5e6c84;
+  --border-color: #dfe1e6;
+  --accent: #0052cc;
+  --accent-hover: #0065ff;
+  --success: #00875a;
+  --error: #de350b;
+  --warning: #ff8b00;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+  --code-bg: #f4f5f7;
+}
+
+/* Light theme — navbar stays dark (Confluence-style) */
+body.theme-light .navbar {
+  background: #0052cc;
+  border-bottom: none;
+}
+
+body.theme-light .navbar .nav-link {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+body.theme-light .navbar .nav-link:hover,
+body.theme-light .navbar .nav-link.router-link-active {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+body.theme-light .navbar .nav-brand a {
+  color: #ffffff;
+}
+
+body.theme-light .navbar .username {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+body.theme-light .navbar .btn-logout {
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+}
+
+body.theme-light .navbar .btn-logout:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+body.theme-light .navbar .nav-link-accent {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 * {
@@ -238,4 +295,20 @@ input::placeholder {
 
 .filters select {
   min-width: 150px;
+}
+
+/* App Icon System */
+.app-icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+  transition: filter 0.2s;
+}
+
+.app-icon--glow {
+  filter: drop-shadow(0 0 3px currentColor);
+}
+
+body.theme-light .app-icon--glow {
+  filter: none;
 }
