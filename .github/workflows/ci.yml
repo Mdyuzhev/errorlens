@@ -156,7 +156,24 @@ jobs:
           done
           curl -sf http://localhost:3000 > /dev/null || { echo "FAIL: Landing unreachable"; docker compose logs nginx --tail=20; exit 1; }
           echo "Landing: OK"
-          curl -sf http://localhost:3000/api/health || { echo "FAIL: API unreachable (502)"; docker compose logs backend --tail=30; exit 1; }
+          for i in $(seq 1 10); do
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "API: OK"
+              break
+            fi
+            echo "Waiting for API via nginx... ($i/10)"
+            sleep 3
+          done
+          curl -sf http://localhost:3000/api/health || {
+            echo "FAIL: API unreachable (502)"
+            echo "=== nginx logs ==="
+            docker compose logs nginx --tail=20
+            echo "=== backend logs ==="
+            docker compose logs backend --tail=20
+            echo "=== docker ps ==="
+            docker compose ps
+            exit 1
+          }
           echo "API: OK"
           docker compose exec -T redis redis-cli ping && echo "Redis: OK"
           docker compose ps generator --format '{{.State}}' | grep -q running && echo "Generator: OK"
