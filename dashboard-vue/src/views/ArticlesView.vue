@@ -122,13 +122,10 @@
       </div>
 
       <div class="editor-body">
-        <div class="editor-content">
-          <RichEditor
-            v-model="form.contentJson"
-            placeholder="Содержимое статьи..."
-            :uploadEnabled="true"
-          />
-        </div>
+        <GridEditor
+          v-model="form.gridContent"
+          :uploadEnabled="true"
+        />
       </div>
     </div>
 
@@ -143,6 +140,7 @@ import { useArticlesStore } from '@/stores/articles'
 import { articlesApi } from '@/services/api'
 import FolderTree from '@/components/articles/FolderTree.vue'
 import RichEditor from '@/components/common/RichEditor.vue'
+import GridEditor from '@/components/articles/GridEditor.vue'
 
 const store = useArticlesStore()
 
@@ -166,6 +164,7 @@ const form = ref({
   title: '',
   content: '',
   contentJson: null,
+  gridContent: { version: 'grid-1', rows: [] },
   category: '',
   status: 'draft'
 })
@@ -177,6 +176,30 @@ function parseContent(raw) {
     if (parsed && parsed.type === 'doc') return parsed
   } catch {}
   return { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: raw }] }] }
+}
+
+function gridUuid() {
+  return crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2, 10)
+}
+
+function parseArticleContent(raw) {
+  if (!raw) {
+    return { version: 'grid-1', rows: [] }
+  }
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed && parsed.version === 'grid-1') return parsed
+    // Legacy TipTap doc → wrap in grid
+    return {
+      version: 'grid-1',
+      rows: [{
+        id: gridUuid(),
+        columns: [{ id: gridUuid(), span: 12, content: parsed }]
+      }]
+    }
+  } catch {
+    return { version: 'grid-1', rows: [] }
+  }
 }
 
 const tagsInput = ref('')
@@ -205,6 +228,7 @@ async function openArticle(article) {
     title: a.title || '',
     content: a.content || '',
     contentJson: parseContent(a.content),
+    gridContent: parseArticleContent(a.content),
     category: a.category || '',
     status: a.status || 'draft'
   }
@@ -230,6 +254,7 @@ function resetForm() {
     title: '',
     content: '',
     contentJson: null,
+    gridContent: { version: 'grid-1', rows: [] },
     category: '',
     status: 'draft'
   }
@@ -239,7 +264,7 @@ function resetForm() {
 function buildArticleData() {
   return {
     title: form.value.title,
-    content: form.value.contentJson ? JSON.stringify(form.value.contentJson) : form.value.content,
+    content: JSON.stringify(form.value.gridContent),
     category: form.value.category,
     status: form.value.status,
     tags: tagsInput.value.split(',').map(t => t.trim()).filter(Boolean)
@@ -413,6 +438,7 @@ async function handleEditorImport(event) {
     if (content) {
       form.value.content = content
       form.value.contentJson = parseContent(content)
+      form.value.gridContent = parseArticleContent(content)
     }
     if (warnings?.length) {
       alert(`Warnings: ${warnings.join(', ')}`)
@@ -689,17 +715,14 @@ onMounted(() => {
 
 .editor-body {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.editor-content {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 40px 20px 80px;
-}
-
-.editor-content :deep(.ProseMirror) {
-  min-height: 60vh;
+.editor-body :deep(.grid-editor) {
+  flex: 1;
+  overflow: hidden;
 }
 
 
