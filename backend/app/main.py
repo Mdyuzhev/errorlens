@@ -29,6 +29,7 @@ from app.routers import (
     projects,
     sessions,
     tasks,
+    test_plans,
     testcase_folders,
     testcases,
     testruns,
@@ -113,6 +114,7 @@ app.include_router(tests.router)
 app.include_router(integrations.router)
 app.include_router(analysis.router)
 app.include_router(projects.router)
+app.include_router(test_plans.router)
 app.include_router(generation.router)  # Wave 4.0: Generation API
 app.include_router(ws_router)  # Wave 4.0: WebSocket
 
