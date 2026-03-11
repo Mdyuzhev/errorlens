@@ -108,7 +108,9 @@ async def create_rule(
     rule_repo = AutomationRuleRepository(db)
     rule = await rule_repo.create(body.model_dump())
     await db.commit()
-    await db.refresh(rule)
+    # Reload with task_type to avoid MissingGreenlet
+    rules = await rule_repo.get_rules_for_project(rule.project_id)
+    rule = next((r for r in rules if r.id == rule.id), rule)
     return _rule_to_dict(rule)
 
 
@@ -127,6 +129,9 @@ async def update_rule(
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
     await db.commit()
+    # Reload with task_type to avoid MissingGreenlet
+    rules = await rule_repo.get_rules_for_project(rule.project_id)
+    rule = next((r for r in rules if r.id == rule_id), rule)
     return _rule_to_dict(rule)
 
 
