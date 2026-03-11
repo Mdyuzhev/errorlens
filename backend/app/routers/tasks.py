@@ -53,10 +53,6 @@ class TaskUpdate(BaseModel):
     parent_id: str | None = None
 
 
-class MoveByStatusId(BaseModel):
-    status_id: str
-
-
 class CommentCreate(BaseModel):
     content: str
 
@@ -64,8 +60,6 @@ class CommentCreate(BaseModel):
 class CommentUpdate(BaseModel):
     content: str
 
-
-# ---- Task CRUD ----
 
 @router.get("")
 async def list_tasks(
@@ -184,27 +178,6 @@ async def get_children(
     return await service.get_children(task_id)
 
 
-@router.get("/{task_id}/allowed-transitions")
-async def get_allowed_transitions(
-    task_id: str,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_auth),
-):
-    """Get statuses the task can transition to."""
-    service = TaskService(db)
-    task = await service.get_task(task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    from app.services.task_workflow_service import TaskWorkflowService
-    workflow = TaskWorkflowService(db)
-    statuses = await workflow.get_allowed_transitions(task)
-    return [
-        {"id": s.id, "name": s.name, "slug": s.slug, "color": s.color}
-        for s in statuses
-    ]
-
-
 @router.post("")
 async def create_task(
     data: TaskCreate,
@@ -249,38 +222,6 @@ async def update_task(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return {"message": "Task updated"}
-
-
-@router.patch("/{task_id}/move")
-async def move_task(
-    task_id: str,
-    status: str | None = None,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_auth),
-):
-    """Move task to new status (Kanban operation)."""
-    if not status:
-        raise HTTPException(status_code=400, detail="Status is required")
-    service = TaskService(db)
-    task = await service.move_task(task_id, status, actor_id=user.id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found or invalid status")
-    return {"message": f"Task moved to {status}"}
-
-
-@router.patch("/{task_id}/move-status")
-async def move_task_by_status_id(
-    task_id: str,
-    data: MoveByStatusId,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_auth),
-):
-    """Move task to new status by status_id with workflow validation."""
-    service = TaskService(db)
-    task = await service.move_task_by_status_id(task_id, data.status_id, actor_id=user.id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found or invalid status")
-    return {"message": "Task status updated"}
 
 
 @router.delete("/{task_id}")

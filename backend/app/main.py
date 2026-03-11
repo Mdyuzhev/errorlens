@@ -14,7 +14,7 @@ from app.config import settings
 from app.database import async_session_maker, get_db, init_db
 
 # Import models to register them with Base.metadata before create_all
-from app.models import db_models, user  # noqa: F401
+import app.models  # noqa: F401
 from app.routers import (
     admin,
     analysis,
@@ -35,6 +35,7 @@ from app.routers import (
     saved_filters,
     sessions,
     task_settings,
+    task_workflow,
     tasks,
     test_plans,
     testcase_folders,
@@ -121,6 +122,7 @@ app.include_router(testcase_folders.move_router)  # /testcases/{id}/move-to-fold
 app.include_router(testcases.router)
 app.include_router(jql.router)  # EL023: JQL endpoints (before tasks for /tasks/jql-* priority)
 app.include_router(tasks.router)
+app.include_router(task_workflow.router)  # EL-FIX-025: workflow endpoints split from tasks
 app.include_router(task_settings.router)  # EL019: Task workflow settings
 app.include_router(article_folders.router)  # Must be before articles (path conflict)
 app.include_router(article_folders.move_router)  # /articles/{id}/move-to-folder

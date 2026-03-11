@@ -1,9 +1,35 @@
-"""Models package - exports both Pydantic and SQLAlchemy models."""
+"""Models package — re-exports all SQLAlchemy and Pydantic models."""
 
-# Re-export Pydantic models from original location
-# Export SQLAlchemy models
-from app.models.db_models import AnalysisResult, Session, SessionData
+# Base
+from app.models.base import Base, generate_uuid
+
+# Domain models
+from app.models.project import Folder, Project, ProjectMember
+from app.models.session import AnalysisResult, Session, SessionData
+from app.models.testcase import TestCase, TestCaseFolder
+from app.models.task import (
+    StatusTransition,
+    Task,
+    TaskActivity,
+    TaskComment,
+    TaskRelation,
+    TaskStatus,
+    TaskType,
+)
+from app.models.article import Article, ArticleFolder, ArticleImage
+from app.models.testplan import TestPlan, TestPlanCase, TestPlanRun, TestPlanRunResult
+from app.models.misc import (
+    AutomationRule,
+    AutomationRun,
+    EntityLink,
+    GitLabConnection,
+    Notification,
+    SavedFilter,
+    TestRun,
+)
 from app.models.user import User
+
+# Pydantic models
 from app.models_pydantic import (
     AnalyzeRequest,
     AnalyzeResponse,
@@ -20,7 +46,48 @@ from app.models_pydantic import (
 )
 
 __all__ = [
-    # Pydantic models
+    # Base
+    "Base",
+    "generate_uuid",
+    # Project
+    "Project",
+    "Folder",
+    "ProjectMember",
+    # Session
+    "Session",
+    "SessionData",
+    "AnalysisResult",
+    # TestCase
+    "TestCase",
+    "TestCaseFolder",
+    # Task
+    "TaskType",
+    "TaskStatus",
+    "StatusTransition",
+    "Task",
+    "TaskComment",
+    "TaskActivity",
+    "TaskRelation",
+    # Article
+    "ArticleFolder",
+    "Article",
+    "ArticleImage",
+    # TestPlan
+    "TestPlan",
+    "TestPlanCase",
+    "TestPlanRun",
+    "TestPlanRunResult",
+    # Misc
+    "TestRun",
+    "Notification",
+    "GitLabConnection",
+    "EntityLink",
+    "SavedFilter",
+    "AutomationRule",
+    "AutomationRun",
+    # User
+    "User",
+    # Pydantic
     "AnalyzeRequest",
     "AnalyzeResponse",
     "ConsoleLogEntry",
@@ -33,9 +100,4 @@ __all__ = [
     "RequestAssertion",
     "SessionAnalysisRequest",
     "SessionAnalysisResponse",
-    # SQLAlchemy models
-    "Session",
-    "SessionData",
-    "AnalysisResult",
-    "User",
 ]

@@ -30,24 +30,8 @@ if "aiosqlite" in DATABASE_URL:
 # Override sqlalchemy.url from environment
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
-# Import models for autogenerate support
-from app.database import Base
-from app.models.db_models import (
-    Project,
-    Folder,
-    ProjectMember,
-    Session,
-    SessionData,
-    AnalysisResult,
-    TestCase,
-    Task,
-    ArticleFolder,
-    Article,
-    ArticleImage,
-    TestRun,
-    EntityLink,
-)
-from app.models.user import User
+# Import models for autogenerate support — all models registered via __init__.py
+from app.models import Base  # noqa: F401 — triggers all model imports
 
 target_metadata = Base.metadata
 
