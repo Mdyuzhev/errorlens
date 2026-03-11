@@ -96,8 +96,8 @@
             <div class="field">
               <label>Comment Text</label>
               <textarea v-model="action.params.text" class="input textarea" rows="2"
-                placeholder="Tests passed for {{task.human_id}}" />
-              <span class="hint">Available: {{ '{{task.human_id}}, {{task.title}}, {{pipeline.url}}, {{pipeline.status}}' }}</span>
+                :placeholder="'Tests passed for {{task.human_id}}'" />
+              <span class="hint" v-text="'Available: {{task.human_id}}, {{task.title}}, {{pipeline.url}}, {{pipeline.status}}'"></span>
             </div>
           </template>
 
@@ -130,7 +130,7 @@
               <div v-for="(v, vi) in action.params.variables || []" :key="vi" class="var-row">
                 <input v-model="v.key" class="input input-sm" placeholder="KEY" />
                 <span class="var-eq">=</span>
-                <input v-model="v.value" class="input input-sm" placeholder="value or {{task.human_id}}" />
+                <input v-model="v.value" class="input input-sm" :placeholder="'value or {{task.human_id}}'" />
                 <button class="btn-icon-sm btn-danger" @click="action.params.variables.splice(vi, 1)">&times;</button>
               </div>
               <button class="btn btn-xs" @click="addVariable(action)">+ Variable</button>
