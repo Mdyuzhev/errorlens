@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-GITLAB_URL="http://localhost:8080"
+GITLAB_URL="http://localhost:8929"
 ENV_FILE=".env"
 
 # Load .env if exists
