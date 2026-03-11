@@ -1,31 +1,16 @@
 stages:
-  - tests
-  - upload_results
+  - test_and_upload
 
-run_tests:
-  stage: tests
+test_and_upload:
+  stage: test_and_upload
   image: python:3.11-slim
   tags: [docker]
   before_script:
+    - apt-get update -q && apt-get install -y zip curl -q
     - pip install -r requirements.txt -q
     - mkdir -p allure-results
   script:
     - pytest --alluredir=allure-results -v || true
-  artifacts:
-    when: always
-    expire_in: 7 days
-    paths:
-      - allure-results/
-  allow_failure: true
-
-upload_to_errorlens:
-  stage: upload_results
-  image: python:3.11-slim
-  tags: [docker]
-  dependencies:
-    - run_tests
-  script:
-    - apt-get update -q && apt-get install -y zip curl -q
     - cd allure-results && zip -r ../allure-results.zip . && cd ..
     - |
       curl -f -X POST "$ERRORLENS_URL/api/v1/launches/upload" \
@@ -34,5 +19,4 @@ upload_to_errorlens:
         -F "name=$CI_PROJECT_NAME / $CI_COMMIT_REF_NAME" \
         -F "branch=$CI_COMMIT_REF_NAME" \
         -F "environment=${APP_ENV:-demo}"
-  when: always
   allow_failure: true
