@@ -259,3 +259,15 @@ export const notificationsApi = {
   markRead: (id) => api.post(`/api/v1/notifications/${id}/read`),
   markAllRead: () => api.post('/api/v1/notifications/read-all'),
 }
+
+// GitLab API
+export const gitlabApi = {
+  listConnections: (projectId) => api.get('/api/v1/gitlab/connections', { params: { project_id: projectId } }),
+  createConnection: (projectId, data) => api.post('/api/v1/gitlab/connections', data, { params: { project_id: projectId } }),
+  updateConnection: (id, data) => api.put(`/api/v1/gitlab/connections/${id}`, data),
+  deleteConnection: (id) => api.delete(`/api/v1/gitlab/connections/${id}`),
+  checkConnection: (id) => api.post(`/api/v1/gitlab/connections/${id}/check`),
+  listProjects: (connId) => api.get(`/api/v1/gitlab/connections/${connId}/projects`),
+  listPipelines: (connId, projId, ref) => api.get(`/api/v1/gitlab/connections/${connId}/projects/${projId}/pipelines`, { params: { ref } }),
+  listBranches: (connId, projId) => api.get(`/api/v1/gitlab/connections/${connId}/projects/${projId}/branches`),
+}
