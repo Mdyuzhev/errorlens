@@ -3,9 +3,8 @@
 import os
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
-
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # this is the Alembic Config object
 config = context.config
@@ -31,7 +30,7 @@ if "aiosqlite" in DATABASE_URL:
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 # Import models for autogenerate support — all models registered via __init__.py
-from app.models import Base  # noqa: F401 — triggers all model imports
+from app.models import Base  # noqa: E402, F401 — triggers all model imports
 
 target_metadata = Base.metadata
 

@@ -10,11 +10,10 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
-from app.database import async_session_maker, get_db, init_db
-
 # Import models to register them with Base.metadata before create_all
 import app.models  # noqa: F401
+from app.config import settings
+from app.database import async_session_maker, get_db, init_db
 from app.routers import (
     admin,
     analysis,

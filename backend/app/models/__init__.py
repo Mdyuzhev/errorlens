@@ -1,23 +1,8 @@
 """Models package — re-exports all SQLAlchemy and Pydantic models."""
 
 # Base
-from app.models.base import Base, generate_uuid
-
-# Domain models
-from app.models.project import Folder, Project, ProjectMember
-from app.models.session import AnalysisResult, Session, SessionData
-from app.models.testcase import TestCase, TestCaseFolder
-from app.models.task import (
-    StatusTransition,
-    Task,
-    TaskActivity,
-    TaskComment,
-    TaskRelation,
-    TaskStatus,
-    TaskType,
-)
 from app.models.article import Article, ArticleFolder, ArticleImage
-from app.models.testplan import TestPlan, TestPlanCase, TestPlanRun, TestPlanRunResult
+from app.models.base import Base, generate_uuid
 from app.models.misc import (
     AutomationRule,
     AutomationRun,
@@ -27,6 +12,21 @@ from app.models.misc import (
     SavedFilter,
     TestRun,
 )
+
+# Domain models
+from app.models.project import Folder, Project, ProjectMember
+from app.models.session import AnalysisResult, Session, SessionData
+from app.models.task import (
+    StatusTransition,
+    Task,
+    TaskActivity,
+    TaskComment,
+    TaskRelation,
+    TaskStatus,
+    TaskType,
+)
+from app.models.testcase import TestCase, TestCaseFolder
+from app.models.testplan import TestPlan, TestPlanCase, TestPlanRun, TestPlanRunResult
 from app.models.user import User
 
 # Pydantic models

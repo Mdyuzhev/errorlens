@@ -1,12 +1,15 @@
 """Article, ArticleFolder, ArticleImage models."""
 
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, generate_uuid
+
+if TYPE_CHECKING:
+    from app.models.project import Project
 
 
 class ArticleFolder(Base):

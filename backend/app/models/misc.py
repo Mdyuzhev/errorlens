@@ -1,12 +1,27 @@
 """Notification, GitLabConnection, EntityLink, SavedFilter, TestRun, AutomationRule, AutomationRun models."""
 
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, generate_uuid
+
+if TYPE_CHECKING:
+    from app.models.project import Project
+    from app.models.task import Task, TaskType
+    from app.models.user import User
 
 
 class TestRun(Base):
