@@ -101,8 +101,8 @@ async def jql_suggest(
             result = await db.execute(stmt)
             labels = [row[0] for row in result.all()]
             if query:
-                labels = [l for l in labels if query.lower() in l.lower()]
-            return [{"value": l} for l in labels]
+                labels = [lbl for lbl in labels if query.lower() in lbl.lower()]
+            return [{"value": lbl} for lbl in labels]
         except Exception:
             return []
 

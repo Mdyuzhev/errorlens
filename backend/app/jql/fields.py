@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy.orm import InstrumentedAttribute
-
-from app.models.db_models import Task, TaskActivity, TaskStatus, TaskType
+from app.models.db_models import Task, TaskStatus, TaskType
 from app.models.user import User
 
 

@@ -19,7 +19,6 @@ from app.jql.exceptions import (
     JQLValueError,
 )
 from app.jql.fields import (
-    FIELD_REGISTRY,
     FieldDescriptor,
     resolve_field,
 )
