@@ -57,7 +57,7 @@
 
     <!-- Error message -->
     <div v-if="syntaxError && jqlInput.trim()" class="jql-error">
-      {{ syntaxError.message }}
+      {{ displayError }}
     </div>
 
     <!-- Save filter modal -->
@@ -78,7 +78,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useJqlStore } from '@/stores/jql'
 
 const props = defineProps({
@@ -108,9 +108,18 @@ const statusClass = computed(() => {
   return isValid.value ? 'valid' : 'invalid'
 })
 
+const displayError = computed(() => {
+  if (!syntaxError.value) return null
+  const msg = syntaxError.value.message || ''
+  if (msg.includes('Expected one of') || msg.includes('Unexpected')) {
+    return 'Invalid JQL syntax'
+  }
+  return msg
+})
+
 const statusTitle = computed(() => {
   if (!jqlInput.value.trim()) return 'Enter JQL query'
-  return isValid.value ? 'Valid JQL' : syntaxError.value?.message || 'Invalid JQL'
+  return isValid.value ? 'Valid JQL' : displayError.value || 'Invalid JQL'
 })
 
 function onInput() {
@@ -118,58 +127,85 @@ function onInput() {
   debounceTimer = setTimeout(() => {
     jqlStore.validateJQL(jqlInput.value)
     analyzeContext()
-  }, 300)
+  }, 800)
 }
 
 function analyzeContext() {
   const text = jqlInput.value
   const cursor = inputRef.value?.selectionStart || text.length
+  const before = text.substring(0, cursor)
+  const tokens = before.trim().split(/\s+/).filter(Boolean)
 
-  const before = text.substring(0, cursor).trim()
-  const tokens = before.split(/\s+/)
-
-  if (tokens.length >= 2) {
-    const lastToken = tokens[tokens.length - 1]
-    const operators = ['=', '!=', '>', '<', '>=', '<=', '~', '!~', 'in', 'not']
-    if (operators.includes(lastToken.toLowerCase())) {
-      // After operator — suggest values for the field
-      const fieldToken = tokens[tokens.length - 2]
-      jqlStore.fetchSuggestions(fieldToken, '', props.projectId)
-      return
-    }
-  }
-
-  // After AND/OR or at start — suggest field names
-  const lastToken = tokens[tokens.length - 1]?.toLowerCase()
-  if (!lastToken || lastToken === 'and' || lastToken === 'or' || lastToken === 'not') {
+  if (!tokens.length) {
     jqlStore.fetchSuggestions('', '', props.projectId)
-  } else {
-    jqlStore.suggestions = []
+    return
   }
+
+  const lastToken = tokens[tokens.length - 1]
+  const prevToken = tokens[tokens.length - 2]
+  const OPERATORS = ['=', '!=', '>', '<', '>=', '<=', '~', '!~', 'in', 'not', 'is']
+  const CONJUNCTIONS = ['and', 'or', 'not']
+
+  // After AND/OR — suggest fields
+  if (CONJUNCTIONS.includes(lastToken.toLowerCase())) {
+    jqlStore.fetchSuggestions('', '', props.projectId)
+    return
+  }
+
+  // Last token is operator — suggest values for previous field
+  if (OPERATORS.includes(lastToken.toLowerCase())) {
+    const fieldToken = tokens[tokens.length - 2]
+    if (fieldToken && !OPERATORS.includes(fieldToken.toLowerCase()) && !CONJUNCTIONS.includes(fieldToken.toLowerCase())) {
+      jqlStore.fetchSuggestions(fieldToken, '', props.projectId)
+    }
+    return
+  }
+
+  // Previous token is operator — user is typing a value
+  if (prevToken && OPERATORS.includes(prevToken.toLowerCase())) {
+    const fieldToken = tokens[tokens.length - 3]
+    if (fieldToken) {
+      jqlStore.fetchSuggestions(fieldToken, lastToken, props.projectId)
+    }
+    return
+  }
+
+  // Otherwise — user is typing a field name
+  jqlStore.fetchSuggestions('', lastToken, props.projectId)
 }
 
 function applySuggestion(s) {
   const text = jqlInput.value
   const cursor = inputRef.value?.selectionStart || text.length
-  const before = text.substring(0, cursor).trimEnd()
+  const before = text.substring(0, cursor)
   const after = text.substring(cursor)
-
-  // Replace the current incomplete token
-  const tokens = before.split(/\s+/)
-  const lastToken = tokens[tokens.length - 1]
-  const operators = ['=', '!=', '>', '<', '>=', '<=', '~', '!~', 'in', 'not']
+  const tokens = before.trim().split(/\s+/).filter(Boolean)
+  const OPERATORS = ['=', '!=', '>', '<', '>=', '<=', '~', '!~', 'in', 'not', 'is']
 
   let value = s.value
   if (value.includes(' ')) value = `"${value}"`
 
-  if (operators.includes(lastToken?.toLowerCase())) {
-    jqlInput.value = before + ' ' + value + after
+  const prevToken = tokens[tokens.length - 2]
+  const lastToken = tokens[tokens.length - 1]
+
+  let newBefore
+  if (OPERATORS.includes(lastToken?.toLowerCase())) {
+    // After operator — append value
+    newBefore = before.trimEnd() + ' ' + value
+  } else if (prevToken && OPERATORS.includes(prevToken.toLowerCase())) {
+    // Replace partial value
+    newBefore = tokens.slice(0, -1).join(' ') + ' ' + value
   } else {
-    jqlInput.value = tokens.slice(0, -1).join(' ') + (tokens.length > 1 ? ' ' : '') + value + after
+    // Replace partial field name
+    newBefore = tokens.slice(0, -1).join(' ')
+    if (newBefore) newBefore += ' '
+    newBefore += value
   }
 
+  jqlInput.value = newBefore + ' ' + after.trimStart()
   showSuggestions.value = false
   jqlStore.suggestions = []
+  nextTick(() => analyzeContext())
 }
 
 function hideSuggestions() {

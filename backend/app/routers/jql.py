@@ -40,7 +40,10 @@ async def jql_suggest(
 ):
     """Get autocomplete suggestions for a JQL field value."""
     if not field:
-        return [{"value": name} for name in sorted(ALL_FIELD_NAMES)]
+        names = sorted(ALL_FIELD_NAMES)
+        if query:
+            names = [n for n in names if n.lower().startswith(query.lower())]
+        return [{"value": n} for n in names]
 
     field_lower = field.lower()
 

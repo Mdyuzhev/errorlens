@@ -78,7 +78,7 @@
     <div v-else-if="viewMode === 'list'" class="task-list" data-testid="task-list">
       <div v-if="!listTasks.length" class="empty-list">
         <p v-if="jqlStore.currentJQL">No tasks match your query</p>
-        <p v-else>Enter a JQL query or switch to Board view</p>
+        <p v-else>No tasks found</p>
       </div>
       <div
         v-for="task in listTasks"
@@ -300,7 +300,9 @@ const jqlBarRef = ref(null)
 const toast = inject('toast', null)
 let draggedTask = null
 
-const listTasks = computed(() => jqlStore.jqlResults)
+const listTasks = computed(() =>
+  jqlStore.currentJQL ? jqlStore.jqlResults : store.tasks
+)
 
 const form = ref({
   title: '',
@@ -428,6 +430,12 @@ function onJQLClear() {
   viewMode.value = 'board'
 }
 
+watch(viewMode, async (mode) => {
+  if (mode === 'list' && !jqlStore.currentJQL && !store.tasks.length) {
+    await store.fetchTasks({ project_id: currentProjectId.value })
+  }
+})
+
 function onApplyFilter(jql) {
   if (jqlBarRef.value) {
     jqlBarRef.value.setJQL(jql)
@@ -472,8 +480,11 @@ async function openFromRoute() {
 watch(() => route.params.id, openFromRoute)
 
 onMounted(async () => {
-  await store.fetchBoard()
-  await loadTaskTypes()
+  await Promise.all([
+    store.fetchBoard(),
+    store.fetchTasks({ project_id: null }),
+    loadTaskTypes(),
+  ])
   await openFromRoute()
 })
 </script>

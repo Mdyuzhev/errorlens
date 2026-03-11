@@ -45,7 +45,12 @@ class TaskRepository(BaseRepository[Task]):
         offset: int = 0,
     ) -> list[Task]:
         """List tasks with filters."""
-        query = select(Task).order_by(Task.created_at.desc())
+        query = select(Task).options(
+            joinedload(Task.task_type),
+            joinedload(Task.task_status),
+            joinedload(Task.assignee_user),
+            joinedload(Task.reporter),
+        ).order_by(Task.created_at.desc())
 
         if status:
             query = query.where(Task.status == status)
@@ -68,7 +73,7 @@ class TaskRepository(BaseRepository[Task]):
 
         query = query.limit(limit).offset(offset)
         result = await self.session.execute(query)
-        return list(result.scalars().all())
+        return list(result.unique().scalars().all())
 
     async def search(
         self,
@@ -90,11 +95,16 @@ class TaskRepository(BaseRepository[Task]):
 
     async def get_all_tasks(self, project_id: str | None = None) -> list[Task]:
         """Get all tasks (for board view)."""
-        query = select(Task)
+        query = select(Task).options(
+            joinedload(Task.task_type),
+            joinedload(Task.task_status),
+            joinedload(Task.assignee_user),
+            joinedload(Task.reporter),
+        )
         if project_id:
             query = query.where(Task.project_id == project_id)
         result = await self.session.execute(query)
-        return list(result.scalars().all())
+        return list(result.unique().scalars().all())
 
     async def get_by_session(self, session_id: str) -> list[Task]:
         """Get tasks linked to a session."""
