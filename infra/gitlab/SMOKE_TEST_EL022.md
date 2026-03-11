@@ -2,7 +2,7 @@
 
 ## Предусловия
 
-- GitLab запущен (EL021): `http://localhost:8929`
+- GitLab запущен (EL021): `http://localhost:8080`
 - Runner зарегистрирован и активен
 - `.env` заполнен: `GITLAB_ROOT_TOKEN`, `GITLAB_PROJECT_ID`
 - `populate_project.sh` выполнен успешно
@@ -11,7 +11,7 @@
 
 | # | Проверка | Действие | Ожидаемый результат |
 |---|---------|---------|---------------------|
-| 1 | Файлы в репозитории | Открыть `http://localhost:8929/qa-team/autotest-demo` | Все файлы видны в дереве |
+| 1 | Файлы в репозитории | Открыть `http://localhost:8080/qa-team/autotest-demo` | Все файлы видны в дереве |
 | 2 | Ручной запуск пайплайна | CI/CD → Pipelines → Run pipeline (branch: main) | Pipeline запустился |
 | 3 | Тесты прошли | Дождаться завершения job `run_tests` | 15+ passed, 3-4 failed (ожидаемо) |
 | 4 | Артефакт создан | Скачать артефакт `allure-results/` | ZIP содержит JSON файлы |
