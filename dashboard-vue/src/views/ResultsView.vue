@@ -51,11 +51,21 @@ const runs = ref([])
 const loading = ref(true)
 const expandedRuns = ref([])
 
-function toggleRun(runId) {
+async function toggleRun(runId) {
   const idx = expandedRuns.value.indexOf(runId)
   if (idx >= 0) {
     expandedRuns.value.splice(idx, 1)
   } else {
+    // Load full details (with results) if not yet loaded
+    const run = runs.value.find(r => r.id === runId)
+    if (run && !run.results) {
+      try {
+        const res = await testRunsApi.get(runId)
+        Object.assign(run, res.data)
+      } catch (err) {
+        console.error('Failed to load run details:', err)
+      }
+    }
     expandedRuns.value.push(runId)
   }
 }
