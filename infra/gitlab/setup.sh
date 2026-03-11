@@ -4,13 +4,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-GITLAB_URL="http://localhost:8929"
 ENV_FILE=".env"
 
 # Load .env if exists
 if [ -f "$ENV_FILE" ]; then
   source "$ENV_FILE"
 fi
+
+# Always use localhost for local API calls
+GITLAB_URL="http://localhost:${GITLAB_PORT:-8929}"
 
 # ── Step 1: Wait for GitLab to be ready ──────────────────────────────
 echo "Waiting for GitLab to start..."
@@ -30,16 +32,15 @@ echo "GitLab is ready."
 echo "Creating API token..."
 GITLAB_TOKEN=$(docker exec errorlens-gitlab gitlab-rails runner "
   user = User.find_by_username('root')
-  token = user.personal_access_tokens.find_by(name: 'errorlens-api')
-  if token.nil?
-    token = user.personal_access_tokens.create!(
-      name: 'errorlens-api',
-      scopes: ['api', 'read_user', 'read_repository', 'write_repository'],
-      expires_at: 1.year.from_now
-    )
-  end
+  # Delete existing token (plaintext not stored after creation)
+  user.personal_access_tokens.where(name: 'errorlens-api').destroy_all
+  token = user.personal_access_tokens.create!(
+    name: 'errorlens-api',
+    scopes: ['api', 'read_user', 'read_repository', 'write_repository'],
+    expires_at: 1.year.from_now
+  )
   puts token.token
-" 2>/dev/null | tail -1)
+" 2>&1 | grep -E '^glpat-' | tail -1)
 
 if [ -z "$GITLAB_TOKEN" ]; then
   echo "ERROR: Failed to create API token"
