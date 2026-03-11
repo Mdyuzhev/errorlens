@@ -2,7 +2,7 @@
 
 import uuid
 
-from app.database import Base
+from app.database import Base  # noqa: F401 — re-exported via __init__
 
 
 def generate_uuid() -> str:

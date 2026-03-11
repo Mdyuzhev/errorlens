@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, generate_uuid
@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     from app.models.task import Task, TaskType
     from app.models.testcase import TestCase, TestCaseFolder
     from app.models.testplan import TestPlan
-    from app.models.user import User
 
 
 class Project(Base):
