@@ -235,6 +235,26 @@ errorlens/
     └── nginx.conf            # Proxy config
 ```
 
+## Local GitLab for CI Testing
+
+Локальный GitLab CE для тестирования интеграции ErrorLens с CI/CD пайплайнами. Живёт в отдельном Docker Compose файле, изолированно от основного проекта.
+
+**Требования:** 4 CPU, 6 GB свободной RAM.
+
+```bash
+# Запуск
+cd infra/gitlab
+docker compose up -d
+
+# Первоначальная настройка (создаёт токен, группу, проект, runner)
+./setup.sh
+
+# Остановка
+./teardown.sh
+```
+
+Подробнее: [infra/gitlab/README.md](infra/gitlab/README.md)
+
 ## Лицензия
 
 MIT — см. [LICENSE](LICENSE).
