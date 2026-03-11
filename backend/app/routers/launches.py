@@ -63,13 +63,30 @@ def _parse_allure_results(zip_data: bytes) -> dict[str, Any]:
             test_entry["story"] = labels.get("story", "")
             test_entry["severity"] = labels.get("severity", "normal")
 
-            # Extract steps summary
-            steps = data.get("steps", [])
-            test_entry["steps_count"] = len(steps)
+            # Extract steps with details
+            raw_steps = data.get("steps", [])
+            test_entry["steps_count"] = len(raw_steps)
+            test_entry["steps"] = [
+                {
+                    "name": s.get("name", ""),
+                    "status": s.get("status", "unknown"),
+                    "duration_ms": s.get("time", {}).get("duration", 0),
+                    "statusDetails": s.get("statusDetails", {}),
+                }
+                for s in raw_steps
+            ]
 
             # Extract attachments info
-            attachments = data.get("attachments", [])
-            test_entry["attachments_count"] = len(attachments)
+            raw_attachments = data.get("attachments", [])
+            test_entry["attachments_count"] = len(raw_attachments)
+            test_entry["attachments"] = [
+                {
+                    "name": a.get("name", ""),
+                    "type": a.get("type", ""),
+                    "source": a.get("source", ""),
+                }
+                for a in raw_attachments
+            ]
 
             tests.append(test_entry)
 
