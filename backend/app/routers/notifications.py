@@ -9,7 +9,7 @@ from app.middleware.jwt_auth import require_auth
 from app.models.db_models import Notification
 from app.models.user import User
 
-router = APIRouter(prefix="/api/v1/notifications", tags=["notifications"])
+router = APIRouter(prefix="/v1/notifications", tags=["notifications"])
 
 
 @router.get("")

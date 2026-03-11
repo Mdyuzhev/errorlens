@@ -19,7 +19,7 @@ from app.services.exceptions import GitLabAuthError, GitLabConnectionError
 from app.services.gitlab_service import GitLabService
 from app.utils.crypto import encrypt_token, mask_token
 
-router = APIRouter(prefix="/api/v1/gitlab", tags=["gitlab"])
+router = APIRouter(prefix="/v1/gitlab", tags=["gitlab"])
 
 gitlab_svc = GitLabService()
 

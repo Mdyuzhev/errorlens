@@ -9,7 +9,7 @@ from app.middleware.jwt_auth import check_project_access, get_default_project, r
 from app.models.user import User
 from app.services.test_plan_service import TestPlanService
 
-router = APIRouter(prefix="/api/v1/test-plans", tags=["test-plans"])
+router = APIRouter(prefix="/v1/test-plans", tags=["test-plans"])
 
 
 # --- Schemas ---

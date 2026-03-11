@@ -14,7 +14,7 @@ from app.models.user import User
 from app.services.generation_service import GenerationService
 from app.services.redis_streams import STREAM_GENERATION, publish
 
-router = APIRouter(prefix="/api/v1/generation", tags=["generation"])
+router = APIRouter(prefix="/v1/generation", tags=["generation"])
 
 
 class TaskResponse(BaseModel):

@@ -14,7 +14,7 @@ from app.repositories.automation_repo import (
     AutomationRunRepository,
 )
 
-router = APIRouter(prefix="/api/v1/automations", tags=["automations"])
+router = APIRouter(prefix="/v1/automations", tags=["automations"])
 
 
 # ── Schemas ──────────────────────────────────────────────
