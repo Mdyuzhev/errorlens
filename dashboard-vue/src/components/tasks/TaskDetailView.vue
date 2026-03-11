@@ -500,7 +500,7 @@ watch(() => props.task.id, () => {
   font-size: 24px;
   font-weight: bold;
   padding: 8px;
-  border: 1px solid var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   background: var(--bg-card);
   color: var(--text-primary);
@@ -523,7 +523,7 @@ watch(() => props.task.id, () => {
 
 .empty-description {
   padding: 20px;
-  border: 1px dashed var(--bg-secondary);
+  border: 1px dashed var(--border-color);
   border-radius: 8px;
   color: var(--text-secondary);
   cursor: pointer;

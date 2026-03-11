@@ -212,7 +212,7 @@ watch(searchQuery, () => {
   gap: 8px;
   padding: 8px 0;
   cursor: pointer;
-  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.05));
+  border-bottom: 1px solid var(--border-color);
 }
 
 .picker-item.disabled {

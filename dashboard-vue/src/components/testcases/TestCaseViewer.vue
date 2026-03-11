@@ -268,7 +268,7 @@ const postconditionsJson = computed(() => parseContent(props.testCase.postcondit
 }
 
 .tag {
-  background: var(--accent, #6366f1);
+  background: var(--accent);
   color: white;
   padding: 4px 10px;
   border-radius: 6px;

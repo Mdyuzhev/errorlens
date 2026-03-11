@@ -159,17 +159,17 @@ defineEmits(['upload-image'])
   flex-wrap: wrap;
   gap: 4px;
   padding: 8px;
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border: 1px solid var(--border-color);
   border-bottom: none;
   border-radius: 8px 8px 0 0;
-  background: var(--bg-secondary, #1a1a2e);
+  background: var(--bg-secondary);
 }
 
 .toolbar-group {
   display: flex;
   gap: 2px;
   padding-right: 8px;
-  border-right: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-right: 1px solid var(--border-color);
 }
 
 .toolbar-group:last-child {
@@ -180,7 +180,7 @@ defineEmits(['upload-image'])
 .toolbar-btn {
   background: none;
   border: 1px solid transparent;
-  color: var(--text-secondary, #a0a0b0);
+  color: var(--text-secondary);
   padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
@@ -194,12 +194,12 @@ defineEmits(['upload-image'])
 }
 
 .toolbar-btn:hover {
-  background: var(--accent, #6366f1);
+  background: var(--accent);
   color: white;
 }
 
 .toolbar-btn.active {
-  background: var(--accent, #6366f1);
+  background: var(--accent);
   color: white;
 }
 
@@ -210,7 +210,7 @@ defineEmits(['upload-image'])
 
 .toolbar-btn:disabled:hover {
   background: none;
-  color: var(--text-secondary, #a0a0b0);
+  color: var(--text-secondary);
 }
 
 .mono {

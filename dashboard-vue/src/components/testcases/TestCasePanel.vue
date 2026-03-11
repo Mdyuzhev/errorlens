@@ -181,7 +181,7 @@ function onScroll() {
   align-items: center;
   gap: 12px;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+  border-bottom: 1px solid var(--border-color);
   margin-bottom: 16px;
   flex-shrink: 0;
 }
@@ -192,14 +192,14 @@ function onScroll() {
   font-weight: 600;
   background: transparent;
   border: none;
-  border-bottom: 2px solid var(--border-color, rgba(255, 255, 255, 0.1));
-  color: var(--text-primary, #e5e7eb);
+  border-bottom: 2px solid var(--border-color);
+  color: var(--text-primary);
   padding: 4px 0;
   outline: none;
 }
 
 .panel-title-input:focus {
-  border-bottom-color: var(--accent, #6366f1);
+  border-bottom-color: var(--accent);
 }
 
 .panel-actions {
@@ -223,7 +223,7 @@ function onScroll() {
   flex-direction: column;
   gap: 2px;
   padding-right: 12px;
-  border-right: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+  border-right: 1px solid var(--border-color);
 }
 
 .nav-link {
@@ -234,7 +234,7 @@ function onScroll() {
   background: none;
   border: none;
   border-left: 2px solid transparent;
-  color: var(--text-secondary, #9ca3af);
+  color: var(--text-secondary);
   font-size: 13px;
   cursor: pointer;
   border-radius: 0 4px 4px 0;
@@ -242,13 +242,13 @@ function onScroll() {
 }
 
 .nav-link:hover {
-  color: var(--text-primary, #e5e7eb);
+  color: var(--text-primary);
   background: var(--bg-secondary);
 }
 
 .nav-link--active {
-  color: var(--accent, #6366f1);
-  border-left-color: var(--accent, #6366f1);
+  color: var(--accent);
+  border-left-color: var(--accent);
   background: rgba(99, 102, 241, 0.05);
 }
 
@@ -275,7 +275,7 @@ function onScroll() {
   width: 200px;
   min-width: 200px;
   padding-left: 16px;
-  border-left: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+  border-left: 1px solid var(--border-color);
 }
 
 /* Button styles */

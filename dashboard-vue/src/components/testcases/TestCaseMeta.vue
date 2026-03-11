@@ -96,7 +96,7 @@ function removeTag(idx) {
   display: block;
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-secondary, #9ca3af);
+  color: var(--text-secondary);
   margin-bottom: 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -105,16 +105,16 @@ function removeTag(idx) {
 .meta-field select {
   width: 100%;
   padding: 6px 8px;
-  background: var(--bg-secondary, #1a1a2e);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
-  color: var(--text-primary, #e5e7eb);
+  color: var(--text-primary);
   font-size: 13px;
 }
 
 .chips-input {
-  background: var(--bg-secondary, #1a1a2e);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 6px 8px;
   min-height: 36px;
@@ -132,7 +132,7 @@ function removeTag(idx) {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  background: var(--accent, #6366f1);
+  background: var(--accent);
   color: white;
   border-radius: 4px;
   font-size: 11px;
@@ -153,7 +153,7 @@ function removeTag(idx) {
   background: transparent;
   border: none;
   outline: none;
-  color: var(--text-primary, #e5e7eb);
+  color: var(--text-primary);
   font-size: 13px;
   padding: 2px 0;
 }

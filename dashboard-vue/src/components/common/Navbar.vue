@@ -285,7 +285,7 @@ onUnmounted(() => {
   background: var(--bg-card);
   border: 1px solid var(--bg-secondary);
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-dropdown);
   z-index: 100;
   overflow: hidden;
 }
@@ -332,7 +332,7 @@ onUnmounted(() => {
 }
 
 .notif-item.unread {
-  background: rgba(99, 102, 241, 0.05);
+  background: rgba(99, 102, 241, 0.08);
 }
 
 .notif-icon {

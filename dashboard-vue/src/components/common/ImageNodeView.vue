@@ -39,6 +39,6 @@ function handleClick() {
 }
 
 .image-thumbnail:hover {
-  border-color: var(--accent, #6366f1);
+  border-color: var(--accent);
 }
 </style>

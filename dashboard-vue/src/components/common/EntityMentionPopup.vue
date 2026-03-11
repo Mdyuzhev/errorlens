@@ -55,10 +55,10 @@ function selectItem(item) {
 
 <style scoped>
 .entity-mention-popup {
-  background: var(--bg-card, #1e1e2e);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-dropdown);
   min-width: 280px;
   max-width: 400px;
   max-height: 300px;
@@ -69,7 +69,7 @@ function selectItem(item) {
 .popup-header {
   padding: 6px 10px;
   font-size: 11px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -110,7 +110,7 @@ function selectItem(item) {
 
 .item-type {
   font-size: 11px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary);
 }
 
 .item-status {
@@ -124,7 +124,7 @@ function selectItem(item) {
 .popup-empty {
   padding: 12px;
   text-align: center;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary);
   font-size: 13px;
 }
 

@@ -71,7 +71,7 @@ onBeforeUnmount(() => {
 }
 
 .lightbox-close:hover {
-  background: var(--border-color, rgba(255, 255, 255, 0.1));
+  background: var(--border-color);
 }
 
 .lightbox-image {

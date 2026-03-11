@@ -316,7 +316,7 @@ function copyBookmarklet() {
 
 .tab.active {
   color: var(--text-primary);
-  border-bottom-color: #667eea;
+  border-bottom-color: var(--accent);
 }
 
 .tab-content {
@@ -603,7 +603,7 @@ function copyBookmarklet() {
   background: var(--bg-secondary);
   border-radius: 12px;
   transition: all 0.3s;
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border: 1px solid var(--border-color);
 }
 
 .toggle-slider::after {
@@ -631,5 +631,9 @@ function copyBookmarklet() {
   font-size: 13px;
   color: var(--text-secondary);
   min-width: 36px;
+}
+
+:global(body.theme-light) .toggle-slider {
+  background: #c4cdd6;
 }
 </style>

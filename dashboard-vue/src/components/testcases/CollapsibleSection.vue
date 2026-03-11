@@ -51,7 +51,7 @@ onMounted(() => {
 
 <style scoped>
 .collapsible-section {
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   margin-bottom: 12px;
   overflow: hidden;
@@ -65,7 +65,7 @@ onMounted(() => {
   padding: 10px 14px;
   background: var(--bg-secondary);
   border: none;
-  color: var(--text-primary, #e5e7eb);
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -74,7 +74,7 @@ onMounted(() => {
 }
 
 .collapsible-header:hover {
-  background: var(--border-color, rgba(255, 255, 255, 0.06));
+  background: var(--border-color);
 }
 
 .collapsible-arrow {

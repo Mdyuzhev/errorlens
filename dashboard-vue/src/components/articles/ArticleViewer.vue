@@ -141,7 +141,7 @@ const articleTags = computed(() => {
 
 .viewer-category {
   font-size: 13px;
-  color: var(--accent, #6366f1);
+  color: var(--accent);
   font-weight: 500;
 }
 

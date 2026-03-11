@@ -113,7 +113,7 @@ onMounted(() => {
 
 .chip-content {
   background: rgba(99, 102, 241, 0.15);
-  color: #a5b4fc;
+  color: var(--accent);
   border: 1px solid rgba(99, 102, 241, 0.3);
 }
 
@@ -157,7 +157,7 @@ onMounted(() => {
 .chip-spinner {
   width: 12px;
   height: 12px;
-  border: 2px solid var(--border-color, rgba(255, 255, 255, 0.2));
+  border: 2px solid var(--border-color);
   border-top-color: #9ca3af;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;

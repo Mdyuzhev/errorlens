@@ -194,9 +194,9 @@ function onDragEnd() {
   text-align: left;
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-secondary, #9ca3af);
+  color: var(--text-secondary);
   padding: 6px 8px;
-  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--border-color);
 }
 
 .col-num { width: 36px; text-align: center; }
@@ -212,7 +212,7 @@ function onDragEnd() {
 .step-row td {
   padding: 4px 8px;
   vertical-align: top;
-  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.04));
+  border-bottom: 1px solid var(--border-color);
 }
 
 .step-row--dragging {
@@ -220,11 +220,11 @@ function onDragEnd() {
 }
 
 .step-row--drop-above td {
-  border-top: 2px solid var(--accent, #6366f1);
+  border-top: 2px solid var(--accent);
 }
 
 .step-row--drop-below td {
-  border-bottom: 2px solid var(--accent, #6366f1);
+  border-bottom: 2px solid var(--accent);
 }
 
 .step-num {
@@ -233,7 +233,7 @@ function onDragEnd() {
   justify-content: center;
   width: 22px;
   height: 22px;
-  background: var(--accent, #6366f1);
+  background: var(--accent);
   color: white;
   border-radius: 50%;
   font-size: 11px;
@@ -270,7 +270,7 @@ function onDragEnd() {
   padding: 6px 14px;
   background: rgba(99, 102, 241, 0.1);
   border: 1px dashed rgba(99, 102, 241, 0.3);
-  color: var(--accent, #6366f1);
+  color: var(--accent);
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
