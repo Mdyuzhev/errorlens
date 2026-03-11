@@ -19,7 +19,7 @@ export const useGenerationStore = defineStore('generation', () => {
       formData.append('provider', options.provider || 'anthropic')
       if (options.model) formData.append('model', options.model)
 
-      const response = await api.post('/api/v1/generation/from-swagger', formData, {
+      const response = await api.post('/v1/generation/from-swagger', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
 
@@ -43,7 +43,7 @@ export const useGenerationStore = defineStore('generation', () => {
       formData.append('provider', options.provider || 'anthropic')
       if (options.model) formData.append('model', options.model)
 
-      const response = await api.post(`/api/v1/generation/from-session/${sessionId}`, formData, {
+      const response = await api.post(`/v1/generation/from-session/${sessionId}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
 
@@ -59,7 +59,7 @@ export const useGenerationStore = defineStore('generation', () => {
 
   async function fetchResult(id) {
     try {
-      const response = await api.get(`/api/v1/generation/result/${id}`)
+      const response = await api.get(`/v1/generation/result/${id}`)
       result.value = response.data
       return response.data
     } catch (err) {
@@ -69,7 +69,7 @@ export const useGenerationStore = defineStore('generation', () => {
   }
 
   function getDownloadUrl(id) {
-    return `${import.meta.env.VITE_API_URL || ''}/api/v1/generation/download/${id}`
+    return `${import.meta.env.VITE_API_URL || ''}/v1/generation/download/${id}`
   }
 
   async function startFromEndpoints(endpoints, options = {}) {

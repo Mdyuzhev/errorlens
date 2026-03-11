@@ -213,19 +213,19 @@ export const entityLinksApi = {
 
 // Test Plans API
 export const testPlansApi = {
-  list: (params) => api.get('/api/v1/test-plans', { params }),
-  get: (id) => api.get(`/api/v1/test-plans/${id}`),
-  create: (data) => api.post('/api/v1/test-plans', data),
-  update: (id, data) => api.put(`/api/v1/test-plans/${id}`, data),
-  remove: (id) => api.delete(`/api/v1/test-plans/${id}`),
-  addCases: (id, ids) => api.post(`/api/v1/test-plans/${id}/cases`, { testcase_ids: ids }),
-  removeCase: (id, tcId) => api.delete(`/api/v1/test-plans/${id}/cases/${tcId}`),
-  reorderCases: (id, orderedIds) => api.put(`/api/v1/test-plans/${id}/cases/reorder`, { ordered_ids: orderedIds }),
-  getRuns: (id) => api.get(`/api/v1/test-plans/${id}/runs`),
-  getRun: (runId) => api.get(`/api/v1/test-plans/runs/${runId}`),
-  startRun: (id, data) => api.post(`/api/v1/test-plans/${id}/runs`, data),
-  recordResult: (runId, tcId, data) => api.put(`/api/v1/test-plans/runs/${runId}/results/${tcId}`, data),
-  finishRun: (runId) => api.post(`/api/v1/test-plans/runs/${runId}/finish`),
+  list: (params) => api.get('/v1/test-plans', { params }),
+  get: (id) => api.get(`/v1/test-plans/${id}`),
+  create: (data) => api.post('/v1/test-plans', data),
+  update: (id, data) => api.put(`/v1/test-plans/${id}`, data),
+  remove: (id) => api.delete(`/v1/test-plans/${id}`),
+  addCases: (id, ids) => api.post(`/v1/test-plans/${id}/cases`, { testcase_ids: ids }),
+  removeCase: (id, tcId) => api.delete(`/v1/test-plans/${id}/cases/${tcId}`),
+  reorderCases: (id, orderedIds) => api.put(`/v1/test-plans/${id}/cases/reorder`, { ordered_ids: orderedIds }),
+  getRuns: (id) => api.get(`/v1/test-plans/${id}/runs`),
+  getRun: (runId) => api.get(`/v1/test-plans/runs/${runId}`),
+  startRun: (id, data) => api.post(`/v1/test-plans/${id}/runs`, data),
+  recordResult: (runId, tcId, data) => api.put(`/v1/test-plans/runs/${runId}/results/${tcId}`, data),
+  finishRun: (runId) => api.post(`/v1/test-plans/runs/${runId}/finish`),
 }
 
 // Test Runs API
@@ -267,31 +267,31 @@ export const adminApi = {
 
 // Notifications API
 export const notificationsApi = {
-  list: () => api.get('/api/v1/notifications'),
-  unreadCount: () => api.get('/api/v1/notifications/unread-count'),
-  markRead: (id) => api.post(`/api/v1/notifications/${id}/read`),
-  markAllRead: () => api.post('/api/v1/notifications/read-all'),
+  list: () => api.get('/v1/notifications'),
+  unreadCount: () => api.get('/v1/notifications/unread-count'),
+  markRead: (id) => api.post(`/v1/notifications/${id}/read`),
+  markAllRead: () => api.post('/v1/notifications/read-all'),
 }
 
 // Automations API
 export const automationsApi = {
-  getRules: (projectId) => api.get('/api/v1/automations/rules', { params: { project_id: projectId } }),
-  createRule: (data) => api.post('/api/v1/automations/rules', data),
-  updateRule: (id, data) => api.put(`/api/v1/automations/rules/${id}`, data),
-  deleteRule: (id) => api.delete(`/api/v1/automations/rules/${id}`),
-  getRuleRuns: (ruleId) => api.get(`/api/v1/automations/rules/${ruleId}/runs`),
-  getTaskRuns: (taskId) => api.get('/api/v1/automations/runs', { params: { task_id: taskId, limit: 5 } }),
-  getRun: (id) => api.get(`/api/v1/automations/runs/${id}`),
+  getRules: (projectId) => api.get('/v1/automations/rules', { params: { project_id: projectId } }),
+  createRule: (data) => api.post('/v1/automations/rules', data),
+  updateRule: (id, data) => api.put(`/v1/automations/rules/${id}`, data),
+  deleteRule: (id) => api.delete(`/v1/automations/rules/${id}`),
+  getRuleRuns: (ruleId) => api.get(`/v1/automations/rules/${ruleId}/runs`),
+  getTaskRuns: (taskId) => api.get('/v1/automations/runs', { params: { task_id: taskId, limit: 5 } }),
+  getRun: (id) => api.get(`/v1/automations/runs/${id}`),
 }
 
 // GitLab API
 export const gitlabApi = {
-  listConnections: (projectId) => api.get('/api/v1/gitlab/connections', { params: { project_id: projectId } }),
-  createConnection: (projectId, data) => api.post('/api/v1/gitlab/connections', data, { params: { project_id: projectId } }),
-  updateConnection: (id, data) => api.put(`/api/v1/gitlab/connections/${id}`, data),
-  deleteConnection: (id) => api.delete(`/api/v1/gitlab/connections/${id}`),
-  checkConnection: (id) => api.post(`/api/v1/gitlab/connections/${id}/check`),
-  listProjects: (connId) => api.get(`/api/v1/gitlab/connections/${connId}/projects`),
-  listPipelines: (connId, projId, ref) => api.get(`/api/v1/gitlab/connections/${connId}/projects/${projId}/pipelines`, { params: { ref } }),
-  listBranches: (connId, projId) => api.get(`/api/v1/gitlab/connections/${connId}/projects/${projId}/branches`),
+  listConnections: (projectId) => api.get('/v1/gitlab/connections', { params: { project_id: projectId } }),
+  createConnection: (projectId, data) => api.post('/v1/gitlab/connections', data, { params: { project_id: projectId } }),
+  updateConnection: (id, data) => api.put(`/v1/gitlab/connections/${id}`, data),
+  deleteConnection: (id) => api.delete(`/v1/gitlab/connections/${id}`),
+  checkConnection: (id) => api.post(`/v1/gitlab/connections/${id}/check`),
+  listProjects: (connId) => api.get(`/v1/gitlab/connections/${connId}/projects`),
+  listPipelines: (connId, projId, ref) => api.get(`/v1/gitlab/connections/${connId}/projects/${projId}/pipelines`, { params: { ref } }),
+  listBranches: (connId, projId) => api.get(`/v1/gitlab/connections/${connId}/projects/${projId}/branches`),
 }

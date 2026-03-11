@@ -11,7 +11,7 @@ export const useNotificationsStore = defineStore('notifications', {
   actions: {
     async fetchUnreadCount() {
       try {
-        const response = await api.get('/api/v1/notifications/unread-count')
+        const response = await api.get('/v1/notifications/unread-count')
         this.unreadCount = response.data.count
       } catch (error) {
         // Silently fail — polling should not disrupt UX
@@ -21,7 +21,7 @@ export const useNotificationsStore = defineStore('notifications', {
     async fetchNotifications() {
       this.loading = true
       try {
-        const response = await api.get('/api/v1/notifications')
+        const response = await api.get('/v1/notifications')
         this.notifications = response.data
       } catch (error) {
         // Silently fail
@@ -32,7 +32,7 @@ export const useNotificationsStore = defineStore('notifications', {
 
     async markRead(id) {
       try {
-        await api.post(`/api/v1/notifications/${id}/read`)
+        await api.post(`/v1/notifications/${id}/read`)
         const n = this.notifications.find(n => n.id === id)
         if (n) {
           n.is_read = true
@@ -45,7 +45,7 @@ export const useNotificationsStore = defineStore('notifications', {
 
     async markAllRead() {
       try {
-        await api.post('/api/v1/notifications/read-all')
+        await api.post('/v1/notifications/read-all')
         this.notifications.forEach(n => { n.is_read = true })
         this.unreadCount = 0
       } catch (error) {
