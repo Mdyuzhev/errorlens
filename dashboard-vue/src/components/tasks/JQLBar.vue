@@ -1,0 +1,416 @@
+<template>
+  <div class="jql-bar">
+    <div class="jql-input-wrapper">
+      <svg class="jql-icon" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+      </svg>
+
+      <input
+        ref="inputRef"
+        v-model="jqlInput"
+        class="jql-input"
+        :class="{ invalid: !isValid && jqlInput.trim() }"
+        placeholder="JQL: status = todo AND priority = high"
+        @input="onInput"
+        @keydown.enter="onSearch"
+        @keydown.escape="onClear"
+        @focus="showSuggestions = true"
+        @blur="hideSuggestions"
+      />
+
+      <div class="jql-status" :class="statusClass" :title="statusTitle">
+        <span class="status-dot"></span>
+      </div>
+
+      <button v-if="jqlInput" class="jql-btn-clear" title="Clear" @click="onClear">
+        &times;
+      </button>
+
+      <button class="jql-btn-ai" title="Smart Search (AI)" @click="onAI">
+        ✨
+      </button>
+
+      <button class="jql-btn-search" :disabled="!isValid || !jqlInput.trim()" @click="onSearch">
+        Search
+      </button>
+
+      <button class="jql-btn-save" title="Save Filter" @click="onSave" :disabled="!jqlInput.trim()">
+        <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+          <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Autocomplete dropdown -->
+    <div v-if="showSuggestions && suggestions.length" class="jql-autocomplete">
+      <div
+        v-for="(s, i) in suggestions"
+        :key="s.value"
+        class="suggestion-item"
+        :class="{ active: i === activeSuggestion }"
+        @mousedown.prevent="applySuggestion(s)"
+      >
+        <span class="suggestion-value">{{ s.value }}</span>
+        <span v-if="s.label && s.label !== s.value" class="suggestion-label">{{ s.label }}</span>
+      </div>
+    </div>
+
+    <!-- Error message -->
+    <div v-if="syntaxError && jqlInput.trim()" class="jql-error">
+      {{ syntaxError.message }}
+    </div>
+
+    <!-- Save filter modal -->
+    <div v-if="showSaveModal" class="save-modal-overlay" @click.self="showSaveModal = false">
+      <div class="save-modal">
+        <h3>Save Filter</h3>
+        <input v-model="filterName" placeholder="Filter name" @keydown.enter="confirmSave" />
+        <label class="shared-check">
+          <input type="checkbox" v-model="filterShared" /> Share with project
+        </label>
+        <div class="save-actions">
+          <button class="btn btn-secondary" @click="showSaveModal = false">Cancel</button>
+          <button class="btn btn-primary" @click="confirmSave" :disabled="!filterName.trim()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, watch } from 'vue'
+import { useJqlStore } from '@/stores/jql'
+
+const props = defineProps({
+  projectId: { type: String, default: null },
+})
+
+const emit = defineEmits(['search', 'clear'])
+
+const jqlStore = useJqlStore()
+
+const inputRef = ref(null)
+const jqlInput = ref('')
+const showSuggestions = ref(false)
+const activeSuggestion = ref(-1)
+const showSaveModal = ref(false)
+const filterName = ref('')
+const filterShared = ref(false)
+
+let debounceTimer = null
+
+const isValid = computed(() => jqlStore.isValid)
+const syntaxError = computed(() => jqlStore.syntaxError)
+const suggestions = computed(() => jqlStore.suggestions)
+
+const statusClass = computed(() => {
+  if (!jqlInput.value.trim()) return 'neutral'
+  return isValid.value ? 'valid' : 'invalid'
+})
+
+const statusTitle = computed(() => {
+  if (!jqlInput.value.trim()) return 'Enter JQL query'
+  return isValid.value ? 'Valid JQL' : syntaxError.value?.message || 'Invalid JQL'
+})
+
+function onInput() {
+  clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => {
+    jqlStore.validateJQL(jqlInput.value)
+    analyzeContext()
+  }, 300)
+}
+
+function analyzeContext() {
+  const text = jqlInput.value
+  const cursor = inputRef.value?.selectionStart || text.length
+
+  const before = text.substring(0, cursor).trim()
+  const tokens = before.split(/\s+/)
+
+  if (tokens.length >= 2) {
+    const lastToken = tokens[tokens.length - 1]
+    const operators = ['=', '!=', '>', '<', '>=', '<=', '~', '!~', 'in', 'not']
+    if (operators.includes(lastToken.toLowerCase())) {
+      // After operator — suggest values for the field
+      const fieldToken = tokens[tokens.length - 2]
+      jqlStore.fetchSuggestions(fieldToken, '', props.projectId)
+      return
+    }
+  }
+
+  // After AND/OR or at start — suggest field names
+  const lastToken = tokens[tokens.length - 1]?.toLowerCase()
+  if (!lastToken || lastToken === 'and' || lastToken === 'or' || lastToken === 'not') {
+    jqlStore.fetchSuggestions('', '', props.projectId)
+  } else {
+    jqlStore.suggestions = []
+  }
+}
+
+function applySuggestion(s) {
+  const text = jqlInput.value
+  const cursor = inputRef.value?.selectionStart || text.length
+  const before = text.substring(0, cursor).trimEnd()
+  const after = text.substring(cursor)
+
+  // Replace the current incomplete token
+  const tokens = before.split(/\s+/)
+  const lastToken = tokens[tokens.length - 1]
+  const operators = ['=', '!=', '>', '<', '>=', '<=', '~', '!~', 'in', 'not']
+
+  let value = s.value
+  if (value.includes(' ')) value = `"${value}"`
+
+  if (operators.includes(lastToken?.toLowerCase())) {
+    jqlInput.value = before + ' ' + value + after
+  } else {
+    jqlInput.value = tokens.slice(0, -1).join(' ') + (tokens.length > 1 ? ' ' : '') + value + after
+  }
+
+  showSuggestions.value = false
+  jqlStore.suggestions = []
+}
+
+function hideSuggestions() {
+  setTimeout(() => { showSuggestions.value = false }, 200)
+}
+
+function onSearch() {
+  if (!jqlInput.value.trim() || !isValid.value) return
+  jqlStore.executeJQL(jqlInput.value, props.projectId)
+  emit('search', jqlInput.value)
+  showSuggestions.value = false
+}
+
+function onClear() {
+  jqlInput.value = ''
+  jqlStore.clearJQL()
+  emit('clear')
+}
+
+async function onAI() {
+  const text = jqlInput.value.trim()
+  if (!text) return
+  const result = await jqlStore.askAI(text, props.projectId)
+  if (result) {
+    jqlInput.value = result
+    jqlStore.validateJQL(result)
+  }
+}
+
+function onSave() {
+  if (!jqlInput.value.trim()) return
+  filterName.value = ''
+  filterShared.value = false
+  showSaveModal.value = true
+}
+
+async function confirmSave() {
+  if (!filterName.value.trim()) return
+  await jqlStore.saveFilter(filterName.value, jqlInput.value, props.projectId, filterShared.value)
+  showSaveModal.value = false
+}
+
+// Apply external JQL (from saved filters)
+function setJQL(jql) {
+  jqlInput.value = jql
+  jqlStore.validateJQL(jql)
+  onSearch()
+}
+
+defineExpose({ setJQL })
+</script>
+
+<style scoped>
+.jql-bar {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.jql-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--bg-secondary);
+  border-radius: 8px;
+  padding: 6px 12px;
+  transition: border-color 0.2s;
+}
+
+.jql-input-wrapper:focus-within {
+  border-color: var(--accent);
+}
+
+.jql-icon {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.jql-input {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.jql-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.jql-input.invalid {
+  color: #ef4444;
+}
+
+.jql-status {
+  flex-shrink: 0;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.jql-status.neutral .status-dot { background: var(--text-secondary); opacity: 0.3; }
+.jql-status.valid .status-dot { background: #10b981; }
+.jql-status.invalid .status-dot { background: #ef4444; }
+
+.jql-btn-clear {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.jql-btn-ai {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.jql-btn-ai:hover { background: var(--bg-secondary); }
+
+.jql-btn-search {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.jql-btn-search:disabled { opacity: 0.5; cursor: not-allowed; }
+.jql-btn-search:not(:disabled):hover { opacity: 0.9; }
+
+.jql-btn-save {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.jql-btn-save:hover { background: var(--bg-secondary); }
+.jql-btn-save:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.jql-autocomplete {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--bg-secondary);
+  border-radius: 8px;
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  transition: background 0.1s;
+}
+
+.suggestion-item:hover,
+.suggestion-item.active {
+  background: var(--bg-secondary);
+}
+
+.suggestion-value { font-family: monospace; }
+.suggestion-label { color: var(--text-secondary); font-size: 12px; }
+
+.jql-error {
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 4px;
+  padding-left: 36px;
+}
+
+.save-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.save-modal {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 20px;
+  width: 360px;
+}
+
+.save-modal h3 { margin: 0 0 12px; font-size: 16px; }
+
+.save-modal input[type="text"],
+.save-modal input:not([type]) {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.shared-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.save-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+</style>

@@ -961,3 +961,25 @@ class EntityLink(Base):
     link_type: Mapped[str] = mapped_column(String(20))  # verifies, related
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class SavedFilter(Base):
+    """User-saved JQL filter."""
+
+    __tablename__ = "saved_filters"
+    __table_args__ = (
+        UniqueConstraint("owner_id", "project_id", "name", name="uq_saved_filter_owner_project_name"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    owner_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE")
+    )
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE")
+    )
+    name: Mapped[str] = mapped_column(String(100))
+    jql: Mapped[str] = mapped_column(Text)
+    is_shared: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

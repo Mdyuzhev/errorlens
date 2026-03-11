@@ -1,0 +1,80 @@
+// JQL Grammar for ErrorLens task filtering
+// Case-insensitive keywords, Jira-compatible syntax
+
+?start: query
+
+query: expr order_by?
+
+?expr: or_expr
+
+?or_expr: and_expr (OR and_expr)*
+
+?and_expr: not_expr (AND not_expr)*
+
+?not_expr: NOT not_expr -> not_clause
+         | atom
+
+?atom: "(" expr ")"
+     | condition
+
+?condition: field WAS value                -> was_condition
+          | field CHANGED                  -> changed_condition
+          | field NOT_IN "(" value_list ")" -> not_in_condition
+          | field IN "(" value_list ")"    -> in_condition
+          | field IS NOT_KW EMPTY          -> is_not_empty
+          | field IS EMPTY                 -> is_empty
+          | field CONTAINS value           -> contains_condition
+          | field NOT_CONTAINS value       -> not_contains_condition
+          | field op value                 -> comparison
+
+field: FIELD_NAME
+
+op: OP
+
+value: function
+     | RELATIVE_DATE
+     | QUOTED_STRING
+     | UNQUOTED_VALUE
+
+value_list: value ("," value)*
+
+function: FUNC_NAME "(" func_args? ")"
+
+func_args: value ("," value)*
+
+order_by: ORDER_BY order_field ("," order_field)*
+
+order_field: field (ASC | DESC)?
+
+// --- Terminals ---
+
+// Operators
+OP: "!=" | "<=" | ">=" | "=" | "<" | ">"
+CONTAINS: "~"
+NOT_CONTAINS: "!~"
+
+// Keywords (case-insensitive)
+AND: /AND/i
+OR: /OR/i
+NOT: /NOT/i
+IN: /IN/i
+NOT_IN: /NOT/i /\s+/ /IN/i
+IS: /IS/i
+NOT_KW: /NOT/i
+EMPTY: /EMPTY/i
+WAS: /WAS/i
+CHANGED: /CHANGED/i
+ORDER_BY: /ORDER/i /\s+/ /BY/i
+ASC: /ASC/i
+DESC: /DESC/i
+
+// Values
+RELATIVE_DATE: /[+-]\d+[dwhmDWHM]/
+QUOTED_STRING: "\"" /[^"]*/ "\""
+FUNC_NAME: /[a-zA-Z_][a-zA-Z0-9_]*/
+FIELD_NAME: /[a-zA-Z_][a-zA-Z0-9_.:]*/
+UNQUOTED_VALUE: /[a-zA-Z0-9_][a-zA-Z0-9_\-.]*/
+
+// Whitespace
+%import common.WS
+%ignore WS

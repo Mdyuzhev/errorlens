@@ -7,33 +7,107 @@
       </button>
     </div>
 
-    <!-- Type filter tabs -->
-    <div class="type-tabs">
-      <button
-        class="type-tab"
-        :class="{ active: activeTypeFilter === 'all' }"
-        @click="filterByType('all')"
-      >
-        All
-      </button>
-      <button
-        v-for="t in taskTypes"
-        :key="t.slug"
-        class="type-tab"
-        :class="{ active: activeTypeFilter === t.slug }"
-        :style="activeTypeFilter === t.slug ? { borderBottomColor: t.color } : {}"
-        @click="filterByType(t.slug)"
-      >
-        <AppIcon :name="t.icon" :size="14" />
-        {{ t.name }}
-      </button>
+    <!-- JQL Bar -->
+    <JQLBar
+      ref="jqlBarRef"
+      :project-id="currentProjectId"
+      @search="onJQLSearch"
+      @clear="onJQLClear"
+    />
+
+    <!-- Saved Filters -->
+    <SavedFilters
+      :project-id="currentProjectId"
+      :active-j-q-l="jqlStore.currentJQL"
+      @apply="onApplyFilter"
+    />
+
+    <!-- View Toggle + Type filter tabs -->
+    <div class="toolbar-row">
+      <div class="type-tabs">
+        <button
+          class="type-tab"
+          :class="{ active: activeTypeFilter === 'all' }"
+          @click="filterByType('all')"
+        >
+          All
+        </button>
+        <button
+          v-for="t in taskTypes"
+          :key="t.slug"
+          class="type-tab"
+          :class="{ active: activeTypeFilter === t.slug }"
+          :style="activeTypeFilter === t.slug ? { borderBottomColor: t.color } : {}"
+          @click="filterByType(t.slug)"
+        >
+          <AppIcon :name="t.icon" :size="14" />
+          {{ t.name }}
+        </button>
+      </div>
+
+      <div class="view-toggle">
+        <button
+          class="toggle-btn"
+          :class="{ active: viewMode === 'board' }"
+          @click="viewMode = 'board'"
+          title="Kanban Board"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+          </svg>
+        </button>
+        <button
+          class="toggle-btn"
+          :class="{ active: viewMode === 'list' }"
+          @click="viewMode = 'list'"
+          title="List View"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      </div>
     </div>
 
-    <!-- Kanban Board -->
+    <!-- Loading -->
     <div v-if="loading" class="loading">
       <div class="spinner"></div>
     </div>
 
+    <!-- JQL List View -->
+    <div v-else-if="viewMode === 'list'" class="task-list" data-testid="task-list">
+      <div v-if="!listTasks.length" class="empty-list">
+        <p v-if="jqlStore.currentJQL">No tasks match your query</p>
+        <p v-else>Enter a JQL query or switch to Board view</p>
+      </div>
+      <div
+        v-for="task in listTasks"
+        :key="task.id"
+        class="task-list-row"
+        @click="openTask(task)"
+      >
+        <div class="row-left">
+          <span v-if="task.type" class="type-indicator" :style="{ background: task.type.color }">
+            <AppIcon :name="task.type.icon" :size="10" />
+          </span>
+          <span v-if="task.human_id" class="human-id-badge">{{ task.human_id }}</span>
+          <span class="task-title">{{ task.title }}</span>
+        </div>
+        <div class="row-right">
+          <span v-if="task.task_status" class="status-pill" :style="{ background: task.task_status.color }">
+            {{ task.task_status.name }}
+          </span>
+          <span v-else class="status-pill legacy">{{ task.status }}</span>
+          <span v-if="task.severity" class="severity-badge" :class="task.severity">{{ task.severity }}</span>
+          <span class="priority-dot" :class="task.priority"></span>
+          <span v-if="task.assignee_user" class="assignee-pill">
+            {{ task.assignee_user.display_name || task.assignee_user.username }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kanban Board -->
     <div v-else class="kanban-board" data-testid="kanban-board">
       <div
         v-for="column in columns"
@@ -186,13 +260,17 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTasksStore } from '@/stores/tasks'
+import { useJqlStore } from '@/stores/jql'
 import { tasksApi, taskSettingsApi, projectsApi } from '@/services/api'
 import RichEditor from '@/components/common/RichEditor.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 import TaskDetailView from '@/components/tasks/TaskDetailView.vue'
+import JQLBar from '@/components/tasks/JQLBar.vue'
+import SavedFilters from '@/components/tasks/SavedFilters.vue'
 
 const route = useRoute()
 const store = useTasksStore()
+const jqlStore = useJqlStore()
 
 const columns = [
   { id: 'todo', title: 'To Do' },
@@ -205,7 +283,12 @@ const showCreateModal = ref(false)
 const selectedTask = ref(null)
 const taskTypes = ref([])
 const activeTypeFilter = ref('all')
+const viewMode = ref('board')
+const currentProjectId = ref(null)
+const jqlBarRef = ref(null)
 let draggedTask = null
+
+const listTasks = computed(() => jqlStore.jqlResults)
 
 const form = ref({
   title: '',
@@ -296,6 +379,20 @@ async function saveTask() {
   resetForm()
 }
 
+function onJQLSearch(jql) {
+  viewMode.value = 'list'
+}
+
+function onJQLClear() {
+  viewMode.value = 'board'
+}
+
+function onApplyFilter(jql) {
+  if (jqlBarRef.value) {
+    jqlBarRef.value.setJQL(jql)
+  }
+}
+
 async function filterByType(slug) {
   activeTypeFilter.value = slug
   const params = slug !== 'all' ? { type_slug: slug } : {}
@@ -316,8 +413,10 @@ async function loadTaskTypes() {
     const projectsRes = await projectsApi.list()
     const projects = projectsRes.data.items || projectsRes.data
     if (projects.length > 0) {
+      currentProjectId.value = projects[0].id
       const typesRes = await taskSettingsApi.getTypes(projects[0].id)
       taskTypes.value = typesRes.data.filter(t => t.is_active)
+      jqlStore.fetchSavedFilters(projects[0].id)
     }
   } catch { taskTypes.value = [] }
 }
@@ -339,10 +438,124 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.toggle-btn.active {
+  background: var(--accent);
+  color: white;
+}
+
+.toggle-btn:hover:not(.active) { background: var(--bg-secondary); }
+
+/* Task List View */
+.task-list {
+  background: var(--bg-card);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.empty-list {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.task-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--bg-secondary);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.task-list-row:hover { background: var(--bg-secondary); }
+.task-list-row:last-child { border-bottom: none; }
+
+.row-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.task-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.status-pill {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: white;
+}
+
+.status-pill.legacy {
+  background: var(--text-secondary);
+}
+
+.priority-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.priority-dot.high { background: #f59e0b; }
+.priority-dot.medium { background: #3b82f6; }
+.priority-dot.low { background: #6b7280; }
+
+.assignee-pill {
+  font-size: 12px;
+  color: var(--text-secondary);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .type-tabs {
   display: flex;
   gap: 4px;
-  margin-bottom: 16px;
   overflow-x: auto;
   padding-bottom: 2px;
 }

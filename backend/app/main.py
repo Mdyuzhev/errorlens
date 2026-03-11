@@ -27,9 +27,11 @@ from app.routers import (
     generation,
     gitlab_connections,
     integrations,
+    jql,
     launches,
     notifications,
     projects,
+    saved_filters,
     sessions,
     task_settings,
     tasks,
@@ -116,6 +118,7 @@ app.include_router(sessions.router)
 app.include_router(testcase_folders.router)  # Must be before testcases (path conflict)
 app.include_router(testcase_folders.move_router)  # /testcases/{id}/move-to-folder
 app.include_router(testcases.router)
+app.include_router(jql.router)  # EL023: JQL endpoints (before tasks for /tasks/jql-* priority)
 app.include_router(tasks.router)
 app.include_router(task_settings.router)  # EL019: Task workflow settings
 app.include_router(article_folders.router)  # Must be before articles (path conflict)
@@ -135,6 +138,7 @@ app.include_router(generation.router)  # Wave 4.0: Generation API
 app.include_router(notifications.router)  # EL018: Notifications
 app.include_router(gitlab_connections.router)  # EL020: GitLab Integration
 app.include_router(launches.router)  # EL022: Launch upload from CI
+app.include_router(saved_filters.router)  # EL023: JQL saved filters
 app.include_router(ws_router)  # Wave 4.0: WebSocket
 
 # Static files setup

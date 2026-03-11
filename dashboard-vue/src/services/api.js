@@ -118,6 +118,18 @@ export const tasksApi = {
   getRelations: (id) => api.get(`/tasks/${id}/relations`),
   createRelation: (id, data) => api.post(`/tasks/${id}/relations`, data),
   deleteRelation: (taskId, relationId) => api.delete(`/tasks/${taskId}/relations/${relationId}`),
+  // JQL
+  jqlValidate: (jql) => api.get('/tasks/jql-validate', { params: { jql } }),
+  jqlSuggest: (field, query, projectId) => api.get('/tasks/jql-suggest', { params: { field, query, project_id: projectId } }),
+  jqlAi: (query, projectId) => api.post('/tasks/jql-ai', { query, project_id: projectId }),
+}
+
+// Saved Filters API
+export const savedFiltersApi = {
+  list: (projectId) => api.get('/saved-filters', { params: { project_id: projectId } }),
+  create: (data) => api.post('/saved-filters', data),
+  update: (id, data) => api.put(`/saved-filters/${id}`, data),
+  remove: (id) => api.delete(`/saved-filters/${id}`),
 }
 
 // Task Settings API

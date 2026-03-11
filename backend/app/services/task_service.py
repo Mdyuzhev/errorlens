@@ -156,6 +156,40 @@ class TaskService:
         )
         return [self._to_list_dict(t) for t in tasks]
 
+    async def list_tasks_jql(
+        self,
+        where_clause: Any,
+        order_clauses: list[Any] | None = None,
+        project_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List tasks using a compiled JQL WHERE clause."""
+        from sqlalchemy import select
+        from sqlalchemy.orm import joinedload
+
+        stmt = select(Task).options(
+            joinedload(Task.task_type),
+            joinedload(Task.task_status),
+            joinedload(Task.assignee_user),
+            joinedload(Task.reporter),
+        )
+
+        if project_id:
+            stmt = stmt.where(Task.project_id == project_id)
+
+        if where_clause is not None:
+            stmt = stmt.where(where_clause)
+
+        if order_clauses:
+            for clause in order_clauses:
+                stmt = stmt.order_by(clause)
+        else:
+            stmt = stmt.order_by(Task.created_at.desc())
+
+        stmt = stmt.limit(200)
+        result = await self.db.execute(stmt)
+        tasks = result.unique().scalars().all()
+        return [self._to_list_dict(t) for t in tasks]
+
     async def search_tasks(
         self,
         q: str,

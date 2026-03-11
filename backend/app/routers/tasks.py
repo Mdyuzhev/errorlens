@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.jql import JQLCompiler, JQLContext, JQLError, JQLSyntaxError
 from app.middleware.jwt_auth import require_auth
 from app.models.user import User
 from app.services.task_service import TaskService
@@ -69,6 +70,7 @@ class CommentUpdate(BaseModel):
 @router.get("")
 async def list_tasks(
     q: str | None = Query(default=None, description="Search query"),
+    jql: str | None = Query(default=None, description="JQL filter"),
     status: str | None = None,
     priority: str | None = None,
     assignee: str | None = None,
@@ -79,8 +81,37 @@ async def list_tasks(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
-    """List tasks with filters."""
+    """List tasks with filters. Supports JQL queries."""
     service = TaskService(db)
+
+    if jql:
+        try:
+            compiler = JQLCompiler()
+            ctx = JQLContext(
+                current_user_id=user.id,
+                project_id=project_id,
+                db=db,
+            )
+            result = await compiler.compile(jql, ctx)
+            return await service.list_tasks_jql(
+                where_clause=result.where_clause,
+                order_clauses=result.order_clauses,
+                project_id=project_id,
+            )
+        except JQLSyntaxError as e:
+            raise HTTPException(status_code=400, detail={
+                "error": "jql_syntax_error",
+                "message": e.message,
+                "position": e.position,
+                "jql": jql,
+            })
+        except JQLError as e:
+            raise HTTPException(status_code=400, detail={
+                "error": "jql_error",
+                "message": str(e),
+                "jql": jql,
+            })
+
     if q:
         return await service.search_tasks(q, limit=20)
     return await service.list_tasks(

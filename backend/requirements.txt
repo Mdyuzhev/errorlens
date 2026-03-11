@@ -44,6 +44,9 @@ bcrypt>=4.0.0
 # Encryption
 cryptography>=42.0.0
 
+# JQL parser
+lark>=1.1.0
+
 # Linting (dev)
 ruff>=0.1.0
 black>=24.0.0
