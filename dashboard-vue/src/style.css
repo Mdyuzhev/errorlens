@@ -15,6 +15,10 @@
   --error: #ef4444;
   --warning: #f59e0b;
   --border-color: rgba(255, 255, 255, 0.1);
+  --bg-tertiary: #2d2040;
+  --placeholder-color: rgba(255, 255, 255, 0.3);
+  --spinner-color: rgba(255, 255, 255, 0.3);
+  --shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.4);
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
   --code-bg: rgba(0, 0, 0, 0.3);
 }
@@ -32,6 +36,10 @@ body.theme-light {
   --success: #00875a;
   --error: #de350b;
   --warning: #ff8b00;
+  --bg-tertiary: #d8dde6;
+  --placeholder-color: rgba(23, 43, 77, 0.4);
+  --spinner-color: rgba(23, 43, 77, 0.3);
+  --shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.12);
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
   --code-bg: #f4f5f7;
 }
@@ -180,8 +188,9 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
 }
 
-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+input::placeholder,
+textarea::placeholder {
+  color: var(--placeholder-color);
 }
 
 /* Cards */
@@ -261,8 +270,8 @@ input::placeholder {
 .spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+  border: 2px solid var(--spinner-color);
+  border-top-color: var(--text-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -311,4 +320,12 @@ input::placeholder {
 
 body.theme-light .app-icon--glow {
   filter: none;
+}
+
+body.theme-light input,
+body.theme-light select,
+body.theme-light textarea {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
 }
