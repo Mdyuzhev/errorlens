@@ -386,7 +386,7 @@ class JQLCompiler:
 
             table = desc.lookup_table
             lookup_col = getattr(table, desc.lookup_field)
-            id_col = getattr(table, "id")
+            id_col = table.id
 
             stmt = select(id_col).where(lookup_col == value)
             # Add project filter if available
