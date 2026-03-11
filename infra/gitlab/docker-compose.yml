@@ -1,0 +1,48 @@
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:latest
+    container_name: errorlens-gitlab
+    hostname: localhost
+    restart: unless-stopped
+    shm_size: "256m"
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://localhost:8929'
+        gitlab_rails['gitlab_shell_ssh_port'] = 2289
+        gitlab_rails['initial_root_password'] = 'ErrorLens2024!'
+        nginx['listen_port'] = 80
+        nginx['listen_https'] = false
+        gitlab_rails['monitoring_whitelist'] = ['0.0.0.0/0']
+    ports:
+      - "8929:80"
+      - "8443:443"
+      - "2289:22"
+    volumes:
+      - ./data/config:/etc/gitlab
+      - ./data/logs:/var/log/gitlab
+      - ./data/data:/var/opt/gitlab
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost/-/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 5m
+    networks:
+      - gitlab-net
+
+  gitlab-runner:
+    image: gitlab/gitlab-runner:latest
+    container_name: errorlens-gitlab-runner
+    restart: unless-stopped
+    volumes:
+      - ./data/runner:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      gitlab:
+        condition: service_healthy
+    networks:
+      - gitlab-net
+
+networks:
+  gitlab-net:
+    driver: bridge
