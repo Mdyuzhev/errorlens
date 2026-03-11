@@ -42,7 +42,7 @@ Thumbs.db
 .claude/
 
 # Задачи агента — локальные, не для репо
-Tasks/
+/Tasks/
 
 # Node.js
 node_modules/

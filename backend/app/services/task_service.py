@@ -127,8 +127,8 @@ class TaskService:
         return task
 
     async def get_task(self, task_id: str) -> Task | None:
-        """Get task by ID."""
-        return await self.repo.get_by_id(task_id)
+        """Get task by ID with all relationships."""
+        return await self.repo.get_by_id_full(task_id)
 
     async def list_tasks(
         self,

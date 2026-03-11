@@ -160,11 +160,20 @@
       </div>
     </div>
 
-    <!-- Fullscreen Task Detail -->
+    <!-- Read-only Task Viewer -->
+    <TaskViewer
+      v-if="viewerTask"
+      :task="viewerTask"
+      @close="closeViewer"
+      @edit="openEditor"
+      @open-task="openTaskById"
+    />
+
+    <!-- Fullscreen Task Editor -->
     <TaskDetailView
-      v-if="selectedTask"
-      :task="selectedTask"
-      @close="closeTask"
+      v-if="editorTask"
+      :task="editorTask"
+      @close="closeEditor"
       @updated="refreshTask"
       @open-task="openTaskById"
     />
@@ -257,7 +266,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, inject } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTasksStore } from '@/stores/tasks'
 import { useJqlStore } from '@/stores/jql'
@@ -265,6 +274,7 @@ import { tasksApi, taskSettingsApi, projectsApi } from '@/services/api'
 import RichEditor from '@/components/common/RichEditor.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 import TaskDetailView from '@/components/tasks/TaskDetailView.vue'
+import TaskViewer from '@/components/tasks/TaskViewer.vue'
 import JQLBar from '@/components/tasks/JQLBar.vue'
 import SavedFilters from '@/components/tasks/SavedFilters.vue'
 
@@ -280,12 +290,14 @@ const columns = [
 ]
 
 const showCreateModal = ref(false)
-const selectedTask = ref(null)
+const viewerTask = ref(null)
+const editorTask = ref(null)
 const taskTypes = ref([])
 const activeTypeFilter = ref('all')
 const viewMode = ref('board')
 const currentProjectId = ref(null)
 const jqlBarRef = ref(null)
+const toast = inject('toast', null)
 let draggedTask = null
 
 const listTasks = computed(() => jqlStore.jqlResults)
@@ -320,29 +332,58 @@ async function onDrop(event, status) {
 }
 
 async function openTask(task) {
-  const fullTask = await store.fetchTask(task.id)
-  if (fullTask) {
-    selectedTask.value = fullTask
+  try {
+    const fullTask = await store.fetchTask(task.id)
+    if (fullTask) {
+      viewerTask.value = fullTask
+    } else {
+      showError('Task not found')
+    }
+  } catch {
+    showError('Failed to load task')
   }
 }
 
 async function openTaskById(id) {
-  const fullTask = await store.fetchTask(id)
-  if (fullTask) {
-    selectedTask.value = fullTask
+  try {
+    const fullTask = await store.fetchTask(id)
+    if (fullTask) {
+      viewerTask.value = fullTask
+    } else {
+      showError('Task not found')
+    }
+  } catch {
+    showError('Failed to load task')
   }
 }
 
-function closeTask() {
-  selectedTask.value = null
+function closeViewer() {
+  viewerTask.value = null
+}
+
+function openEditor() {
+  editorTask.value = viewerTask.value
+  viewerTask.value = null
+}
+
+function closeEditor() {
+  editorTask.value = null
 }
 
 async function refreshTask() {
-  if (selectedTask.value) {
-    const updated = await store.fetchTask(selectedTask.value.id)
-    if (updated) selectedTask.value = updated
+  if (editorTask.value) {
+    const updated = await store.fetchTask(editorTask.value.id)
+    if (updated) editorTask.value = updated
   }
   await store.fetchBoard(activeTypeFilter.value !== 'all' ? { type_slug: activeTypeFilter.value } : {})
+}
+
+function showError(msg) {
+  if (toast) {
+    toast({ type: 'error', message: msg })
+  } else if (window.showToast) {
+    window.showToast({ type: 'error', message: msg })
+  }
 }
 
 function resetForm() {

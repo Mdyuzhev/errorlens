@@ -2,6 +2,7 @@
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.models.db_models import Task
 from app.repositories.base import BaseRepository
@@ -12,6 +13,22 @@ class TaskRepository(BaseRepository[Task]):
 
     def __init__(self, db: AsyncSession):
         super().__init__(Task, db)
+
+    async def get_by_id_full(self, task_id: str) -> Task | None:
+        """Get task by ID with all relationships eagerly loaded."""
+        stmt = (
+            select(Task)
+            .options(
+                joinedload(Task.task_type),
+                joinedload(Task.task_status),
+                joinedload(Task.assignee_user),
+                joinedload(Task.reporter),
+                selectinload(Task.children),
+            )
+            .where(Task.id == task_id)
+        )
+        result = await self.session.execute(stmt)
+        return result.unique().scalars().first()
 
     async def list_with_filters(
         self,
