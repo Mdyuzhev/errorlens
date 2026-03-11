@@ -154,20 +154,20 @@ class TestTaskService:
         # Arrange
         mock_task = MagicMock()
         mock_task.id = "task-123"
-        mock_repo.get_by_id.return_value = mock_task
+        mock_repo.get_by_id_full.return_value = mock_task
 
         # Act
         result = await task_service.get_task("task-123")
 
         # Assert
         assert result == mock_task
-        mock_repo.get_by_id.assert_called_once_with("task-123")
+        mock_repo.get_by_id_full.assert_called_once_with("task-123")
 
     @pytest.mark.asyncio
     async def test_get_task_not_found(self, task_service, mock_repo):
         """Test getting non-existent task returns None."""
         # Arrange
-        mock_repo.get_by_id.return_value = None
+        mock_repo.get_by_id_full.return_value = None
 
         # Act
         result = await task_service.get_task("nonexistent-id")
