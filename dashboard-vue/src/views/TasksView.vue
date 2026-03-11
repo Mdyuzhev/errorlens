@@ -7,12 +7,33 @@
       </button>
     </div>
 
-    <!-- JQL Bar -->
-    <JQLBar
-      ref="jqlBarRef"
+    <!-- JQL Row -->
+    <div class="jql-row">
+      <JQLBar
+        ref="jqlBarRef"
+        :project-id="currentProjectId"
+        @search="onJQLSearch"
+        @clear="onJQLClear"
+      />
+      <button
+        class="jql-filter-toggle"
+        :class="{ active: showFilterPanel }"
+        @click="showFilterPanel = !showFilterPanel"
+      >
+        <AppIcon name="filter" :size="14" />
+        Filters
+        <span v-if="activeFilterCount" class="filter-count-badge">{{ activeFilterCount }}</span>
+      </button>
+    </div>
+
+    <!-- Filter Panel -->
+    <TaskFilterPanel
+      v-if="showFilterPanel"
+      ref="filterPanelRef"
+      :task-types="taskTypes"
       :project-id="currentProjectId"
-      @search="onJQLSearch"
-      @clear="onJQLClear"
+      @filter-change="onFilterChange"
+      @clear="onFilterClear"
     />
 
     <!-- Saved Filters -->
@@ -277,6 +298,7 @@ import TaskDetailView from '@/components/tasks/TaskDetailView.vue'
 import TaskViewer from '@/components/tasks/TaskViewer.vue'
 import JQLBar from '@/components/tasks/JQLBar.vue'
 import SavedFilters from '@/components/tasks/SavedFilters.vue'
+import TaskFilterPanel from '@/components/tasks/TaskFilterPanel.vue'
 
 const route = useRoute()
 const store = useTasksStore()
@@ -297,6 +319,9 @@ const activeTypeFilter = ref('all')
 const viewMode = ref('board')
 const currentProjectId = ref(null)
 const jqlBarRef = ref(null)
+const showFilterPanel = ref(false)
+const filterPanelRef = ref(null)
+const activeFilterCount = ref(0)
 const toast = inject('toast', null)
 let draggedTask = null
 
@@ -422,11 +447,35 @@ async function saveTask() {
   resetForm()
 }
 
+function onFilterChange({ jql, filters }) {
+  // Count active filters
+  let count = 0
+  for (const key of ['status', 'priority', 'type', 'severity', 'assignee', 'label']) {
+    count += filters[key]?.length || 0
+  }
+  if (filters.dueAfter) count++
+  if (filters.dueBefore) count++
+  activeFilterCount.value = count
+
+  if (jql && jqlBarRef.value) {
+    jqlBarRef.value.setJQL(jql)
+  }
+  if (jql) viewMode.value = 'list'
+}
+
+function onFilterClear() {
+  activeFilterCount.value = 0
+  jqlStore.clearJQL()
+  viewMode.value = 'board'
+}
+
 function onJQLSearch(jql) {
   viewMode.value = 'list'
 }
 
 function onJQLClear() {
+  filterPanelRef.value?.clearFilters()
+  activeFilterCount.value = 0
   viewMode.value = 'board'
 }
 
@@ -490,6 +539,55 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.jql-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.jql-row :deep(.jql-bar) {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.jql-filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--bg-secondary);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.jql-filter-toggle:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.jql-filter-toggle.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(124, 58, 237, 0.1);
+}
+
+.filter-count-badge {
+  background: var(--accent);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 10px;
+  margin-left: 2px;
+}
+
 .toolbar-row {
   display: flex;
   align-items: center;

@@ -12,8 +12,7 @@
         :class="{ invalid: !isValid && jqlInput.trim() }"
         placeholder="JQL: status = todo AND priority = high"
         @input="onInput"
-        @keydown.enter="onSearch"
-        @keydown.escape="onClear"
+        @keydown="onKeydown"
         @focus="showSuggestions = true"
         @blur="hideSuggestions"
       />
@@ -55,6 +54,11 @@
       </div>
     </div>
 
+    <!-- Context hint -->
+    <div v-if="contextHint && !syntaxError && jqlInput" class="jql-hint">
+      {{ contextHint }}
+    </div>
+
     <!-- Error message -->
     <div v-if="syntaxError && jqlInput.trim()" class="jql-error">
       {{ displayError }}
@@ -89,6 +93,20 @@ const emit = defineEmits(['search', 'clear'])
 
 const jqlStore = useJqlStore()
 
+const FIELD_OPERATOR_MAP = {
+  priority: ['=', '!=', 'in', 'not in', 'IS EMPTY'],
+  status:   ['=', '!=', 'in', 'not in', 'IS EMPTY'],
+  type:     ['=', '!=', 'in', 'not in'],
+  severity: ['=', '!=', 'in', 'not in', 'IS EMPTY'],
+  assignee: ['=', '!=', 'in', 'IS EMPTY', 'IS NOT EMPTY'],
+  reporter: ['=', '!=', 'in', 'IS EMPTY', 'IS NOT EMPTY'],
+  labels:   ['=', 'in', 'not in', 'IS EMPTY', 'IS NOT EMPTY'],
+  created:  ['>', '<', '>=', '<=', '=', 'WAS', 'CHANGED'],
+  updated:  ['>', '<', '>=', '<=', '=', 'CHANGED'],
+  due:      ['>', '<', '>=', '<=', '=', 'IS EMPTY'],
+  title:    ['~', '!~', '=', '!=', 'IS EMPTY'],
+}
+
 const inputRef = ref(null)
 const jqlInput = ref('')
 const showSuggestions = ref(false)
@@ -96,6 +114,7 @@ const activeSuggestion = ref(-1)
 const showSaveModal = ref(false)
 const filterName = ref('')
 const filterShared = ref(false)
+const suggestionRefs = ref([])
 
 let debounceTimer = null
 
@@ -174,6 +193,13 @@ function analyzeContext() {
   jqlStore.fetchSuggestions('', lastToken, props.projectId)
 }
 
+function showOperatorsFor(field) {
+  const ops = FIELD_OPERATOR_MAP[field.toLowerCase()] || ['=', '!=', 'in']
+  jqlStore.suggestions = ops.map(op => ({ value: op, label: '', type: 'operator' }))
+  showSuggestions.value = true
+  activeSuggestion.value = -1
+}
+
 function applySuggestion(s) {
   const text = jqlInput.value
   const cursor = inputRef.value?.selectionStart || text.length
@@ -181,9 +207,10 @@ function applySuggestion(s) {
   const after = text.substring(cursor)
   const tokens = before.trim().split(/\s+/).filter(Boolean)
   const OPERATORS = ['=', '!=', '>', '<', '>=', '<=', '~', '!~', 'in', 'not', 'is']
+  const FIELDS = Object.keys(FIELD_OPERATOR_MAP)
 
   let value = s.value
-  if (value.includes(' ')) value = `"${value}"`
+  if (value.includes(' ') && !value.startsWith('IS ')) value = `"${value}"`
 
   const prevToken = tokens[tokens.length - 2]
   const lastToken = tokens[tokens.length - 1]
@@ -205,8 +232,83 @@ function applySuggestion(s) {
   jqlInput.value = newBefore + ' ' + after.trimStart()
   showSuggestions.value = false
   jqlStore.suggestions = []
-  nextTick(() => analyzeContext())
+
+  // If we just inserted a field name, show operators for it
+  const insertedField = value.toLowerCase()
+  if (FIELDS.includes(insertedField)) {
+    nextTick(() => showOperatorsFor(insertedField))
+  } else {
+    nextTick(() => analyzeContext())
+  }
 }
+
+function onKeydown(e) {
+  const hasSuggestions = showSuggestions.value && suggestions.value.length > 0
+
+  if (e.key === 'ArrowDown' && hasSuggestions) {
+    e.preventDefault()
+    activeSuggestion.value = (activeSuggestion.value + 1) % suggestions.value.length
+    scrollToActive()
+  } else if (e.key === 'ArrowUp' && hasSuggestions) {
+    e.preventDefault()
+    activeSuggestion.value = activeSuggestion.value <= 0
+      ? suggestions.value.length - 1
+      : activeSuggestion.value - 1
+    scrollToActive()
+  } else if (e.key === 'Tab' && hasSuggestions) {
+    e.preventDefault()
+    const idx = activeSuggestion.value >= 0 ? activeSuggestion.value : 0
+    applySuggestion(suggestions.value[idx])
+  } else if (e.key === 'Enter') {
+    if (hasSuggestions && activeSuggestion.value >= 0) {
+      e.preventDefault()
+      applySuggestion(suggestions.value[activeSuggestion.value])
+    } else {
+      onSearch()
+    }
+  } else if (e.key === 'Escape') {
+    showSuggestions.value = false
+    activeSuggestion.value = -1
+  }
+}
+
+function scrollToActive() {
+  nextTick(() => {
+    const container = inputRef.value?.closest('.jql-bar')?.querySelector('.jql-autocomplete')
+    if (!container) return
+    const activeEl = container.querySelector('.suggestion-item.active')
+    if (activeEl) activeEl.scrollIntoView({ block: 'nearest' })
+  })
+}
+
+const contextHint = computed(() => {
+  const tokens = jqlInput.value.trim().split(/\s+/).filter(Boolean)
+  if (!tokens.length) return 'Например: priority = high AND type = bug'
+  const last = tokens[tokens.length - 1]?.toLowerCase()
+  const prev = tokens[tokens.length - 2]?.toLowerCase()
+  const OPERATORS = ['=', '!=', '>', '<', '>=', '<=', '~', '!~', 'in', 'not']
+  const CONJUNCTIONS = ['and', 'or']
+
+  if (CONJUNCTIONS.includes(last)) return 'field = value'
+
+  if (prev && OPERATORS.includes(prev)) {
+    const field = tokens.length >= 3 ? tokens[tokens.length - 3]?.toLowerCase() : prev
+    if (['priority', 'severity'].includes(field)) {
+      return `${field} ${prev} high | medium | low | critical`
+    }
+    if (['status'].includes(field)) {
+      return `${field} ${prev} todo | in_progress | review | done`
+    }
+    return `${field} ${prev} value`
+  }
+
+  const FIELDS = Object.keys(FIELD_OPERATOR_MAP)
+  if (FIELDS.includes(last) && !OPERATORS.includes(last)) {
+    return `${last} = value`
+  }
+
+  return ''
+})
 
 function hideSuggestions() {
   setTimeout(() => { showSuggestions.value = false }, 200)
@@ -402,6 +504,14 @@ defineExpose({ setJQL })
 
 .suggestion-value { font-family: monospace; }
 .suggestion-label { color: var(--text-secondary); font-size: 12px; }
+
+.jql-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  padding: 2px 36px;
+  font-family: 'JetBrains Mono', monospace;
+}
 
 .jql-error {
   color: #ef4444;
