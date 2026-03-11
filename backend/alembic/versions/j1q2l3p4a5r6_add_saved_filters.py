@@ -1,7 +1,7 @@
 """Add saved_filters table for JQL.
 
 Revision ID: j1q2l3p4a5r6
-Revises: n1o2t3i4f5y6
+Revises: el019_workflow
 Create Date: 2026-03-11
 """
 
@@ -11,7 +11,7 @@ from sqlalchemy import inspect
 
 # revision identifiers
 revision = "j1q2l3p4a5r6"
-down_revision = "n1o2t3i4f5y6"
+down_revision = "el019_workflow"
 branch_labels = None
 depends_on = None
 
