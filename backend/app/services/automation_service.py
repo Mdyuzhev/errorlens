@@ -9,11 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.db_models import (
     AutomationRule,
     AutomationRun,
-    GitLabConnection,
     TaskComment,
     generate_uuid,
 )
-from app.repositories.automation_repo import AutomationRunRepository
 from app.repositories.gitlab_connection_repo import GitLabConnectionRepository
 from app.repositories.task_repo import TaskRepository
 from app.repositories.task_type_repo import TaskTypeRepository

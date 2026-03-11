@@ -42,7 +42,6 @@ async def handle_event(event: dict[str, Any]) -> None:
 
     async with async_session_maker() as db:
         rule_repo = AutomationRuleRepository(db)
-        run_repo = AutomationRunRepository(db)
         task_repo = TaskRepository(db)
         executor = AutomationExecutor(db)
 
