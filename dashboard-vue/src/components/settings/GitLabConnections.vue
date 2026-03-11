@@ -168,7 +168,7 @@ function formatDate(dateStr) {
 
 .project-select {
   padding: 8px 12px;
-  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   background: var(--bg-secondary);
   color: var(--text-primary);
@@ -286,7 +286,7 @@ function formatDate(dateStr) {
 .btn-secondary {
   background: var(--bg-secondary);
   color: var(--text-primary);
-  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  border: 1px solid var(--border-color);
 }
 
 .btn-danger {

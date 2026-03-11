@@ -362,7 +362,7 @@ onBeforeUnmount(() => {
 .grid-col {
   position: relative;
   background: var(--bg-card);
-  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 12px;
   min-height: 120px;
@@ -457,7 +457,7 @@ onBeforeUnmount(() => {
 .add-row-btn {
   width: 100%;
   padding: 12px;
-  border: 2px dashed var(--border-color, rgba(255,255,255,0.15));
+  border: 2px dashed var(--border-color);
   border-radius: 8px;
   background: none;
   color: var(--text-secondary);

@@ -109,7 +109,7 @@ watch(() => props.connectionId, () => {
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
-  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   background: var(--bg-secondary);
   cursor: pointer;
@@ -134,20 +134,20 @@ watch(() => props.connectionId, () => {
   right: 0;
   margin-top: 4px;
   background: var(--bg-card);
-  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   z-index: 100;
   max-height: 300px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-dropdown);
 }
 
 .search-input {
   padding: 10px 12px;
   border: none;
-  border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  border-bottom: 1px solid var(--border-color);
   background: transparent;
   color: var(--text-primary);
   font-size: 14px;

@@ -210,7 +210,7 @@ async function handleSave() {
 .form-group input[type="password"] {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   background: var(--bg-secondary);
   color: var(--text-primary);
@@ -260,7 +260,7 @@ async function handleSave() {
   border-radius: 11px;
   position: relative;
   transition: all 0.3s;
-  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  border: 1px solid var(--border-color);
 }
 
 .toggle-slider::after {
@@ -343,7 +343,7 @@ async function handleSave() {
 .btn-secondary {
   background: var(--bg-secondary);
   color: var(--text-primary);
-  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  border: 1px solid var(--border-color);
 }
 
 .btn-ghost {

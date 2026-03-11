@@ -365,7 +365,7 @@ onMounted(async () => {
 
 .list-filters select {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  border: 1px solid var(--border-color);
   color: var(--text-primary);
   padding: 4px 8px;
   border-radius: 6px;
