@@ -407,9 +407,9 @@ async function refreshTask() {
 
 function showError(msg) {
   if (toast) {
-    toast({ type: 'error', message: msg })
+    toast(msg, 'error')
   } else if (window.showToast) {
-    window.showToast({ type: 'error', message: msg })
+    window.showToast(msg, 'error')
   }
 }
 

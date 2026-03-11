@@ -320,11 +320,12 @@ async function changeStatus(s) {
     if (detail?.error === 'missing_required_fields') {
       const fieldNames = detail.fields.map(f => FIELD_DISPLAY_NAMES[f] || f).join(', ')
       if (window.showToast) {
-        window.showToast({ type: 'error', message: `Cannot change status: fill required fields first — ${fieldNames}` })
+        window.showToast(`Cannot change status: fill required fields first — ${fieldNames}`, 'error', 5000)
       }
     } else {
+      const msg = typeof detail === 'string' ? detail : 'Transition not allowed'
       if (window.showToast) {
-        window.showToast({ type: 'error', message: detail || 'Transition not allowed' })
+        window.showToast(msg, 'error')
       }
     }
   }
