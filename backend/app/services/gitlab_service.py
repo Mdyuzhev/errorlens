@@ -20,6 +20,7 @@ class GitLabService:
         method: str,
         path: str,
         params: dict[str, Any] | None = None,
+        json_body: dict[str, Any] | None = None,
     ) -> Any:
         """Make authenticated request to GitLab API."""
         token = decrypt_token(connection.token_encrypted)
@@ -30,7 +31,8 @@ class GitLabService:
                 verify=connection.verify_ssl, timeout=self.TIMEOUT
             ) as client:
                 response = await client.request(
-                    method, url, headers={"PRIVATE-TOKEN": token}, params=params
+                    method, url, headers={"PRIVATE-TOKEN": token},
+                    params=params, json=json_body,
                 )
         except (httpx.ConnectError, httpx.TimeoutException) as exc:
             raise GitLabConnectionError(
@@ -116,13 +118,14 @@ class GitLabService:
         variables: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         """Trigger a new pipeline on GitLab project."""
-        params: dict[str, Any] = {"ref": ref}
+        body: dict[str, Any] = {"ref": ref}
         if variables:
-            for i, var in enumerate(variables):
-                params[f"variables[{i}][key]"] = var["key"]
-                params[f"variables[{i}][value]"] = var["value"]
+            body["variables"] = [
+                {"key": v["key"], "value": v["value"]} for v in variables
+            ]
         data = await self._request(
-            connection, "POST", f"/projects/{project_id}/pipeline", params=params
+            connection, "POST", f"/projects/{project_id}/pipeline",
+            json_body=body,
         )
         return {
             "id": data["id"],
