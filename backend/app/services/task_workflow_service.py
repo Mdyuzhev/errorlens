@@ -40,12 +40,34 @@ class TaskWorkflowService:
         self.db = db
         self.repo = TaskTypeRepository(db)
 
-    async def validate_transition(self, task: Task, new_status_id: str) -> bool:
-        """Check if transition from current status to new status is allowed."""
+    async def validate_transition(self, task: Task, new_status_id: str) -> dict:
+        """Check if transition from current status to new status is allowed.
+
+        Returns dict: {"allowed": True} or {"allowed": False, "reason": ..., ...}
+        """
         if not task.status_id:
-            return True
+            return {"allowed": True}
         transitions = await self.repo.get_transitions_from(task.status_id)
-        return any(t.to_status_id == new_status_id for t in transitions)
+        transition = next(
+            (t for t in transitions if t.to_status_id == new_status_id), None
+        )
+        if not transition:
+            return {"allowed": False, "reason": "transition_not_found"}
+
+        # Check required_fields
+        required = transition.required_fields or []
+        if required:
+            missing = []
+            for field in required:
+                value = getattr(task, field, None)
+                if value is None:
+                    missing.append(field)
+                elif isinstance(value, list) and len(value) == 0:
+                    missing.append(field)
+            if missing:
+                return {"allowed": False, "reason": "missing_fields", "fields": missing}
+
+        return {"allowed": True}
 
     async def get_allowed_transitions(self, task: Task) -> list[TaskStatus]:
         """Get statuses the task can transition to from current status."""

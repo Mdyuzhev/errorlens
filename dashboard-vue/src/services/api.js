@@ -143,6 +143,7 @@ export const taskSettingsApi = {
   deleteStatus: (statusId) => api.delete(`/task-settings/statuses/${statusId}`),
   getTransitions: (typeId, projectId) => api.get(`/task-settings/types/${typeId}/transitions`, { params: { project_id: projectId } }),
   createTransition: (typeId, projectId, data) => api.post(`/task-settings/types/${typeId}/transitions`, data, { params: { project_id: projectId } }),
+  updateTransition: (transitionId, data) => api.put(`/task-settings/transitions/${transitionId}`, data),
   deleteTransition: (typeId, data) => api.delete(`/task-settings/types/${typeId}/transitions`, { data }),
   seedDefaults: (projectId) => api.post('/task-settings/seed', null, { params: { project_id: projectId } }),
 }

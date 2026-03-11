@@ -48,6 +48,10 @@ class TaskStatusUpdate(BaseModel):
 class TransitionCreate(BaseModel):
     from_status_id: str
     to_status_id: str
+    required_fields: list[str] = []
+
+class TransitionUpdate(BaseModel):
+    required_fields: list[str]
 
 class TransitionDelete(BaseModel):
     from_status_id: str
@@ -182,6 +186,7 @@ async def list_transitions(
             "id": t.id,
             "from_status_id": t.from_status_id,
             "to_status_id": t.to_status_id,
+            "required_fields": t.required_fields or [],
         }
         for t in transitions
     ]
@@ -199,8 +204,38 @@ async def create_transition(
     transition = await repo.create_transition(
         data.from_status_id, data.to_status_id, project_id
     )
+    if data.required_fields:
+        transition.required_fields = data.required_fields
+        await db.flush()
     await db.commit()
-    return {"id": transition.id, "from_status_id": transition.from_status_id, "to_status_id": transition.to_status_id}
+    return {
+        "id": transition.id,
+        "from_status_id": transition.from_status_id,
+        "to_status_id": transition.to_status_id,
+        "required_fields": transition.required_fields or [],
+    }
+
+
+@router.put("/transitions/{transition_id}")
+async def update_transition(
+    transition_id: str,
+    data: TransitionUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    repo = TaskTypeRepository(db)
+    transition = await repo.update_transition(
+        transition_id, {"required_fields": data.required_fields}
+    )
+    if not transition:
+        raise HTTPException(status_code=404, detail="Transition not found")
+    await db.commit()
+    return {
+        "id": transition.id,
+        "from_status_id": transition.from_status_id,
+        "to_status_id": transition.to_status_id,
+        "required_fields": transition.required_fields or [],
+    }
 
 
 @router.delete("/types/{type_id}/transitions")

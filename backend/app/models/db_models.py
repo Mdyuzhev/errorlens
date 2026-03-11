@@ -374,6 +374,7 @@ class StatusTransition(Base):
     project_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("projects.id", ondelete="CASCADE"), index=True
     )
+    required_fields: Mapped[list | None] = mapped_column(JSON, nullable=True, default=list)
 
     # Relationships
     from_status: Mapped["TaskStatus"] = relationship("TaskStatus", foreign_keys=[from_status_id])

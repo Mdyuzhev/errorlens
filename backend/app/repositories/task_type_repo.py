@@ -136,6 +136,21 @@ class TaskTypeRepository:
         await self.db.refresh(transition)
         return transition
 
+    async def get_transition_by_id(self, transition_id: str) -> StatusTransition | None:
+        result = await self.db.execute(
+            select(StatusTransition).where(StatusTransition.id == transition_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def update_transition(self, transition_id: str, data: dict) -> StatusTransition | None:
+        transition = await self.get_transition_by_id(transition_id)
+        if not transition:
+            return None
+        for k, v in data.items():
+            setattr(transition, k, v)
+        await self.db.flush()
+        return transition
+
     async def delete_transition(self, from_id: str, to_id: str) -> bool:
         stmt = delete(StatusTransition).where(
             StatusTransition.from_status_id == from_id,

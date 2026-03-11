@@ -294,16 +294,40 @@ async function loadRelations() {
   } catch { relations.value = [] }
 }
 
+const FIELD_DISPLAY_NAMES = {
+  assignee_id: 'Assignee',
+  due_date: 'Due Date',
+  estimated_hours: 'Estimated Hours',
+  severity: 'Severity',
+  environment: 'Environment',
+  reporter_id: 'Reporter',
+  labels: 'Labels',
+}
+
 async function changeStatus(s) {
   showStatusDropdown.value = false
-  if (s.id) {
-    await tasksApi.moveStatus(props.task.id, s.id)
-  } else {
-    await store.moveTask(props.task.id, s.slug)
+  try {
+    if (s.id) {
+      await tasksApi.moveStatus(props.task.id, s.id)
+    } else {
+      await store.moveTask(props.task.id, s.slug)
+    }
+    emit('updated')
+    await loadTransitions()
+    await loadActivity()
+  } catch (e) {
+    const detail = e.response?.data?.detail
+    if (detail?.error === 'missing_required_fields') {
+      const fieldNames = detail.fields.map(f => FIELD_DISPLAY_NAMES[f] || f).join(', ')
+      if (window.showToast) {
+        window.showToast({ type: 'error', message: `Cannot change status: fill required fields first — ${fieldNames}` })
+      }
+    } else {
+      if (window.showToast) {
+        window.showToast({ type: 'error', message: detail || 'Transition not allowed' })
+      }
+    }
   }
-  emit('updated')
-  await loadTransitions()
-  await loadActivity()
 }
 
 async function saveTask() {

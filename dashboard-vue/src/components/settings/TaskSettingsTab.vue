@@ -49,45 +49,36 @@
         </div>
       </div>
 
-      <!-- Workflows -->
+      <!-- Workflow Editor -->
       <div class="settings-section">
         <div class="section-title">
-          <h3>Workflows</h3>
+          <h3>Workflow Editor</h3>
+          <p class="section-hint">Configure statuses and allowed transitions per task type</p>
         </div>
 
-        <div class="workflow-select">
-          <select v-model="selectedTypeId" @change="loadWorkflow">
-            <option value="">Select type...</option>
-            <option v-for="t in types" :key="t.id" :value="t.id">{{ t.name }}</option>
-          </select>
+        <div class="type-tabs-nav">
+          <button
+            v-for="t in types"
+            :key="t.id"
+            class="type-tab-btn"
+            :class="{ active: selectedTypeId === t.id }"
+            :style="selectedTypeId === t.id ? { borderBottomColor: t.color } : {}"
+            @click="selectedTypeId = t.id"
+          >
+            <AppIcon :name="t.icon" :size="14" />
+            {{ t.name }}
+          </button>
         </div>
 
-        <div v-if="selectedTypeId && workflowStatuses.length" class="workflow-view">
-          <div v-for="s in workflowStatuses" :key="s.id" class="workflow-status">
-            <div class="status-header">
-              <span class="status-badge" :style="{ background: s.color }">{{ s.name }}</span>
-              <span v-if="s.is_initial" class="flag">initial</span>
-              <span v-if="s.is_final" class="flag">final</span>
-            </div>
-            <div class="transitions-list">
-              <span class="arrow-label">can transition to:</span>
-              <span
-                v-for="tid in getTransitionsFrom(s.id)"
-                :key="tid"
-                class="transition-target"
-                :style="{ background: getStatusById(tid)?.color || '#666' }"
-              >
-                {{ getStatusById(tid)?.name || '?' }}
-              </span>
-              <span v-if="!getTransitionsFrom(s.id).length" class="no-transitions">none</span>
-            </div>
-          </div>
-
-          <div class="workflow-actions">
-            <button class="btn btn-sm" @click="showAddStatus = true">+ Add Status</button>
-            <button class="btn btn-sm" @click="showAddTransition = true">+ Add Transition</button>
-          </div>
-        </div>
+        <WorkflowEditor
+          v-if="selectedTypeId"
+          :key="selectedTypeId"
+          :type-id="selectedTypeId"
+          :project-id="selectedProjectId"
+          :type-name="selectedTypeName"
+          @updated="loadTypes"
+        />
+        <div v-else class="empty-state">Select a task type above to edit its workflow</div>
       </div>
 
       <!-- Fields info -->
@@ -143,82 +134,26 @@
       </div>
     </div>
 
-    <!-- Add Status Modal -->
-    <div v-if="showAddStatus" class="modal-overlay" @click.self="showAddStatus = false">
-      <div class="modal-sm">
-        <h3>Add Status</h3>
-        <div class="form-group">
-          <label>Name</label>
-          <input v-model="newStatus.name" placeholder="e.g. Testing" />
-        </div>
-        <div class="form-group">
-          <label>Slug</label>
-          <input v-model="newStatus.slug" placeholder="e.g. testing" />
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Color</label>
-            <input v-model="newStatus.color" type="color" />
-          </div>
-          <div class="form-group">
-            <label>Flags</label>
-            <label class="checkbox-label"><input type="checkbox" v-model="newStatus.is_initial" /> Initial</label>
-            <label class="checkbox-label"><input type="checkbox" v-model="newStatus.is_final" /> Final</label>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button class="btn btn-secondary" @click="showAddStatus = false">Cancel</button>
-          <button class="btn btn-primary" @click="addStatus">Create</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Add Transition Modal -->
-    <div v-if="showAddTransition" class="modal-overlay" @click.self="showAddTransition = false">
-      <div class="modal-sm">
-        <h3>Add Transition</h3>
-        <div class="form-group">
-          <label>From Status</label>
-          <select v-model="newTransition.from_status_id">
-            <option value="">Select...</option>
-            <option v-for="s in workflowStatuses" :key="s.id" :value="s.id">{{ s.name }}</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>To Status</label>
-          <select v-model="newTransition.to_status_id">
-            <option value="">Select...</option>
-            <option v-for="s in workflowStatuses" :key="s.id" :value="s.id">{{ s.name }}</option>
-          </select>
-        </div>
-        <div class="modal-actions">
-          <button class="btn btn-secondary" @click="showAddTransition = false">Cancel</button>
-          <button class="btn btn-primary" @click="addTransition">Create</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { projectsApi, taskSettingsApi } from '@/services/api'
 import AppIcon from '@/components/common/AppIcon.vue'
+import WorkflowEditor from './WorkflowEditor.vue'
 
 const projects = ref([])
 const selectedProjectId = ref('')
 const types = ref([])
 const selectedTypeId = ref('')
-const workflowStatuses = ref([])
-const workflowTransitions = ref([])
 
 const showAddType = ref(false)
-const showAddStatus = ref(false)
-const showAddTransition = ref(false)
-
 const newType = ref({ name: '', slug: '', icon: 'check-square', color: '#3b82f6' })
-const newStatus = ref({ name: '', slug: '', color: '#6b7280', is_initial: false, is_final: false })
-const newTransition = ref({ from_status_id: '', to_status_id: '' })
+
+const selectedTypeName = computed(() =>
+  types.value.find(t => t.id === selectedTypeId.value)?.name || ''
+)
 
 onMounted(async () => {
   try {
@@ -234,30 +169,6 @@ async function loadTypes() {
     types.value = res.data
   } catch { types.value = [] }
   selectedTypeId.value = ''
-  workflowStatuses.value = []
-  workflowTransitions.value = []
-}
-
-async function loadWorkflow() {
-  if (!selectedTypeId.value) return
-  try {
-    const [statusRes, transRes] = await Promise.all([
-      taskSettingsApi.getStatuses(selectedTypeId.value, selectedProjectId.value),
-      taskSettingsApi.getTransitions(selectedTypeId.value, selectedProjectId.value),
-    ])
-    workflowStatuses.value = statusRes.data
-    workflowTransitions.value = transRes.data
-  } catch {}
-}
-
-function getTransitionsFrom(statusId) {
-  return workflowTransitions.value
-    .filter(t => t.from_status_id === statusId)
-    .map(t => t.to_status_id)
-}
-
-function getStatusById(id) {
-  return workflowStatuses.value.find(s => s.id === id)
 }
 
 async function toggleTypeActive(t) {
@@ -273,25 +184,6 @@ async function addType() {
     showAddType.value = false
     newType.value = { name: '', slug: '', icon: 'check-square', color: '#3b82f6' }
     await loadTypes()
-  } catch {}
-}
-
-async function addStatus() {
-  try {
-    await taskSettingsApi.createStatus(selectedTypeId.value, selectedProjectId.value, newStatus.value)
-    showAddStatus.value = false
-    newStatus.value = { name: '', slug: '', color: '#6b7280', is_initial: false, is_final: false }
-    await loadWorkflow()
-    await loadTypes()
-  } catch {}
-}
-
-async function addTransition() {
-  try {
-    await taskSettingsApi.createTransition(selectedTypeId.value, selectedProjectId.value, newTransition.value)
-    showAddTransition.value = false
-    newTransition.value = { from_status_id: '', to_status_id: '' }
-    await loadWorkflow()
   } catch {}
 }
 </script>
@@ -398,80 +290,34 @@ async function addTransition() {
 .status-pill.initial { box-shadow: 0 0 0 2px rgba(255,255,255,0.5); }
 .status-pill.final { opacity: 0.8; }
 
-.workflow-select {
-  margin-bottom: 16px;
-}
-
-.workflow-view {
-  background: var(--bg-card);
-  border-radius: 8px;
-  padding: 16px;
-}
-
-.workflow-status {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--bg-secondary);
-}
-
-.workflow-status:last-of-type {
-  border-bottom: none;
-}
-
-.status-header {
+.type-tabs-nav {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: 2px;
+  border-bottom: 2px solid var(--bg-secondary);
+  margin-bottom: 20px;
 }
-
-.status-badge {
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 13px;
-  color: white;
-  font-weight: 500;
-}
-
-.flag {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-}
-
-.transitions-list {
+.type-tab-btn {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
-  padding-left: 12px;
-}
-
-.arrow-label {
-  font-size: 12px;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
   color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
 }
-
-.transition-target {
-  padding: 1px 6px;
-  border-radius: 8px;
-  font-size: 11px;
-  color: white;
-}
-
-.no-transitions {
-  font-size: 12px;
+.type-tab-btn:hover { color: var(--text-primary); }
+.type-tab-btn.active { color: var(--text-primary); }
+.section-hint {
+  font-size: 13px;
   color: var(--text-secondary);
-  font-style: italic;
-}
-
-.workflow-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--bg-secondary);
+  margin: 0;
 }
 
 .fields-info {

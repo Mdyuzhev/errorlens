@@ -35,10 +35,11 @@ class TestTaskWorkflowService:
 
         mock_transition = MagicMock()
         mock_transition.to_status_id = "status-in-progress"
+        mock_transition.required_fields = []
 
         with patch.object(workflow_service.repo, "get_transitions_from", return_value=[mock_transition]):
             result = await workflow_service.validate_transition(mock_task, "status-in-progress")
-            assert result is True
+            assert result == {"allowed": True}
 
     @pytest.mark.asyncio
     async def test_invalid_transition(self, workflow_service):
@@ -48,10 +49,11 @@ class TestTaskWorkflowService:
 
         mock_transition = MagicMock()
         mock_transition.to_status_id = "status-in-progress"
+        mock_transition.required_fields = []
 
         with patch.object(workflow_service.repo, "get_transitions_from", return_value=[mock_transition]):
             result = await workflow_service.validate_transition(mock_task, "status-done")
-            assert result is False
+            assert result == {"allowed": False, "reason": "transition_not_found"}
 
     @pytest.mark.asyncio
     async def test_transition_without_status_id(self, workflow_service):
@@ -60,7 +62,58 @@ class TestTaskWorkflowService:
         mock_task.status_id = None
 
         result = await workflow_service.validate_transition(mock_task, "any-status")
-        assert result is True
+        assert result == {"allowed": True}
+
+    @pytest.mark.asyncio
+    async def test_transition_with_required_fields_filled(self, workflow_service):
+        """Test transition allowed when required fields are filled."""
+        mock_task = MagicMock()
+        mock_task.status_id = "status-todo"
+        mock_task.assignee_id = "user-1"
+        mock_task.due_date = "2026-03-15"
+
+        mock_transition = MagicMock()
+        mock_transition.to_status_id = "status-in-progress"
+        mock_transition.required_fields = ["assignee_id", "due_date"]
+
+        with patch.object(workflow_service.repo, "get_transitions_from", return_value=[mock_transition]):
+            result = await workflow_service.validate_transition(mock_task, "status-in-progress")
+            assert result == {"allowed": True}
+
+    @pytest.mark.asyncio
+    async def test_transition_with_required_fields_missing(self, workflow_service):
+        """Test transition blocked when required fields are missing."""
+        mock_task = MagicMock()
+        mock_task.status_id = "status-todo"
+        mock_task.assignee_id = None
+        mock_task.due_date = None
+
+        mock_transition = MagicMock()
+        mock_transition.to_status_id = "status-done"
+        mock_transition.required_fields = ["assignee_id", "due_date"]
+
+        with patch.object(workflow_service.repo, "get_transitions_from", return_value=[mock_transition]):
+            result = await workflow_service.validate_transition(mock_task, "status-done")
+            assert result["allowed"] is False
+            assert result["reason"] == "missing_fields"
+            assert set(result["fields"]) == {"assignee_id", "due_date"}
+
+    @pytest.mark.asyncio
+    async def test_transition_with_empty_labels(self, workflow_service):
+        """Test transition blocked when labels required but empty list."""
+        mock_task = MagicMock()
+        mock_task.status_id = "status-todo"
+        mock_task.labels = []
+
+        mock_transition = MagicMock()
+        mock_transition.to_status_id = "status-done"
+        mock_transition.required_fields = ["labels"]
+
+        with patch.object(workflow_service.repo, "get_transitions_from", return_value=[mock_transition]):
+            result = await workflow_service.validate_transition(mock_task, "status-done")
+            assert result["allowed"] is False
+            assert result["reason"] == "missing_fields"
+            assert result["fields"] == ["labels"]
 
     @pytest.mark.asyncio
     async def test_seed_defaults(self, workflow_service):

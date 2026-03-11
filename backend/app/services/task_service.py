@@ -312,12 +312,23 @@ class TaskService:
             return None
 
         workflow = TaskWorkflowService(self.db)
-        if task.status_id and not await workflow.validate_transition(task, new_status_id):
-            from fastapi import HTTPException
-            raise HTTPException(
-                status_code=400,
-                detail="Status transition not allowed",
-            )
+        if task.status_id:
+            result = await workflow.validate_transition(task, new_status_id)
+            if not result["allowed"]:
+                from fastapi import HTTPException
+                if result["reason"] == "missing_fields":
+                    raise HTTPException(
+                        status_code=422,
+                        detail={
+                            "error": "missing_required_fields",
+                            "fields": result["fields"],
+                            "message": f"Fill required fields before transition: {', '.join(result['fields'])}",
+                        },
+                    )
+                raise HTTPException(
+                    status_code=400,
+                    detail="Status transition not allowed",
+                )
 
         # Get status slug for backward compat
         from app.repositories.task_type_repo import TaskTypeRepository
