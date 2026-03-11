@@ -64,7 +64,7 @@ def mock_auth_token():
 
 
 class TestGenerateFromSession:
-    """Tests for /api/v1/generation/from-session/{session_id} endpoint."""
+    """Tests for /v1/generation/from-session/{session_id} endpoint."""
 
     @patch("app.routers.generation.publish", new_callable=AsyncMock)
     @patch("app.services.generation_service.GenerationService.create_task_from_session")
@@ -85,7 +85,7 @@ class TestGenerateFromSession:
 
         try:
             response = client.post(
-                "/api/v1/generation/from-session/test-session-id",
+                "/v1/generation/from-session/test-session-id",
                 headers={"Authorization": mock_auth_token},
                 data={
                     "framework": "pytest",
@@ -117,7 +117,7 @@ class TestGenerateFromSession:
 
         try:
             response = client.post(
-                "/api/v1/generation/from-session/nonexistent-session",
+                "/v1/generation/from-session/nonexistent-session",
                 headers={"Authorization": mock_auth_token},
                 data={"framework": "pytest"}
             )
@@ -146,7 +146,7 @@ class TestGenerateFromSession:
 
         try:
             response = client.post(
-                "/api/v1/generation/from-session/empty-session-id",
+                "/v1/generation/from-session/empty-session-id",
                 headers={"Authorization": mock_auth_token},
                 data={"framework": "pytest"}
             )
@@ -159,7 +159,7 @@ class TestGenerateFromSession:
     def test_from_session_auth_required(self):
         """Generate from session without auth returns 401."""
         response = client.post(
-            "/api/v1/generation/from-session/test-session-id",
+            "/v1/generation/from-session/test-session-id",
             data={"framework": "pytest"}
         )
 
@@ -183,7 +183,7 @@ class TestGenerateFromSession:
 
         try:
             response = client.post(
-                "/api/v1/generation/from-session/test-session-id",
+                "/v1/generation/from-session/test-session-id",
                 headers={"Authorization": mock_auth_token},
                 data={
                     "framework": "unittest",

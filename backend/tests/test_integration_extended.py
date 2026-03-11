@@ -75,14 +75,14 @@ class TestGenerationEndpoints:
     """Test generation endpoints with edge cases."""
 
     def test_from_swagger_empty_paths(self, client):
-        """POST /api/v1/generation/from-swagger - accepts empty swagger."""
+        """POST /v1/generation/from-swagger - accepts empty swagger."""
         token = get_token(client)
 
         import io
         empty_swagger = io.BytesIO(b'{"paths": {}}')
 
         response = client.post(
-            "/api/v1/generation/from-swagger",
+            "/v1/generation/from-swagger",
             files={"file": ("swagger.json", empty_swagger, "application/json")},
             data={"framework": "pytest", "provider": "ollama"},
             headers=auth_headers(token)
@@ -90,20 +90,20 @@ class TestGenerationEndpoints:
         assert response.status_code in [200, 202, 400, 422]
 
     def test_from_session_no_requests(self, client):
-        """POST /api/v1/generation/from-session - returns 400 when session has no requests."""
+        """POST /v1/generation/from-session - returns 400 when session has no requests."""
         token = get_token(client)
         response = client.post(
-            "/api/v1/generation/from-session",
+            "/v1/generation/from-session",
             json={"session_id": "nonexistent", "framework": "pytest", "provider": "ollama"},
             headers=auth_headers(token)
         )
         assert response.status_code in [400, 404]
 
     def test_from_session_not_found(self, client):
-        """POST /api/v1/generation/from-session - returns 404 for nonexistent session."""
+        """POST /v1/generation/from-session - returns 404 for nonexistent session."""
         token = get_token(client)
         response = client.post(
-            "/api/v1/generation/from-session",
+            "/v1/generation/from-session",
             json={"session_id": "nonexistent-id-12345", "framework": "pytest", "provider": "ollama"},
             headers=auth_headers(token)
         )

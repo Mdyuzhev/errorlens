@@ -47,17 +47,17 @@ def mock_generation_result():
 
 
 class TestGenerationHealthEndpoint:
-    """Tests for /api/v1/generation/health endpoint."""
+    """Tests for /v1/generation/health endpoint."""
 
     def test_health_check(self):
         """Health endpoint returns ok status."""
-        response = client.get("/api/v1/generation/health")
+        response = client.get("/v1/generation/health")
         assert response.status_code == 200
         assert response.json() == {"status": "ok"}
 
 
 class TestGenerateFromSwagger:
-    """Tests for /api/v1/generation/from-swagger endpoint."""
+    """Tests for /v1/generation/from-swagger endpoint."""
 
     @patch("app.routers.generation.publish", new_callable=AsyncMock)
     @patch("app.services.generation_service.GenerationService.create_task")
@@ -66,7 +66,7 @@ class TestGenerateFromSwagger:
         mock_create_task.return_value = "test-task-id"
 
         response = client.post(
-            "/api/v1/generation/from-swagger",
+            "/v1/generation/from-swagger",
             files={"file": ("swagger.json", json.dumps(mock_swagger_spec), "application/json")},
             data={"framework": "pytest", "provider": "anthropic"}
         )
@@ -82,7 +82,7 @@ class TestGenerateFromSwagger:
         invalid_spec = {"openapi": "3.0.0"}  # Missing 'paths'
 
         response = client.post(
-            "/api/v1/generation/from-swagger",
+            "/v1/generation/from-swagger",
             files={"file": ("swagger.json", json.dumps(invalid_spec), "application/json")},
             data={"framework": "pytest"}
         )
@@ -111,7 +111,7 @@ paths:
 """
 
         response = client.post(
-            "/api/v1/generation/from-swagger",
+            "/v1/generation/from-swagger",
             files={"file": ("swagger.yaml", yaml_content, "application/yaml")},
             data={"framework": "pytest", "provider": "openai", "model": "gpt-4"}
         )
@@ -121,14 +121,14 @@ paths:
 
 
 class TestGetResult:
-    """Tests for /api/v1/generation/result/{result_id} endpoint."""
+    """Tests for /v1/generation/result/{result_id} endpoint."""
 
     @patch("app.services.generation_service.GenerationService.get_result")
     def test_get_existing_result(self, mock_get_result, mock_generation_result):
         """Get result returns generation data."""
         mock_get_result.return_value = mock_generation_result
 
-        response = client.get("/api/v1/generation/result/test-result-id")
+        response = client.get("/v1/generation/result/test-result-id")
 
         assert response.status_code == 200
         data = response.json()
@@ -144,21 +144,21 @@ class TestGetResult:
         """Get nonexistent result returns 404."""
         mock_get_result.return_value = None
 
-        response = client.get("/api/v1/generation/result/nonexistent")
+        response = client.get("/v1/generation/result/nonexistent")
 
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
 
 
 class TestDownloadResult:
-    """Tests for /api/v1/generation/download/{result_id} endpoint."""
+    """Tests for /v1/generation/download/{result_id} endpoint."""
 
     @patch("app.services.generation_service.GenerationService.get_result")
     def test_download_valid_result(self, mock_get_result, mock_generation_result):
         """Download result returns ZIP archive."""
         mock_get_result.return_value = mock_generation_result
 
-        response = client.get("/api/v1/generation/download/test-result-id")
+        response = client.get("/v1/generation/download/test-result-id")
 
         assert response.status_code == 200
         assert response.headers["content-type"] == "application/zip"
@@ -170,6 +170,6 @@ class TestDownloadResult:
         """Download nonexistent result returns 404."""
         mock_get_result.return_value = None
 
-        response = client.get("/api/v1/generation/download/nonexistent")
+        response = client.get("/v1/generation/download/nonexistent")
 
         assert response.status_code == 404

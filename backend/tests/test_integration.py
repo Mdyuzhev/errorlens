@@ -288,39 +288,39 @@ class TestTestRunsEndpoints:
 # GENERATION ENDPOINTS
 # =============================================================================
 class TestGenerationEndpoints:
-    """Test generation endpoints: /api/v1/generation/*"""
+    """Test generation endpoints: /v1/generation/*"""
 
     def test_generation_health(self, client):
-        """GET /api/v1/generation/health - returns health status."""
-        response = client.get("/api/v1/generation/health")
+        """GET /v1/generation/health - returns health status."""
+        response = client.get("/v1/generation/health")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ok"
 
     def test_generation_from_swagger_requires_file(self, client):
-        """POST /api/v1/generation/from-swagger - requires file."""
+        """POST /v1/generation/from-swagger - requires file."""
         token = get_token(client, "owner1", "Test123!")
         response = client.post(
-            "/api/v1/generation/from-swagger",
+            "/v1/generation/from-swagger",
             data={"framework": "pytest", "provider": "ollama"},
             headers=auth_headers(token),
         )
         assert response.status_code == 422
 
     def test_generation_result_not_found(self, client):
-        """GET /api/v1/generation/result/{id} - returns 404."""
+        """GET /v1/generation/result/{id} - returns 404."""
         token = get_token(client, "owner1", "Test123!")
         response = client.get(
-            "/api/v1/generation/result/nonexistent",
+            "/v1/generation/result/nonexistent",
             headers=auth_headers(token)
         )
         assert response.status_code == 404
 
     def test_generation_download_not_found(self, client):
-        """GET /api/v1/generation/download/{id} - returns 404."""
+        """GET /v1/generation/download/{id} - returns 404."""
         token = get_token(client, "owner1", "Test123!")
         response = client.get(
-            "/api/v1/generation/download/nonexistent",
+            "/v1/generation/download/nonexistent",
             headers=auth_headers(token)
         )
         assert response.status_code == 404
