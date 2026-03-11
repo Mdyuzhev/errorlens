@@ -307,7 +307,7 @@ class TaskService:
 
     async def move_task_by_status_id(self, task_id: str, new_status_id: str, actor_id: str | None = None) -> Task | None:
         """Move task to new status by status_id with workflow validation."""
-        task = await self.repo.get_by_id(task_id)
+        task = await self.repo.get_by_id_full(task_id)
         if not task:
             return None
 
