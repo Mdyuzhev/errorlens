@@ -26,6 +26,13 @@
         Tasks
       </button>
       <button
+        class="tab"
+        :class="{ active: activeTab === 'integrations' }"
+        @click="activeTab = 'integrations'"
+      >
+        Integrations
+      </button>
+      <button
         v-if="auth.user?.is_admin"
         class="tab"
         :class="{ active: activeTab === 'users' }"
@@ -188,6 +195,11 @@
       <TaskSettingsTab />
     </div>
 
+    <!-- Integrations tab -->
+    <div v-if="activeTab === 'integrations'" class="tab-content">
+      <GitLabConnections />
+    </div>
+
     <!-- Users tab (admin only) -->
     <div v-if="activeTab === 'users'" class="tab-content">
       <UsersTab v-if="auth.user?.is_admin" />
@@ -207,6 +219,7 @@ import LLMSettings from '@/components/generator/ProviderSelector.vue'
 import ProjectsTab from '@/components/settings/ProjectsTab.vue'
 import TaskSettingsTab from '@/components/settings/TaskSettingsTab.vue'
 import UsersTab from '@/components/settings/UsersTab.vue'
+import GitLabConnections from '@/components/settings/GitLabConnections.vue'
 
 const auth = useAuthStore()
 const themeStore = useThemeStore()
