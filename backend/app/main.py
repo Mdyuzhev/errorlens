@@ -27,6 +27,7 @@ from app.routers import (
     generation,
     gitlab_connections,
     integrations,
+    launches,
     notifications,
     projects,
     sessions,
@@ -133,6 +134,7 @@ app.include_router(test_plans.router)
 app.include_router(generation.router)  # Wave 4.0: Generation API
 app.include_router(notifications.router)  # EL018: Notifications
 app.include_router(gitlab_connections.router)  # EL020: GitLab Integration
+app.include_router(launches.router)  # EL022: Launch upload from CI
 app.include_router(ws_router)  # Wave 4.0: WebSocket
 
 # Static files setup
