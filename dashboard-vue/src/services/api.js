@@ -273,6 +273,17 @@ export const notificationsApi = {
   markAllRead: () => api.post('/api/v1/notifications/read-all'),
 }
 
+// Automations API
+export const automationsApi = {
+  getRules: (projectId) => api.get('/api/v1/automations/rules', { params: { project_id: projectId } }),
+  createRule: (data) => api.post('/api/v1/automations/rules', data),
+  updateRule: (id, data) => api.put(`/api/v1/automations/rules/${id}`, data),
+  deleteRule: (id) => api.delete(`/api/v1/automations/rules/${id}`),
+  getRuleRuns: (ruleId) => api.get(`/api/v1/automations/rules/${ruleId}/runs`),
+  getTaskRuns: (taskId) => api.get('/api/v1/automations/runs', { params: { task_id: taskId, limit: 5 } }),
+  getRun: (id) => api.get(`/api/v1/automations/runs/${id}`),
+}
+
 // GitLab API
 export const gitlabApi = {
   listConnections: (projectId) => api.get('/api/v1/gitlab/connections', { params: { project_id: projectId } }),

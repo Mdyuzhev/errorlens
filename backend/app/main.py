@@ -22,6 +22,7 @@ from app.routers import (
     article_images,
     articles,
     auth,
+    automations,
     entity_links,
     exports,
     generation,
@@ -139,6 +140,7 @@ app.include_router(notifications.router)  # EL018: Notifications
 app.include_router(gitlab_connections.router)  # EL020: GitLab Integration
 app.include_router(launches.router)  # EL022: Launch upload from CI
 app.include_router(saved_filters.router)  # EL023: JQL saved filters
+app.include_router(automations.router)  # EL025: Task Automations
 app.include_router(ws_router)  # Wave 4.0: WebSocket
 
 # Static files setup

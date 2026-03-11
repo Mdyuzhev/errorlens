@@ -107,3 +107,44 @@ class GitLabService:
             params={"per_page": 100},
         )
         return [b["name"] for b in data]
+
+    async def run_pipeline(
+        self,
+        connection: GitLabConnection,
+        project_id: int,
+        ref: str = "main",
+        variables: list[dict[str, str]] | None = None,
+    ) -> dict[str, Any]:
+        """Trigger a new pipeline on GitLab project."""
+        params: dict[str, Any] = {"ref": ref}
+        if variables:
+            for i, var in enumerate(variables):
+                params[f"variables[{i}][key]"] = var["key"]
+                params[f"variables[{i}][value]"] = var["value"]
+        data = await self._request(
+            connection, "POST", f"/projects/{project_id}/pipeline", params=params
+        )
+        return {
+            "id": data["id"],
+            "status": data["status"],
+            "ref": data["ref"],
+            "web_url": data["web_url"],
+        }
+
+    async def get_pipeline_status(
+        self,
+        connection: GitLabConnection,
+        project_id: int,
+        pipeline_id: int,
+    ) -> dict[str, Any]:
+        """Get status of a specific pipeline."""
+        data = await self._request(
+            connection, "GET", f"/projects/{project_id}/pipelines/{pipeline_id}"
+        )
+        return {
+            "id": data["id"],
+            "status": data["status"],
+            "ref": data.get("ref", ""),
+            "web_url": data.get("web_url", ""),
+            "finished_at": data.get("finished_at"),
+        }

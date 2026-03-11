@@ -116,15 +116,31 @@
             <span v-for="l in task.labels" :key="l" class="label-tag">{{ l }}</span>
           </div>
         </div>
+
+        <!-- Automation Runs -->
+        <div v-if="automationRuns.length" class="sidebar-section">
+          <h4>Automation</h4>
+          <div v-for="run in automationRuns" :key="run.id" class="auto-run-item">
+            <div class="auto-run-header">
+              <span class="auto-run-name">{{ run.rule_name || 'Rule' }}</span>
+              <span class="auto-run-status" :class="run.status">{{ run.status }}</span>
+            </div>
+            <div v-if="run.gitlab_pipeline_id" class="auto-run-pipeline">
+              Pipeline #{{ run.gitlab_pipeline_id }}
+              <span v-if="run.status === 'running'" class="auto-spinner"></span>
+            </div>
+            <div class="auto-run-time">{{ formatTimeAgo(run.started_at) }}</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useTasksStore } from '@/stores/tasks'
-import { tasksApi } from '@/services/api'
+import { tasksApi, automationsApi } from '@/services/api'
 import RichEditor from '@/components/common/RichEditor.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 import TaskActivityFeed from './TaskActivityFeed.vue'
@@ -139,6 +155,8 @@ defineEmits(['close', 'edit', 'open-task'])
 const store = useTasksStore()
 const activity = ref([])
 const relations = ref([])
+const automationRuns = ref([])
+let autoRunsPollTimer = null
 
 function parseContent(raw) {
   if (!raw) return null
@@ -179,14 +197,45 @@ async function loadRelations() {
   } catch { relations.value = [] }
 }
 
+async function loadAutomationRuns() {
+  try {
+    const res = await automationsApi.getTaskRuns(props.task.id)
+    automationRuns.value = res.data
+    // Poll if any are running
+    if (res.data.some(r => r.status === 'running')) {
+      if (!autoRunsPollTimer) {
+        autoRunsPollTimer = setInterval(loadAutomationRuns, 10000)
+      }
+    } else if (autoRunsPollTimer) {
+      clearInterval(autoRunsPollTimer)
+      autoRunsPollTimer = null
+    }
+  } catch { automationRuns.value = [] }
+}
+
+function formatTimeAgo(iso) {
+  if (!iso) return ''
+  const diff = Math.floor((Date.now() - new Date(iso)) / 1000)
+  if (diff < 60) return 'just now'
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  return `${Math.floor(diff / 86400)}d ago`
+}
+
 onMounted(() => {
   loadActivity()
   loadRelations()
+  loadAutomationRuns()
+})
+
+onUnmounted(() => {
+  if (autoRunsPollTimer) clearInterval(autoRunsPollTimer)
 })
 
 watch(() => props.task.id, () => {
   loadActivity()
   loadRelations()
+  loadAutomationRuns()
 })
 </script>
 
@@ -448,6 +497,59 @@ watch(() => props.task.id, () => {
   color: var(--text-secondary);
   font-style: italic;
 }
+
+/* Automation runs */
+.auto-run-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--bg-secondary);
+  font-size: 13px;
+}
+.auto-run-item:last-child { border-bottom: none; }
+
+.auto-run-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.auto-run-name {
+  font-weight: 500;
+}
+
+.auto-run-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+.auto-run-status.completed { background: rgba(76, 175, 80, 0.15); color: #4caf50; }
+.auto-run-status.failed { background: rgba(229, 57, 53, 0.15); color: #e53935; }
+.auto-run-status.running { background: rgba(33, 150, 243, 0.15); color: #2196f3; }
+.auto-run-status.pending { background: var(--bg-secondary); color: var(--text-secondary); }
+
+.auto-run-pipeline {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.auto-run-time {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.auto-spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 768px) {
   .viewer-body {

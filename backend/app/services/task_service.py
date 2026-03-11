@@ -238,7 +238,7 @@ class TaskService:
                     )
 
         for key, value in updates.items():
-            if value is not None:
+            if value is not None and not key.startswith("_"):
                 setattr(task, key, value)
 
         # Set completed_at when moving to done
@@ -260,6 +260,9 @@ class TaskService:
                 {
                     "id": task.id, "title": task.title,
                     "old_status": old_status, "new_status": new_status,
+                    "from_status_id": updates.get("_old_status_id", ""),
+                    "to_status_id": task.status_id or "",
+                    "type_id": task.type_id or "",
                     "assignee_id": task.assignee_id or task.assignee,
                 },
                 project_id=task.project_id,
@@ -301,7 +304,10 @@ class TaskService:
                     detail=f"Transition from '{old_status}' to '{new_status}' is not allowed",
                 )
             # Update both status_id and status slug
-            return await self.update_task(task_id, actor_id=actor_id, status=new_status, status_id=target.id)
+            return await self.update_task(
+                task_id, actor_id=actor_id, status=new_status,
+                status_id=target.id, _old_status_id=task.status_id or "",
+            )
 
         return await self.update_task(task_id, actor_id=actor_id, status=new_status)
 
@@ -351,6 +357,7 @@ class TaskService:
         return await self.update_task(
             task_id, actor_id=actor_id,
             status=new_status.slug, status_id=new_status_id,
+            _old_status_id=task.status_id or "",
         )
 
     async def delete_task(self, task_id: str) -> bool:

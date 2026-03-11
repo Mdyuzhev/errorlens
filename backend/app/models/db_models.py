@@ -984,3 +984,61 @@ class SavedFilter(Base):
     is_shared: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class AutomationRule(Base):
+    """Automation rule: event trigger → actions."""
+
+    __tablename__ = "automation_rules"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    task_type_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("task_types.id", ondelete="SET NULL"), nullable=True
+    )
+    name: Mapped[str] = mapped_column(String(200))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    trigger_event: Mapped[str] = mapped_column(String(50))
+    trigger_conditions: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    actions: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    project: Mapped[Optional["Project"]] = relationship("Project")
+    task_type: Mapped[Optional["TaskType"]] = relationship("TaskType")
+    runs: Mapped[list["AutomationRun"]] = relationship(
+        "AutomationRun", back_populates="rule", cascade="all, delete-orphan"
+    )
+
+
+class AutomationRun(Base):
+    """Single execution of an automation rule."""
+
+    __tablename__ = "automation_runs"
+    __table_args__ = (
+        Index("ix_automation_runs_status_pipeline", "status", "gitlab_pipeline_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    rule_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("automation_rules.id", ondelete="SET NULL"), nullable=True
+    )
+    task_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    trigger_event: Mapped[str] = mapped_column(String(50))
+    trigger_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    actions_log: Mapped[list | None] = mapped_column(JSON, nullable=True, default=list)
+    gitlab_pipeline_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    gitlab_connection_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    gitlab_project_path: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    pending_actions: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    rule: Mapped[Optional["AutomationRule"]] = relationship("AutomationRule", back_populates="runs")
+    task: Mapped[Optional["Task"]] = relationship("Task")

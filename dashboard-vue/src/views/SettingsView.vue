@@ -27,6 +27,13 @@
       </button>
       <button
         class="tab"
+        :class="{ active: activeTab === 'automations' }"
+        @click="activeTab = 'automations'"
+      >
+        Automations
+      </button>
+      <button
+        class="tab"
         :class="{ active: activeTab === 'integrations' }"
         @click="activeTab = 'integrations'"
       >
@@ -195,6 +202,11 @@
       <TaskSettingsTab />
     </div>
 
+    <!-- Automations tab -->
+    <div v-if="activeTab === 'automations'" class="tab-content">
+      <AutomationsTab />
+    </div>
+
     <!-- Integrations tab -->
     <div v-if="activeTab === 'integrations'" class="tab-content">
       <GitLabConnections />
@@ -220,6 +232,7 @@ import ProjectsTab from '@/components/settings/ProjectsTab.vue'
 import TaskSettingsTab from '@/components/settings/TaskSettingsTab.vue'
 import UsersTab from '@/components/settings/UsersTab.vue'
 import GitLabConnections from '@/components/settings/GitLabConnections.vue'
+import AutomationsTab from '@/components/settings/AutomationsTab.vue'
 
 const auth = useAuthStore()
 const themeStore = useThemeStore()
