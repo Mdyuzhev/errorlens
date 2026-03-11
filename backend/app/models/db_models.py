@@ -910,6 +910,38 @@ class Notification(Base):
         return f"<Notification {self.type} for {self.user_id[:8]}>"
 
 
+# ============= GitLab Integration =============
+
+
+class GitLabConnection(Base):
+    """GitLab connection for CI/CD integration."""
+
+    __tablename__ = "gitlab_connections"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    organization_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(200))
+    url: Mapped[str] = mapped_column(String(500))
+    token_encrypted: Mapped[str] = mapped_column(Text)
+    verify_ssl: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_check_ok: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_by: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE")
+    )
+
+    # Relationships
+    organization: Mapped["Project"] = relationship("Project")
+    creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])
+
+    def __repr__(self) -> str:
+        return f"<GitLabConnection {self.name} ({self.url})>"
+
+
 class EntityLink(Base):
     """Link between entities (article → article/testcase/task)."""
 
