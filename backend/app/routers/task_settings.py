@@ -9,6 +9,7 @@ from app.middleware.jwt_auth import require_auth
 from app.models.db_models import Task
 from app.models.user import User
 from app.repositories.task_type_repo import TaskTypeRepository
+from app.services import cache_service
 from app.services.task_workflow_service import TaskWorkflowService
 
 router = APIRouter(prefix="/task-settings", tags=["task-settings"])
@@ -66,9 +67,12 @@ async def list_types(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
-    repo = TaskTypeRepository(db)
-    types = await repo.get_types(project_id)
-    return [_type_to_dict(t) for t in types]
+    async def _fetch():
+        repo = TaskTypeRepository(db)
+        types = await repo.get_types(project_id)
+        return [_type_to_dict(t) for t in types]
+
+    return await cache_service.get_or_set(f"task_types:{project_id}", _fetch, ttl=300)
 
 
 @router.post("/types")
@@ -84,6 +88,7 @@ async def create_type(
         raise HTTPException(status_code=400, detail="Type slug already exists")
     task_type = await repo.create_type({**data.model_dump(), "project_id": project_id})
     await db.commit()
+    await cache_service.invalidate_prefix(f"task_types:{project_id}")
     return _type_to_dict(task_type)
 
 
@@ -99,6 +104,7 @@ async def update_type(
     if not task_type:
         raise HTTPException(status_code=404, detail="Type not found")
     await db.commit()
+    await cache_service.invalidate_prefix(f"task_types:{task_type.project_id}")
     return _type_to_dict(task_type)
 
 
@@ -111,9 +117,14 @@ async def list_statuses(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
-    repo = TaskTypeRepository(db)
-    statuses = await repo.get_statuses(project_id, type_id)
-    return [_status_to_dict(s) for s in statuses]
+    async def _fetch():
+        repo = TaskTypeRepository(db)
+        statuses = await repo.get_statuses(project_id, type_id)
+        return [_status_to_dict(s) for s in statuses]
+
+    return await cache_service.get_or_set(
+        f"task_statuses:{project_id}:{type_id}", _fetch, ttl=300,
+    )
 
 
 @router.post("/types/{type_id}/statuses")
@@ -131,6 +142,8 @@ async def create_status(
         "task_type_id": type_id,
     })
     await db.commit()
+    await cache_service.invalidate_prefix(f"task_types:{project_id}")
+    await cache_service.invalidate_prefix(f"task_statuses:{project_id}")
     return _status_to_dict(status)
 
 
@@ -146,6 +159,8 @@ async def update_status(
     if not status:
         raise HTTPException(status_code=404, detail="Status not found")
     await db.commit()
+    await cache_service.invalidate_prefix(f"task_types:{status.project_id}")
+    await cache_service.invalidate_prefix(f"task_statuses:{status.project_id}")
     return _status_to_dict(status)
 
 
@@ -163,10 +178,16 @@ async def delete_status(
         raise HTTPException(status_code=400, detail=f"Cannot delete: {count} tasks use this status")
 
     repo = TaskTypeRepository(db)
+    status = await repo.get_status_by_id(status_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Status not found")
+    pid = status.project_id
     deleted = await repo.delete_status(status_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Status not found")
     await db.commit()
+    await cache_service.invalidate_prefix(f"task_types:{pid}")
+    await cache_service.invalidate_prefix(f"task_statuses:{pid}")
     return {"message": "Status deleted"}
 
 
@@ -208,6 +229,7 @@ async def create_transition(
         transition.required_fields = data.required_fields
         await db.flush()
     await db.commit()
+    await cache_service.invalidate_prefix(f"task_types:{project_id}")
     return {
         "id": transition.id,
         "from_status_id": transition.from_status_id,
@@ -230,6 +252,7 @@ async def update_transition(
     if not transition:
         raise HTTPException(status_code=404, detail="Transition not found")
     await db.commit()
+    await cache_service.invalidate_prefix(f"task_types:{transition.project_id}")
     return {
         "id": transition.id,
         "from_status_id": transition.from_status_id,
@@ -242,6 +265,7 @@ async def update_transition(
 async def delete_transition(
     type_id: str,
     data: TransitionDelete,
+    project_id: str = Query(...),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
@@ -250,6 +274,7 @@ async def delete_transition(
     if not deleted:
         raise HTTPException(status_code=404, detail="Transition not found")
     await db.commit()
+    await cache_service.invalidate_prefix(f"task_types:{project_id}")
     return {"message": "Transition deleted"}
 
 
@@ -264,6 +289,8 @@ async def seed_defaults(
     service = TaskWorkflowService(db)
     await service.seed_defaults(project_id)
     await db.commit()
+    await cache_service.invalidate_prefix(f"task_types:{project_id}")
+    await cache_service.invalidate_prefix(f"task_statuses:{project_id}")
     return {"message": "Default types and statuses created"}
 
 

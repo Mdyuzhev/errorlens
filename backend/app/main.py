@@ -89,6 +89,13 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Failed to seed test users: {e}")
 
+    # Warm up cache (EL028)
+    try:
+        from app.services.cache_warmup import warm_up_cache
+        await warm_up_cache()
+    except Exception as e:
+        logger.warning(f"Cache warmup failed (non-critical): {e}")
+
     yield
 
     # Shutdown Redis
