@@ -4,16 +4,15 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.ext.asyncio import AsyncSession
 
 # Import models to register them with Base.metadata before create_all
 import app.models  # noqa: F401
 from app.config import settings
-from app.database import async_session_maker, get_db, init_db
+from app.database import async_session_maker, init_db
 from app.routers import (
     admin,
     analysis,
@@ -209,25 +208,3 @@ async def health_check() -> dict:
     return {"status": "ok", "version": settings.version}
 
 
-@app.get("/debug/users")
-async def debug_users(db: AsyncSession = Depends(get_db)):
-    """Debug endpoint to check users in DB."""
-    from sqlalchemy import select
-
-    from app.models.user import User
-
-    result = await db.execute(select(User))
-    users = result.scalars().all()
-    return {"count": len(users), "usernames": [u.username for u in users]}
-
-
-@app.post("/debug/echo")
-async def debug_echo(request: Request):
-    """Debug endpoint to echo request body."""
-    try:
-        body = await request.json()
-        logger.info(f"[DEBUG] Echo received: {str(body)[:500]}")
-        return {"received": body, "content_type": request.headers.get("content-type")}
-    except Exception as e:
-        logger.error(f"[DEBUG] Echo error: {e}")
-        return {"error": str(e)}
