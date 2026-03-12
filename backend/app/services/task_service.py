@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.db_models import Task, TaskActivity
 from app.repositories.task_repo import TaskRepository
 from app.services import event_publisher
+from app.services.exceptions import TaskDepthExceededError, TransitionNotAllowedError
 from app.services.project_service import ProjectService
 from app.services.task_workflow_service import TaskWorkflowService
 
@@ -67,10 +68,8 @@ class TaskService:
         if parent_id:
             depth = await self.get_depth(parent_id)
             if depth >= MAX_TASK_DEPTH:
-                from fastapi import HTTPException
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Maximum task depth ({MAX_TASK_DEPTH}) exceeded",
+                raise TaskDepthExceededError(
+                    f"Maximum task depth ({MAX_TASK_DEPTH}) exceeded"
                 )
 
         task_data: dict[str, Any] = {
@@ -226,7 +225,7 @@ class TaskService:
 
         # Track changes for activity log
         for field in TRACKED_FIELDS:
-            if field in updates and updates[field] is not None:
+            if field in updates:
                 old_val = getattr(task, field, None)
                 new_val = updates[field]
                 if old_val != new_val:
@@ -238,7 +237,7 @@ class TaskService:
                     )
 
         for key, value in updates.items():
-            if value is not None and not key.startswith("_"):
+            if not key.startswith("_"):
                 setattr(task, key, value)
 
         # Set completed_at when moving to done
@@ -298,10 +297,8 @@ class TaskService:
             allowed = await workflow.get_allowed_transitions(task)
             target = next((s for s in allowed if s.slug == new_status), None)
             if not target:
-                from fastapi import HTTPException
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Transition from '{old_status}' to '{new_status}' is not allowed",
+                raise TransitionNotAllowedError(
+                    f"Transition from '{old_status}' to '{new_status}' is not allowed"
                 )
             # Update both status_id and status slug
             return await self.update_task(
@@ -321,20 +318,12 @@ class TaskService:
         if task.status_id:
             result = await workflow.validate_transition(task, new_status_id)
             if not result["allowed"]:
-                from fastapi import HTTPException
                 if result["reason"] == "missing_fields":
-                    raise HTTPException(
-                        status_code=422,
-                        detail={
-                            "error": "missing_required_fields",
-                            "fields": result["fields"],
-                            "message": f"Fill required fields before transition: {', '.join(result['fields'])}",
-                        },
+                    raise TransitionNotAllowedError(
+                        f"Fill required fields before transition: {', '.join(result['fields'])}",
+                        fields=result["fields"],
                     )
-                raise HTTPException(
-                    status_code=400,
-                    detail="Status transition not allowed",
-                )
+                raise TransitionNotAllowedError("Status transition not allowed")
 
         # Get status slug for backward compat
         from app.repositories.task_type_repo import TaskTypeRepository
