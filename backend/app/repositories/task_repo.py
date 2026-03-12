@@ -1,6 +1,6 @@
 """Task repository - data access layer."""
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -125,10 +125,11 @@ class TaskRepository(BaseRepository[Task]):
         return list(result.scalars().all())
 
     async def count_by_status(self) -> dict[str, int]:
-        """Count tasks grouped by status."""
-        tasks = await self.get_all_tasks()
+        """Count tasks grouped by status using SQL aggregation."""
+        stmt = select(Task.status, func.count()).group_by(Task.status)
+        result = await self.session.execute(stmt)
         counts = {"todo": 0, "in_progress": 0, "review": 0, "done": 0}
-        for task in tasks:
-            if task.status in counts:
-                counts[task.status] += 1
+        for status, cnt in result.all():
+            if status in counts:
+                counts[status] = cnt
         return counts
