@@ -9,9 +9,26 @@
         <AppIcon :name="task.type.icon" :size="12" />
         {{ task.type.name }}
       </span>
-      <span class="status-badge" :class="task.status">
-        {{ task.task_status?.name || task.status }}
-      </span>
+      <div style="position: relative;">
+        <span
+          class="status-badge"
+          :class="task.status"
+          :style="allowedTransitions.length ? 'cursor:pointer' : ''"
+          :title="allowedTransitions.length ? 'Click to change status' : ''"
+          @click="allowedTransitions.length && (showStatusDropdown = !showStatusDropdown)"
+        >
+          {{ task.task_status?.name || task.status }}
+          <span v-if="allowedTransitions.length" style="font-size:10px;opacity:0.6"> &#9662;</span>
+        </span>
+        <div v-if="showStatusDropdown && allowedTransitions.length" class="status-dropdown">
+          <button
+            v-for="s in allowedTransitions" :key="s.id"
+            class="status-option"
+            :style="{ borderLeftColor: s.color }"
+            @click="changeStatus(s)"
+          >{{ s.name }}</button>
+        </div>
+      </div>
       <span class="priority-badge" :class="task.priority">{{ task.priority }}</span>
       <button class="btn btn-primary btn-sm" @click="$emit('edit')">Edit</button>
     </div>
@@ -150,12 +167,14 @@ const props = defineProps({
   backlinks: { type: Array, default: () => [] },
 })
 
-defineEmits(['close', 'edit', 'open-task'])
+const emit = defineEmits(['close', 'edit', 'open-task', 'updated'])
 
 const store = useTasksStore()
 const activity = ref([])
 const relations = ref([])
 const automationRuns = ref([])
+const showStatusDropdown = ref(false)
+const allowedTransitions = ref([])
 let autoRunsPollTimer = null
 
 function parseContent(raw) {
@@ -181,6 +200,40 @@ function formatDate(d) {
 function formatRelationType(type) {
   const map = { blocks: 'Blocks', blocked_by: 'Blocked by', duplicates: 'Duplicates', duplicated_by: 'Duplicated by', relates_to: 'Related to' }
   return map[type] || type
+}
+
+async function loadTransitions() {
+  try {
+    const res = await tasksApi.getAllowedTransitions(props.task.id)
+    allowedTransitions.value = res.data
+  } catch { allowedTransitions.value = [] }
+}
+
+const FIELD_DISPLAY_NAMES = {
+  assignee_id: 'Assignee', due_date: 'Due Date',
+  estimated_hours: 'Estimated Hours', severity: 'Severity',
+  environment: 'Environment', reporter_id: 'Reporter', labels: 'Labels',
+}
+
+async function changeStatus(s) {
+  showStatusDropdown.value = false
+  try {
+    await tasksApi.moveStatus(props.task.id, s.id)
+    emit('updated')
+    await loadTransitions()
+    await loadActivity()
+  } catch (e) {
+    const detail = e.response?.data?.detail
+    if (detail?.error === 'missing_required_fields') {
+      const fieldNames = detail.fields.map(f => FIELD_DISPLAY_NAMES[f] || f).join(', ')
+      if (window.showToast) window.showToast(
+        `Cannot change status: fill required fields first — ${fieldNames}`, 'error', 5000
+      )
+    } else {
+      const msg = typeof detail === 'string' ? detail : 'Transition not allowed'
+      if (window.showToast) window.showToast(msg, 'error')
+    }
+  }
 }
 
 async function loadActivity() {
@@ -226,6 +279,7 @@ onMounted(() => {
   loadActivity()
   loadRelations()
   loadAutomationRuns()
+  loadTransitions()
 })
 
 onUnmounted(() => {
@@ -236,6 +290,7 @@ watch(() => props.task.id, () => {
   loadActivity()
   loadRelations()
   loadAutomationRuns()
+  loadTransitions()
 })
 </script>
 
@@ -322,6 +377,34 @@ watch(() => props.task.id, () => {
 .status-badge.in_progress { color: #3b82f6; }
 .status-badge.review { color: #f59e0b; }
 .status-badge.done { color: #10b981; }
+
+.status-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  z-index: 10;
+  min-width: 160px;
+  overflow: hidden;
+}
+
+.status-option {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-left: 3px solid transparent;
+  background: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.status-option:hover { background: var(--bg-secondary); }
 
 .priority-badge {
   padding: 2px 10px;
