@@ -70,7 +70,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-p", "5432"]
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-p", "5432", "-U", "errorlens", "-d", "errorlens"]
       interval: 10s
       timeout: 5s
       retries: 5
