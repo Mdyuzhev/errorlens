@@ -29,6 +29,7 @@ STREAM = "el:events"
 CONSUMER_GROUP = "automations"
 CONSUMER_NAME = f"auto-{uuid.uuid4().hex[:8]}"
 POLL_INTERVAL = 30
+MAX_RETRIES = 3
 
 
 async def handle_event(event: dict[str, Any]) -> None:
@@ -128,11 +129,15 @@ async def event_loop() -> None:
         try:
             messages = await consume(STREAM, CONSUMER_GROUP, CONSUMER_NAME, count=5)
             for msg in messages:
+                retry_count = int(msg.data.get("_retry", 0))
                 try:
                     await handle_event(msg.data)
+                    await ack(STREAM, CONSUMER_GROUP, msg.id)
                 except Exception as e:
-                    logger.error(f"Event error {msg.id}: {e}")
-                await ack(STREAM, CONSUMER_GROUP, msg.id)
+                    logger.error(f"Event error {msg.id} (attempt {retry_count + 1}): {e}")
+                    if retry_count >= MAX_RETRIES:
+                        logger.error(f"Event {msg.id} exceeded max retries, dropping")
+                        await ack(STREAM, CONSUMER_GROUP, msg.id)
         except Exception as e:
             logger.error(f"Event loop error: {e}")
             await asyncio.sleep(2)
