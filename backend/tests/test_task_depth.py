@@ -56,21 +56,20 @@ class TestTaskDepth:
 
     @pytest.mark.asyncio
     async def test_max_depth(self, task_service, mock_db):
-        """Test that creating subtask at depth 5+ raises 400."""
-        from fastapi import HTTPException
+        """Test that creating subtask at depth 5+ raises TaskDepthExceededError."""
+        from app.services.exceptions import TaskDepthExceededError
 
         # Mock depth check: parent is at depth 4 (max)
         mock_result = MagicMock()
         mock_result.scalar.return_value = 4
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(TaskDepthExceededError) as exc:
             await task_service.create_task(
                 title="Too deep",
                 parent_id="task-deep-parent",
             )
-        assert exc.value.status_code == 400
-        assert "depth" in exc.value.detail.lower()
+        assert "depth" in str(exc.value).lower()
 
     @pytest.mark.asyncio
     async def test_get_children(self, task_service):

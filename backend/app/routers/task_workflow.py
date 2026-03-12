@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.middleware.jwt_auth import require_auth
 from app.models.user import User
+from app.services.exceptions import TransitionNotAllowedError
 from app.services.task_service import TaskService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -48,7 +49,10 @@ async def move_task(
     if not status:
         raise HTTPException(status_code=400, detail="Status is required")
     service = TaskService(db)
-    task = await service.move_task(task_id, status, actor_id=user.id)
+    try:
+        task = await service.move_task(task_id, status, actor_id=user.id)
+    except TransitionNotAllowedError as e:
+        raise HTTPException(status_code=400, detail=e.reason)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found or invalid status")
     return {"message": f"Task moved to {status}"}
@@ -63,7 +67,19 @@ async def move_task_by_status_id(
 ):
     """Move task to new status by status_id with workflow validation."""
     service = TaskService(db)
-    task = await service.move_task_by_status_id(task_id, data.status_id, actor_id=user.id)
+    try:
+        task = await service.move_task_by_status_id(task_id, data.status_id, actor_id=user.id)
+    except TransitionNotAllowedError as e:
+        if e.fields:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error": "missing_required_fields",
+                    "fields": e.fields,
+                    "message": e.reason,
+                },
+            )
+        raise HTTPException(status_code=400, detail=e.reason)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found or invalid status")
     return {"message": "Task status updated"}
