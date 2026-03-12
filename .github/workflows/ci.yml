@@ -1,10 +1,12 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
+  # push disabled — manual deploy via MCP
+  # push:
+  #   branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: deploy-homelab

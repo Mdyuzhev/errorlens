@@ -1,0 +1,33 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: name
+            values:
+              - "docker-backend-1"
+              - "docker-generator-1"
+              - "docker-notification-worker-1"
+              - "docker-automation-worker-1"
+              - "docker-postgres-1"
+              - "docker-redis-1"
+              - "docker-nginx-1"
+              - "docker-collab-1"
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/docker-(.+)-1'
+        target_label: 'service'

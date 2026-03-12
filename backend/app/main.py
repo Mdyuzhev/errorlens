@@ -112,6 +112,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Prometheus metrics (EL027)
+from prometheus_fastapi_instrumentator import Instrumentator
+
+Instrumentator().instrument(app).expose(app)
+
 # Include routers
 app.include_router(admin.router)
 app.include_router(auth.router)

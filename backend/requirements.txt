@@ -47,6 +47,10 @@ cryptography>=42.0.0
 # JQL parser
 lark>=1.1.0
 
+# Monitoring
+prometheus-fastapi-instrumentator>=6.1.0
+prometheus-client>=0.20.0
+
 # Linting (dev)
 ruff>=0.1.0
 black>=24.0.0
