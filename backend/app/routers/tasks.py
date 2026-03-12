@@ -10,6 +10,7 @@ from app.database import get_db
 from app.jql import JQLCompiler, JQLContext, JQLError, JQLSyntaxError
 from app.middleware.jwt_auth import require_auth
 from app.models.user import User
+from app.services.exceptions import TaskDepthExceededError
 from app.services.task_service import TaskService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -186,26 +187,29 @@ async def create_task(
 ):
     """Create new task."""
     service = TaskService(db)
-    task = await service.create_task(
-        title=data.title,
-        description=data.description,
-        status=data.status,
-        priority=data.priority,
-        assignee=data.assignee,
-        assignee_id=data.assignee_id,
-        reporter_id=user.id,
-        labels=data.labels,
-        due_date=data.due_date,
-        session_id=data.session_id,
-        testcase_id=data.testcase_id,
-        project_id=data.project_id,
-        type_id=data.type_id,
-        severity=data.severity,
-        environment=data.environment,
-        estimated_hours=data.estimated_hours,
-        spent_hours=data.spent_hours,
-        parent_id=data.parent_id,
-    )
+    try:
+        task = await service.create_task(
+            title=data.title,
+            description=data.description,
+            status=data.status,
+            priority=data.priority,
+            assignee=data.assignee,
+            assignee_id=data.assignee_id,
+            reporter_id=user.id,
+            labels=data.labels,
+            due_date=data.due_date,
+            session_id=data.session_id,
+            testcase_id=data.testcase_id,
+            project_id=data.project_id,
+            type_id=data.type_id,
+            severity=data.severity,
+            environment=data.environment,
+            estimated_hours=data.estimated_hours,
+            spent_hours=data.spent_hours,
+            parent_id=data.parent_id,
+        )
+    except TaskDepthExceededError:
+        raise HTTPException(status_code=400, detail="Maximum task depth exceeded")
     return {"id": task.id, "human_id": task.human_id, "message": "Task created"}
 
 
@@ -252,6 +256,7 @@ async def get_activity(
     from datetime import datetime as dt
 
     from sqlalchemy import literal_column, select, union_all
+    from sqlalchemy.orm import joinedload
 
     from app.models.db_models import TaskActivity, TaskComment
 
@@ -297,14 +302,34 @@ async def get_activity(
     result = await db.execute(final_q)
     entries = result.all()
 
-    # Fetch full objects
+    # Split IDs by type
+    comment_ids = [eid for eid, etype in entries if etype == "comment"]
+    activity_ids = [eid for eid, etype in entries if etype == "activity"]
+
+    # Batch fetch with joinedload (2 queries instead of N)
+    comments_map = {}
+    if comment_ids:
+        res = await db.execute(
+            select(TaskComment)
+            .options(joinedload(TaskComment.author))
+            .where(TaskComment.id.in_(comment_ids))
+        )
+        comments_map = {c.id: c for c in res.unique().scalars()}
+
+    activities_map = {}
+    if activity_ids:
+        res = await db.execute(
+            select(TaskActivity)
+            .options(joinedload(TaskActivity.actor))
+            .where(TaskActivity.id.in_(activity_ids))
+        )
+        activities_map = {a.id: a for a in res.unique().scalars()}
+
+    # Build feed preserving UNION ALL order
     feed = []
     for entry_id, entry_type in entries:
         if entry_type == "comment":
-            comment_result = await db.execute(
-                select(TaskComment).where(TaskComment.id == entry_id)
-            )
-            comment = comment_result.scalar_one_or_none()
+            comment = comments_map.get(entry_id)
             if comment:
                 feed.append({
                     "entry_type": "comment",
@@ -320,10 +345,7 @@ async def get_activity(
                     } if comment.author else None,
                 })
         else:
-            activity_result = await db.execute(
-                select(TaskActivity).where(TaskActivity.id == entry_id)
-            )
-            activity = activity_result.scalar_one_or_none()
+            activity = activities_map.get(entry_id)
             if activity:
                 feed.append({
                     "entry_type": "activity",
