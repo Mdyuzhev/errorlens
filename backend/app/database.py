@@ -1,11 +1,16 @@
 """Database configuration and session management."""
 
+import logging
 import os
+import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
+
+logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
@@ -30,6 +35,28 @@ async_session_maker = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
 )
+
+# Slow query logging
+def _setup_slow_query_logging() -> None:
+    from app.config import settings
+
+    if not settings.log_slow_queries:
+        return
+
+    threshold = 0.1 if settings.environment == "production" else 0.2
+
+    @event.listens_for(engine.sync_engine, "before_cursor_execute")
+    def _before(conn, cursor, statement, parameters, context, executemany):
+        conn.info.setdefault("_qstart", []).append(time.monotonic())
+
+    @event.listens_for(engine.sync_engine, "after_cursor_execute")
+    def _after(conn, cursor, statement, parameters, context, executemany):
+        elapsed = time.monotonic() - conn.info["_qstart"].pop()
+        if elapsed > threshold:
+            logger.warning(f"[SLOW QUERY] {elapsed*1000:.0f}ms: {statement[:300]}")
+
+
+_setup_slow_query_logging()
 
 # Base class for models
 Base = declarative_base()

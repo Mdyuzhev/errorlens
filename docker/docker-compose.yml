@@ -9,6 +9,18 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-errorlens_secret}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c shared_buffers=4GB
+      -c effective_cache_size=12GB
+      -c work_mem=64MB
+      -c maintenance_work_mem=1GB
+      -c max_connections=200
+      -c wal_buffers=64MB
+      -c checkpoint_completion_target=0.9
+      -c random_page_cost=1.1
+      -c log_min_duration_statement=500
+      -c shared_preload_libraries=pg_stat_statements
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U errorlens -d errorlens"]
       interval: 10s
@@ -76,6 +88,8 @@ services:
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-errorlens}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-errorlens_secret}
+      LOG_SLOW_QUERIES: "false"
+      ENVIRONMENT: "production"
     depends_on:
       postgres:
         condition: service_healthy

@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     ]
     image_max_dimension: int = 2048
 
+    # Slow query logging
+    log_slow_queries: bool = False
+    environment: str = "development"
+
     # TestIt Integration (configure in .env)
     testit_url: str = ""
     testit_token: str = ""
