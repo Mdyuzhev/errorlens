@@ -1,16 +1,9 @@
 name: CI
 
 on:
-  # push disabled — manual deploy via MCP
-  # push:
-  #   branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: deploy-homelab
-  cancel-in-progress: true
 
 jobs:
   lint:
@@ -95,89 +88,3 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
           GEMINI_API_KEY: ""
           GROQ_API_KEY: ""
-
-  deploy:
-    name: Deploy to Homelab
-    runs-on: self-hosted
-    needs: [lint, test]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    steps:
-      - name: Pull latest code
-        run: |
-          cd /opt/errorlens
-          git fetch origin main
-          git reset --hard origin/main
-
-      - name: Ensure Redis is running
-        run: |
-          cd /opt/errorlens/docker
-          docker compose up -d redis
-          docker compose exec -T redis redis-cli ping
-
-      - name: Rebuild and restart backend services
-        run: |
-          cd /opt/errorlens/docker
-          docker compose up --build -d backend generator notification-worker automation-worker collab
-
-      - name: Apply database migrations
-        run: |
-          cd /opt/errorlens/docker
-          docker compose exec -T backend alembic upgrade head
-
-      - name: Wait for backend to be healthy
-        run: |
-          cd /opt/errorlens/docker
-          for i in $(seq 1 30); do
-            if docker compose exec -T backend curl -sf http://localhost:8000/health > /dev/null 2>&1; then
-              echo "Backend is healthy"
-              exit 0
-            fi
-            echo "Waiting for backend... ($i/30)"
-            sleep 5
-          done
-          echo "Backend failed to become healthy"
-          docker compose logs backend --tail=20
-          exit 1
-
-      - name: Restart nginx (force re-resolve backend DNS)
-        run: |
-          cd /opt/errorlens/docker
-          docker compose up --build --force-recreate -d nginx
-
-      - name: Verify deployment
-        run: |
-          cd /opt/errorlens/docker
-          for i in $(seq 1 10); do
-            if curl -sf http://localhost:3000 > /dev/null 2>&1; then
-              echo "Landing: OK"
-              break
-            fi
-            echo "Waiting for nginx... ($i/10)"
-            sleep 3
-          done
-          curl -sf http://localhost:3000 > /dev/null || { echo "FAIL: Landing unreachable"; docker compose logs nginx --tail=20; exit 1; }
-          echo "Landing: OK"
-          for i in $(seq 1 10); do
-            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
-              echo "API: OK"
-              break
-            fi
-            echo "Waiting for API via nginx... ($i/10)"
-            sleep 3
-          done
-          curl -sf http://localhost:3000/api/health || {
-            echo "FAIL: API unreachable (502)"
-            echo "=== nginx logs ==="
-            docker compose logs nginx --tail=20
-            echo "=== backend logs ==="
-            docker compose logs backend --tail=20
-            echo "=== docker ps ==="
-            docker compose ps
-            exit 1
-          }
-          echo "API: OK"
-          docker compose exec -T redis redis-cli ping && echo "Redis: OK"
-          docker compose ps generator --format '{{.State}}' | grep -q running && echo "Generator: OK"
-          docker compose ps notification-worker --format '{{.State}}' | grep -q running && echo "Notification Worker: OK"
-          docker compose ps automation-worker --format '{{.State}}' | grep -q running && echo "Automation Worker: OK"
