@@ -478,7 +478,7 @@ watch(() => props.task.id, () => {
   margin-top: 4px;
   background: var(--bg-card);
   border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-dropdown);
   z-index: 10;
   min-width: 160px;
   overflow: hidden;
@@ -606,9 +606,9 @@ watch(() => props.task.id, () => {
   font-size: 12px;
 }
 
-.priority-badge.high { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.priority-badge.high { background: rgba(245,158,11,0.15); color: var(--warning); }
 .priority-badge.medium { background: rgba(59,130,246,0.15); color: #3b82f6; }
-.priority-badge.low { background: rgba(107,114,128,0.15); color: #6b7280; }
+.priority-badge.low { background: rgba(107,114,128,0.15); color: var(--text-secondary); }
 
 .overdue { color: #ef4444; }
 

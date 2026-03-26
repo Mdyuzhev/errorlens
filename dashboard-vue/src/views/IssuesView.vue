@@ -413,7 +413,7 @@ onMounted(async () => {
 .jql-row :deep(.jql-bar) { flex: 1; margin-bottom: 0; }
 .jql-filter-toggle { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid var(--bg-secondary); border-radius: 8px; background: var(--bg-card); color: var(--text-secondary); font-size: 13px; cursor: pointer; white-space: nowrap; transition: all 0.2s; flex-shrink: 0; }
 .jql-filter-toggle:hover { border-color: var(--accent); color: var(--text-primary); }
-.jql-filter-toggle.active { border-color: var(--accent); color: var(--accent); background: rgba(124, 58, 237, 0.1); }
+.jql-filter-toggle.active { border-color: var(--accent); color: var(--accent); background: var(--accent-muted); }
 .filter-count-badge { background: var(--accent); color: white; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 10px; margin-left: 2px; }
 .toolbar-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .view-toggle { display: flex; gap: 2px; background: var(--bg-card); border-radius: 8px; padding: 2px; }

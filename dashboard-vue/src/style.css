@@ -21,6 +21,9 @@
   --shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.4);
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
   --code-bg: rgba(0, 0, 0, 0.3);
+  --accent-muted: rgba(124, 58, 237, 0.1);
+  --accent-subtle: rgba(124, 58, 237, 0.15);
+  --accent-bg: rgba(124, 58, 237, 0.06);
 }
 
 /* Light theme */
@@ -42,6 +45,9 @@ body.theme-light {
   --shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.12);
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
   --code-bg: #f4f5f7;
+  --accent-muted: rgba(0, 82, 204, 0.08);
+  --accent-subtle: rgba(0, 82, 204, 0.14);
+  --accent-bg: rgba(0, 82, 204, 0.05);
 }
 
 /* Light theme — navbar stays dark (Confluence-style) */
@@ -143,13 +149,17 @@ a:hover {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent) 0%, #9333ea 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
   color: white;
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+}
+
+body.theme-light .btn-primary:hover {
+  box-shadow: 0 4px 12px rgba(0, 82, 204, 0.3);
 }
 
 .btn-secondary {
@@ -188,6 +198,12 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
 }
 
+body.theme-light input:focus,
+body.theme-light select:focus,
+body.theme-light textarea:focus {
+  box-shadow: 0 0 0 3px rgba(0, 82, 204, 0.2);
+}
+
 input::placeholder,
 textarea::placeholder {
   color: var(--placeholder-color);
@@ -211,22 +227,34 @@ textarea::placeholder {
 
 .badge-success {
   background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
+  color: var(--success);
 }
 
 .badge-error {
   background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
+  color: var(--error);
 }
 
 .badge-warning {
   background: rgba(245, 158, 11, 0.2);
-  color: #f59e0b;
+  color: var(--warning);
 }
 
 .badge-info {
-  background: rgba(124, 58, 237, 0.2);
-  color: #a78bfa;
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+body.theme-light .badge-success {
+  background: rgba(0, 135, 90, 0.12);
+}
+
+body.theme-light .badge-error {
+  background: rgba(222, 53, 11, 0.12);
+}
+
+body.theme-light .badge-warning {
+  background: rgba(255, 139, 0, 0.12);
 }
 
 /* Modals */

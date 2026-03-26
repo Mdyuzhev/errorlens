@@ -329,7 +329,7 @@ onUnmounted(() => {
 }
 
 .notif-item.unread {
-  background: rgba(99, 102, 241, 0.08);
+  background: var(--accent-bg);
 }
 
 .notif-icon {

@@ -186,7 +186,7 @@
         </div>
 
         <!-- LLM Settings -->
-        <div class="settings-card" style="grid-column: 1 / -1">
+        <div class="settings-card settings-card--full">
           <LLMSettings />
         </div>
       </div>
@@ -505,8 +505,17 @@ function copyBookmarklet() {
   color: white;
 }
 
+.bookmarklet-card.onboarding-active h2 {
+  color: white;
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+}
+
 .bookmarklet-card.onboarding-active .card-header {
   border-bottom-color: rgba(255, 255, 255, 0.2);
+}
+
+.bookmarklet-card.onboarding-active .hint {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .onboarding-overlay {
@@ -648,5 +657,9 @@ function copyBookmarklet() {
 
 :global(body.theme-light) .toggle-slider {
   background: #c4cdd6;
+}
+
+.settings-card--full {
+  grid-column: 1 / -1;
 }
 </style>

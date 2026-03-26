@@ -31,7 +31,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 
 const props = defineProps({
   language: { type: String, default: 'javascript' },
@@ -49,6 +49,11 @@ const LANGUAGES = [
 const codeRef = ref(null)
 const copied = ref(false)
 let hljsLoaded = null
+let themeObserver = null
+
+function isDarkTheme() {
+  return !document.body.classList.contains('theme-light')
+}
 
 function loadScript(src) {
   return new Promise((resolve, reject) => {
@@ -64,25 +69,36 @@ function loadScript(src) {
   })
 }
 
-function loadStylesheet(href) {
-  if (document.querySelector(`link[href="${href}"]`)) return
-  const link = document.createElement('link')
-  link.rel = 'stylesheet'
-  link.href = href
-  document.head.appendChild(link)
+const HLJS_CSS_DARK  = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css'
+const HLJS_CSS_LIGHT = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css'
+const HLJS_CSS_ID    = 'hljs-theme-css'
+
+function applyHljsTheme() {
+  const href = isDarkTheme() ? HLJS_CSS_DARK : HLJS_CSS_LIGHT
+  let link = document.getElementById(HLJS_CSS_ID)
+  if (!link) {
+    link = document.createElement('link')
+    link.id   = HLJS_CSS_ID
+    link.rel  = 'stylesheet'
+    document.head.appendChild(link)
+  }
+  if (link.href !== href) {
+    link.href = href
+  }
 }
 
 async function loadHljs() {
-  if (window.hljs) return window.hljs
+  if (window.hljs) {
+    applyHljsTheme()
+    return window.hljs
+  }
   if (!hljsLoaded) {
     hljsLoaded = loadScript(
       'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js'
     )
-    loadStylesheet(
-      'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css'
-    )
   }
   await hljsLoaded
+  applyHljsTheme()
   return window.hljs
 }
 
@@ -101,6 +117,23 @@ async function highlight() {
 
 onMounted(() => {
   if (props.readonly) highlight()
+
+  // Watch theme changes and reload hljs CSS
+  themeObserver = new MutationObserver(() => {
+    applyHljsTheme()
+    if (props.readonly) highlight()
+  })
+  themeObserver.observe(document.body, {
+    attributes: true,
+    attributeFilter: ['class']
+  })
+})
+
+onBeforeUnmount(() => {
+  if (themeObserver) {
+    themeObserver.disconnect()
+    themeObserver = null
+  }
 })
 
 watch(() => [props.code, props.language, props.readonly], async () => {
@@ -177,7 +210,7 @@ async function copyCode() {
 }
 
 .code-block-body {
-  background: var(--bg-primary);
+  background: var(--code-bg);
 }
 
 .code-pre {
@@ -198,7 +231,7 @@ async function copyCode() {
   min-height: 120px;
   padding: 16px;
   border: none;
-  background: var(--bg-primary);
+  background: var(--code-bg);
   color: var(--text-primary);
   font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
   font-size: 13px;
