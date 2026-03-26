@@ -37,16 +37,44 @@
                 @click="deleteColumn(row, col)"
               >×</button>
             </div>
-            <RichEditor
-              :ref="el => setColRef(col.id, el)"
-              :modelValue="col.content"
-              @update:modelValue="updateColContent(row.id, col.id, $event)"
-              placeholder="Начните писать..."
-              :uploadEnabled="uploadEnabled"
-              :editable="!readonly"
-              :showToolbar="false"
-              @focus="handleEditorFocus(col.id)"
-            />
+            <template v-if="col.type === 'callout'">
+              <CalloutBlock
+                :variant="col.variant || 'info'"
+                :content="col.content"
+                :readonly="readonly"
+                @update:content="updateColContent(row.id, col.id, $event)"
+              />
+            </template>
+            <template v-else-if="col.type === 'expand'">
+              <ExpandBlock
+                :summary="col.summary"
+                :content="col.content"
+                :readonly="readonly"
+                @update:summary="updateColProp(row.id, col.id, 'summary', $event)"
+                @update:content="updateColContent(row.id, col.id, $event)"
+              />
+            </template>
+            <template v-else-if="col.type === 'code'">
+              <CodeBlock
+                :language="col.language || 'javascript'"
+                :code="col.code || ''"
+                :readonly="readonly"
+                @update:language="updateColProp(row.id, col.id, 'language', $event)"
+                @update:code="updateColProp(row.id, col.id, 'code', $event)"
+              />
+            </template>
+            <template v-else>
+              <RichEditor
+                :ref="el => setColRef(col.id, el)"
+                :modelValue="col.content"
+                @update:modelValue="updateColContent(row.id, col.id, $event)"
+                placeholder="Начните писать..."
+                :uploadEnabled="uploadEnabled"
+                :editable="!readonly"
+                :showToolbar="false"
+                @focus="handleEditorFocus(col.id)"
+              />
+            </template>
           </div>
         </div>
 
@@ -77,7 +105,12 @@
         </div>
       </div>
 
-      <button v-if="!readonly" class="add-row-btn" @click="addRow">+ Добавить строку</button>
+      <div v-if="!readonly" class="add-row-area">
+        <button class="add-row-btn" @click="addRow()">+ Текст</button>
+        <button class="add-row-btn add-row-btn--callout" @click="addRow('callout', { variant: 'info' })">+ Callout</button>
+        <button class="add-row-btn add-row-btn--expand" @click="addRow('expand', { summary: 'Подробнее' })">+ Expand</button>
+        <button class="add-row-btn add-row-btn--code" @click="addRow('code', { language: 'javascript', code: '' })">+ Code</button>
+      </div>
     </div>
   </div>
 </template>
@@ -85,6 +118,9 @@
 <script setup>
 import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import RichEditor from '@/components/common/RichEditor.vue'
+import CalloutBlock from './CalloutBlock.vue'
+import ExpandBlock from './ExpandBlock.vue'
+import CodeBlock from './CodeBlock.vue'
 
 const props = defineProps({
   modelValue: { type: Object, required: true },
@@ -205,11 +241,9 @@ function makeEmptyContent() {
   return { type: 'doc', content: [{ type: 'paragraph' }] }
 }
 
-function addRow() {
-  const newRow = {
-    id: uuid(),
-    columns: [{ id: uuid(), span: 12, content: makeEmptyContent() }]
-  }
+function addRow(type = 'text', opts = {}) {
+  const newCol = { id: uuid(), span: 12, type, content: makeEmptyContent(), ...opts }
+  const newRow = { id: uuid(), columns: [newCol] }
   const updated = { ...grid.value, rows: [...grid.value.rows, newRow] }
   emitUpdate(updated)
 }
@@ -296,6 +330,19 @@ function addColumn(row) {
   emitUpdate({ ...grid.value, rows })
 }
 
+function updateColProp(rowId, colId, prop, value) {
+  const rows = grid.value.rows.map(row => {
+    if (row.id !== rowId) return row
+    return {
+      ...row,
+      columns: row.columns.map(col =>
+        col.id === colId ? { ...col, [prop]: value } : col
+      )
+    }
+  })
+  emitUpdate({ ...grid.value, rows })
+}
+
 function updateColContent(rowId, colId, newContent) {
   const rows = grid.value.rows.map(row => {
     if (row.id !== rowId) return row
@@ -354,11 +401,10 @@ onBeforeUnmount(() => {
 }
 
 .grid-col[data-span="12"] { grid-column: span 12; }
-.grid-col[data-span="8"]  { grid-column: span 8; }
-.grid-col[data-span="6"]  { grid-column: span 6; }
-.grid-col[data-span="4"]  { grid-column: span 4; }
-.grid-col[data-span="3"]  { grid-column: span 3; }
-
+.grid-col[data-span="8"] { grid-column: span 8; }
+.grid-col[data-span="6"] { grid-column: span 6; }
+.grid-col[data-span="4"] { grid-column: span 4; }
+.grid-col[data-span="3"] { grid-column: span 3; }
 .grid-col {
   position: relative;
   background: var(--bg-card);
@@ -367,10 +413,7 @@ onBeforeUnmount(() => {
   padding: 12px;
   min-height: 120px;
 }
-
-.grid-col:hover .col-toolbar {
-  opacity: 1;
-}
+.grid-col:hover .col-toolbar { opacity: 1; }
 
 .col-toolbar {
   position: absolute;
@@ -383,34 +426,22 @@ onBeforeUnmount(() => {
   z-index: 5;
 }
 
-.col-btn {
-  width: 24px;
-  height: 24px;
+.col-btn, .row-btn {
   border: none;
   border-radius: 4px;
   background: var(--bg-secondary);
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.15s;
 }
-
-.col-btn:hover:not(:disabled) {
-  background: var(--accent);
-  color: white;
-}
-
-.col-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.col-btn-danger:hover:not(:disabled) {
-  background: #ef4444;
-}
+.col-btn { width: 24px; height: 24px; font-size: 14px; }
+.row-btn { width: 24px; height: 24px; font-size: 12px; }
+.col-btn:hover:not(:disabled), .row-btn:hover:not(:disabled) { background: var(--accent); color: white; }
+.col-btn:disabled, .row-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.col-btn-danger:hover:not(:disabled), .row-btn-danger:hover:not(:disabled) { background: #ef4444; }
 
 .row-actions {
   display: flex;
@@ -420,49 +451,24 @@ onBeforeUnmount(() => {
   transition: opacity 0.15s;
   padding-top: 4px;
 }
+.grid-row-wrapper:hover .row-actions { opacity: 1; }
 
-.grid-row-wrapper:hover .row-actions {
-  opacity: 1;
-}
-
-.row-btn {
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: 4px;
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 12px;
+.add-row-area {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-}
-
-.row-btn:hover:not(:disabled) {
-  background: var(--accent);
-  color: white;
-}
-
-.row-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.row-btn-danger:hover:not(:disabled) {
-  background: #ef4444;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .add-row-btn {
-  width: 100%;
-  padding: 12px;
+  flex: 1;
+  min-width: 100px;
+  padding: 10px 12px;
   border: 2px dashed var(--border-color);
   border-radius: 8px;
   background: none;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   transition: all 0.15s;
 }
 
@@ -475,22 +481,6 @@ onBeforeUnmount(() => {
   min-height: 80px;
 }
 
-.collab-presence {
-  display: flex;
-  gap: 4px;
-  padding: 8px 40px 0;
-  justify-content: flex-end;
-}
-
-.collab-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 12px;
-  font-weight: 600;
-}
+.collab-presence { display: flex; gap: 4px; padding: 8px 40px 0; justify-content: flex-end; }
+.collab-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 600; }
 </style>
