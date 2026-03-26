@@ -1,9 +1,5 @@
 <template>
   <div class="articles-page">
-    <div class="page-header">
-      <h1>Articles</h1>
-    </div>
-
     <!-- Hidden file inputs -->
     <input
       ref="importFileInput"
@@ -531,28 +527,36 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.articles-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 60px);
+  overflow: hidden;
+}
+
 .articles-layout {
   display: flex;
-  gap: 20px;
-  margin-top: 16px;
+  gap: 0;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .sidebar {
-  width: 250px;
-  min-width: 250px;
-  background: var(--bg-card);
-  border-radius: 12px;
-  padding: 12px;
-  align-self: flex-start;
-  position: sticky;
-  top: 20px;
-  max-height: calc(100vh - 160px);
+  width: 240px;
+  min-width: 240px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  padding: 12px 8px;
   overflow-y: auto;
+  flex-shrink: 0;
 }
 
 .main-area {
   flex: 1;
   min-width: 0;
+  overflow-y: auto;
+  padding: 16px 20px;
 }
 
 .list-header {
@@ -584,8 +588,9 @@ onMounted(async () => {
 
 .articles-list {
   background: var(--bg-card);
-  border-radius: 12px;
+  border-radius: 4px;
   overflow: hidden;
+  border: 1px solid var(--border-color);
 }
 
 .article-row {
