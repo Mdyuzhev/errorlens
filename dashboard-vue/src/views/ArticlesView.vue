@@ -645,13 +645,13 @@ onMounted(async () => {
 }
 
 .row-status.published {
-  background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
+  background: rgba(0, 135, 90, 0.12);
+  color: var(--success);
 }
 
 .row-status.draft {
-  background: rgba(245, 158, 11, 0.2);
-  color: #f59e0b;
+  background: rgba(255, 139, 0, 0.12);
+  color: var(--warning);
 }
 
 .row-category {
