@@ -283,7 +283,7 @@ defineExpose({ clearFilters })
 .filter-chip.active {
   border-color: var(--accent);
   color: var(--accent);
-  background: rgba(124, 58, 237, 0.1);
+  background: var(--accent-muted);
 }
 
 .chip-badge {
