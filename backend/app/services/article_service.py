@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import Article, ArticleFolder
+from app.repositories.article_folder_repo import ArticleFolderRepository
 from app.repositories.article_repo import ArticleRepository
 from app.services import event_publisher
 from app.services.entity_link_service import EntityLinkService
@@ -184,6 +185,41 @@ class ArticleService:
         if deleted:
             await self.db.commit()
         return deleted
+
+    async def get_breadcrumbs(self, article_id: str) -> list[dict[str, str]]:
+        """Build breadcrumb trail: root → folder chain → article."""
+        article = await self.repo.get_by_id(article_id)
+        if not article:
+            return []
+
+        crumbs: list[dict[str, str]] = [{"id": "root", "name": "Articles", "type": "root"}]
+
+        if article.folder_id:
+            folder_repo = ArticleFolderRepository(self.db)
+            chain: list[dict[str, str]] = []
+            current_id: str | None = article.folder_id
+            while current_id:
+                folder = await folder_repo.get_by_id(current_id)
+                if not folder:
+                    break
+                chain.append({"id": folder.id, "name": folder.name, "type": "folder"})
+                current_id = folder.parent_id
+            crumbs.extend(reversed(chain))
+
+        crumbs.append({"id": article.id, "name": article.title, "type": "article"})
+        return crumbs
+
+    async def get_folder_articles(
+        self,
+        folder_id: str,
+        exclude_article_id: str | None = None,
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Get articles in a specific folder."""
+        articles = await self.repo.list_with_filters(folder_id=folder_id, limit=limit)
+        if exclude_article_id:
+            articles = [a for a in articles if a.id != exclude_article_id]
+        return [self._to_list_dict(a) for a in articles]
 
     def _to_list_dict(self, article: Article) -> dict[str, Any]:
         """Convert article to list response dict."""

@@ -26,6 +26,9 @@ redis[hiredis]>=5.0.0
 mammoth>=1.6.0
 markdownify>=0.11.0
 
+# PDF export
+weasyprint>=62.0
+
 # S3-compatible storage (MinIO)
 boto3>=1.34.0
 Pillow>=10.0.0
