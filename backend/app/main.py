@@ -26,6 +26,7 @@ from app.routers import (
     generation,
     gitlab_connections,
     integrations,
+    issue_attachments,
     jql,
     launches,
     notifications,
@@ -40,6 +41,7 @@ from app.routers import (
     testcases,
     testruns,
     tests,
+    work_logs,
 )
 from app.services.auth import init_admin_user
 from app.services.redis_client import close_redis, get_redis
@@ -153,6 +155,8 @@ app.include_router(gitlab_connections.router)  # EL020: GitLab Integration
 app.include_router(launches.router)  # EL022: Launch upload from CI
 app.include_router(saved_filters.router)  # EL023: JQL saved filters
 app.include_router(automations.router)  # EL025: Task Automations
+app.include_router(issue_attachments.router)  # EL-041: Issue attachments
+app.include_router(work_logs.router)  # EL-041: Work logs
 app.include_router(ws_router)  # Wave 4.0: WebSocket
 
 # Static files setup
