@@ -1,15 +1,17 @@
+"""Dashboard stats service with Redis cache."""
+
 import json
 import logging
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from app.models.task import Task, TaskType, Component
-from app.models.user import User
-from app.services.redis_client import get_redis
+
+from app.models.db_models import Task
 
 logger = logging.getLogger(__name__)
 
-DASHBOARD_CACHE_TTL = 300
-CACHE_KEY_PREFIX = "dashboard"
+CACHE_KEY_PREFIX = "dashboard:stats:"
+CACHE_TTL = 300  # 5 minutes
 
 
 class DashboardService:
@@ -17,71 +19,44 @@ class DashboardService:
         self.db = db
 
     async def get_stats(self, project_id: str) -> tuple[dict, bool]:
-        """Return (data, cache_hit)."""
-        # Try Redis cache first
+        """Return aggregated stats; (data, cache_hit)."""
+        from app.services.redis_client import get_redis
+
+        cache_key = f"{CACHE_KEY_PREFIX}{project_id}"
         try:
             redis = await get_redis()
-            cache_key = f"{CACHE_KEY_PREFIX}:{project_id}"
             cached = await redis.get(cache_key)
             if cached:
                 return json.loads(cached), True
-        except Exception:
-            logger.warning("Redis unavailable for dashboard cache, computing without cache")
-            redis = None
-            cache_key = None
+        except Exception as e:
+            logger.warning(f"Redis cache miss: {e}")
 
-        data = await self._compute_stats(project_id)
+        data = await self._compute(project_id)
 
-        # Write to cache if Redis available
-        if redis and cache_key:
-            try:
-                await redis.setex(cache_key, DASHBOARD_CACHE_TTL, json.dumps(data))
-            except Exception:
-                logger.warning("Failed to write dashboard cache to Redis")
+        try:
+            redis = await get_redis()
+            await redis.set(cache_key, json.dumps(data), ex=CACHE_TTL)
+        except Exception as e:
+            logger.warning(f"Redis cache set failed: {e}")
 
         return data, False
 
-    async def _compute_stats(self, project_id: str) -> dict:
-        # by_type
-        result = await self.db.execute(
-            select(TaskType.name, TaskType.color, func.count(Task.id).label("count"))
-            .join(Task, Task.type_id == TaskType.id, isouter=True)
+    async def _compute(self, project_id: str) -> dict:
+        q = (
+            select(Task.status, func.count(Task.id))
             .where(Task.project_id == project_id)
-            .group_by(TaskType.id, TaskType.name, TaskType.color)
+            .group_by(Task.status)
         )
-        by_type = [{"name": r.name, "color": r.color, "count": r.count} for r in result.all()]
+        result = await self.db.execute(q)
+        by_status = {row[0]: row[1] for row in result.all()}
 
-        # by_priority
-        result = await self.db.execute(
-            select(Task.priority, func.count(Task.id).label("count"))
+        q2 = (
+            select(Task.priority, func.count(Task.id))
             .where(Task.project_id == project_id)
             .group_by(Task.priority)
         )
-        by_priority = [{"priority": r.priority, "count": r.count} for r in result.all()]
+        result2 = await self.db.execute(q2)
+        by_priority = {row[0]: row[1] for row in result2.all()}
 
-        # by_component
-        result = await self.db.execute(
-            select(Component.name, func.count(Task.id).label("count"))
-            .join(Task, Task.component_id == Component.id, isouter=True)
-            .where(Component.project_id == project_id)
-            .group_by(Component.id, Component.name)
-        )
-        by_component = [{"component": r.name, "count": r.count} for r in result.all()]
-
-        # top_assignees
-        result = await self.db.execute(
-            select(User.username, User.display_name, func.count(Task.id).label("closed"))
-            .join(Task, Task.assignee_id == User.id)
-            .where(Task.project_id == project_id, Task.status == "done")
-            .group_by(User.id, User.username, User.display_name)
-            .order_by(func.count(Task.id).desc())
-            .limit(5)
-        )
-        top_assignees = [{"username": r.username, "display_name": r.display_name, "closed": r.closed} for r in result.all()]
-
-        return {
-            "by_type": by_type,
-            "by_priority": by_priority,
-            "by_component": by_component,
-            "top_assignees": top_assignees,
-        }
+        total = sum(by_status.values())
+        return {"total": total, "by_status": by_status, "by_priority": by_priority}

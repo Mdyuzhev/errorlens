@@ -36,6 +36,8 @@ from app.routers import (
     saved_filters,
     sessions,
     sprints,
+    task_activity,
+    task_relations,
     task_settings,
     task_workflow,
     tasks,
@@ -158,11 +160,13 @@ app.include_router(gitlab_connections.router)  # EL020: GitLab Integration
 app.include_router(launches.router)  # EL022: Launch upload from CI
 app.include_router(saved_filters.router)  # EL023: JQL saved filters
 app.include_router(automations.router)  # EL025: Task Automations
-app.include_router(sprints.router)  # EL-039: Sprint management
-app.include_router(components.router)  # EL-040: Project Components
-app.include_router(issue_custom_fields.router)  # EL-040: Custom Fields
-app.include_router(issue_attachments.router)  # EL-041: Issue attachments
-app.include_router(work_logs.router)  # EL-041: Work logs
+app.include_router(task_activity.router)    # EL031: Activity + comments (split from tasks.py)
+app.include_router(task_relations.router)  # EL031: Task relations (split from tasks.py)
+app.include_router(sprints.router)         # EL031: Sprint management
+app.include_router(components.router)       # EL031: Components
+app.include_router(issue_custom_fields.router)  # EL031: Custom fields
+app.include_router(issue_attachments.router)    # EL031: Attachments
+app.include_router(work_logs.router)        # EL031: Work logs
 app.include_router(ws_router)  # Wave 4.0: WebSocket
 
 # Static files setup
