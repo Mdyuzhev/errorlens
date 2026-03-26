@@ -48,6 +48,7 @@ class TestCase(Base):
     # QA extensions
     parameters: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     linked_issue_ids: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    linked_article_ids: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

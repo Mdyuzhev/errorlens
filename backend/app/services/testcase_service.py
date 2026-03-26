@@ -3,6 +3,7 @@
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import cast, String, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import TestCase
@@ -94,11 +95,22 @@ class TestCaseService:
         folder_id: str | None = None,
         status: str | None = None,
         priority: str | None = None,
+        linked_issue_id: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
         """List test cases with filters."""
-        if folder_id:
+        if linked_issue_id:
+            query = (
+                select(TestCase)
+                .where(cast(TestCase.linked_issue_ids, String).contains(linked_issue_id))
+                .order_by(TestCase.created_at.desc())
+                .offset(offset)
+                .limit(limit)
+            )
+            result = await self.db.execute(query)
+            testcases = result.scalars().all()
+        elif folder_id:
             testcases = await self.repo.get_by_folder_id(folder_id, skip=offset, limit=limit)
         elif folder:
             testcases = await self.repo.get_by_folder(folder, skip=offset, limit=limit)
@@ -229,6 +241,8 @@ class TestCaseService:
             "folder_id": tc.folder_id,
             "tags": tc.tags,
             "steps": tc.steps,
+            "linked_issue_ids": tc.linked_issue_ids,
+            "linked_article_ids": tc.linked_article_ids,
             "created_at": tc.created_at.isoformat() if tc.created_at else None,
             "created_by": tc.created_by,
         }
