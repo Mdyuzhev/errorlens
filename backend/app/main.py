@@ -33,6 +33,7 @@ from app.routers import (
     launches,
     notifications,
     projects,
+    qa,
     saved_filters,
     sessions,
     sprints,
@@ -154,6 +155,7 @@ app.include_router(integrations.router)
 app.include_router(analysis.router)
 app.include_router(projects.router)
 app.include_router(test_plans.router)
+app.include_router(qa.router)  # EL-QA: QA dashboard
 app.include_router(generation.router)  # Wave 4.0: Generation API
 app.include_router(notifications.router)  # EL018: Notifications
 app.include_router(gitlab_connections.router)  # EL020: GitLab Integration

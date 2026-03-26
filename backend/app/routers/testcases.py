@@ -1,6 +1,10 @@
 """Test cases CRUD router - thin controller."""
 
+import csv
+import io
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,6 +43,8 @@ class TestCaseUpdate(BaseModel):
     folder: str | None = None
     tags: list[str] | None = None
     steps: list[dict] | None = None
+    parameters: list[dict] | None = None
+    linked_issue_ids: list[str] | None = None
 
 
 @router.get("")
@@ -110,6 +116,39 @@ async def get_stats(
     """Get test case statistics."""
     service = TestCaseService(db)
     return await service.get_stats()
+
+
+@router.get("/export/csv")
+async def export_testcases_csv(
+    project_id: str = Query(...),
+    folder_id: str | None = Query(default=None),
+    ids: list[str] | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """Export test cases as CSV."""
+    service = TestCaseService(db)
+    cases = await service.list_testcases(folder_id=folder_id, limit=5000, offset=0)
+    if ids:
+        cases = [c for c in cases if c.id in ids]
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["human_id", "title", "priority", "status",
+                     "automation_status", "tags", "steps", "preconditions", "postconditions"])
+    for c in cases:
+        writer.writerow([
+            c.human_id or "", c.title, c.priority, c.status,
+            c.automation_status, ",".join(c.tags or []),
+            str(c.steps or []), c.preconditions or "", c.postconditions or "",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=testcases.csv"},
+    )
 
 
 @router.get("/{testcase_id}")
