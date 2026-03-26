@@ -15,8 +15,8 @@ FROM nginx:alpine
 
 COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
 
-# Landing page
-COPY landing/ /usr/share/nginx/html/
+# Landing page (accessible at /landing/)
+COPY landing/ /usr/share/nginx/html/landing/
 
 # Bookmarklet scripts
 COPY bookmarklet/recorder.js /usr/share/nginx/html/bookmarklet/
