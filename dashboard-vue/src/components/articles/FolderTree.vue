@@ -176,13 +176,13 @@ function onDrop(e, targetFolderId) {
 }
 
 .tree-item.selected {
-  background: rgba(124, 58, 237, 0.15);
+  background: var(--accent-subtle);
   color: var(--accent);
   font-weight: 600;
 }
 
 .tree-item.drop-target {
-  background: rgba(124, 58, 237, 0.25);
+  background: var(--accent-muted);
   outline: 2px dashed var(--accent);
 }
 
