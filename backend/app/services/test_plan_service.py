@@ -221,6 +221,7 @@ class TestPlanService:
         comment: str | None = None,
         error_details: str | None = None,
         executed_by: str | None = None,
+        assigned_to: str | None = None,
     ) -> dict[str, Any]:
         """Record or update a result for a testcase in a run."""
         run = await self.repo.get_run(run_id)
@@ -236,6 +237,7 @@ class TestPlanService:
             "comment": comment,
             "error_details": error_details,
             "executed_by": executed_by,
+            "assigned_to": assigned_to,
         })
 
         # Recalculate counters from DB
