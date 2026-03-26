@@ -7,6 +7,7 @@ from sqlalchemy import (
     JSON,
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -159,6 +160,11 @@ class Task(Base):
     parent_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    component_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("components.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    story_points: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rank: Mapped[int] = mapped_column(Integer, default=0, index=True)
 
     # Dates
     due_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -267,3 +273,128 @@ class TaskRelation(Base):
     # Relationships
     source_task: Mapped["Task"] = relationship("Task", foreign_keys=[source_task_id])
     target_task: Mapped["Task"] = relationship("Task", foreign_keys=[target_task_id])
+
+
+class Sprint(Base):
+    """Sprint for iterative planning."""
+
+    __tablename__ = "sprints"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(200))
+    goal: Mapped[str | None] = mapped_column(Text, nullable=True)
+    start_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    end_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="planned")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class SprintIssue(Base):
+    """Link between sprint and task."""
+
+    __tablename__ = "sprint_issues"
+    __table_args__ = (UniqueConstraint("sprint_id", "issue_id", name="uq_sprint_issue"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    sprint_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("sprints.id", ondelete="CASCADE"), index=True
+    )
+    issue_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("tasks.id", ondelete="CASCADE"), index=True
+    )
+    rank: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class Component(Base):
+    """Project component for categorizing tasks."""
+
+    __tablename__ = "components"
+    __table_args__ = (
+        UniqueConstraint("project_id", "name", name="uq_component_name_project"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    lead_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class IssueCustomField(Base):
+    """Custom field definition for a project/task type."""
+
+    __tablename__ = "issue_custom_fields"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    task_type_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("task_types.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200))
+    field_type: Mapped[str] = mapped_column(String(20))
+    options: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    is_required: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class IssueCustomValue(Base):
+    """Custom field value for a specific task."""
+
+    __tablename__ = "issue_custom_values"
+    __table_args__ = (UniqueConstraint("issue_id", "field_id", name="uq_custom_value"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    issue_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("tasks.id", ondelete="CASCADE"), index=True
+    )
+    field_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("issue_custom_fields.id", ondelete="CASCADE"), index=True
+    )
+    value: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+
+class IssueAttachment(Base):
+    """File attachment on a task, stored in MinIO."""
+
+    __tablename__ = "issue_attachments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    issue_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("tasks.id", ondelete="CASCADE"), index=True
+    )
+    object_key: Mapped[str] = mapped_column(String(500), unique=True)
+    filename: Mapped[str] = mapped_column(String(500))
+    content_type: Mapped[str] = mapped_column(String(100))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    uploaded_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class WorkLog(Base):
+    """Time tracking entry on a task."""
+
+    __tablename__ = "work_logs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    issue_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("tasks.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    hours: Mapped[float] = mapped_column(Float)
+    log_date: Mapped[datetime] = mapped_column(DateTime)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

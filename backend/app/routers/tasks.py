@@ -34,6 +34,9 @@ class TaskCreate(BaseModel):
     estimated_hours: float | None = None
     spent_hours: float | None = None
     parent_id: str | None = None
+    component_id: str | None = None
+    story_points: int | None = None
+    sprint_id: str | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -52,14 +55,8 @@ class TaskUpdate(BaseModel):
     estimated_hours: float | None = None
     spent_hours: float | None = None
     parent_id: str | None = None
-
-
-class CommentCreate(BaseModel):
-    content: str
-
-
-class CommentUpdate(BaseModel):
-    content: str
+    component_id: str | None = None
+    story_points: int | None = None
 
 
 @router.get("")
@@ -154,6 +151,66 @@ async def get_stats(
     return await service.get_stats()
 
 
+@router.get("/backlog")
+async def get_backlog(
+    project_id: str | None = Query(default=None),
+    component_id: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """Issues without sprint assignment, sorted by rank."""
+    from sqlalchemy import select
+    from app.models.task import SprintIssue, Task
+    subq = select(SprintIssue.issue_id)
+    q = select(Task).where(Task.id.not_in(subq))
+    if project_id:
+        q = q.where(Task.project_id == project_id)
+    if component_id:
+        q = q.where(Task.component_id == component_id)
+    q = q.order_by(Task.rank.asc())
+    result = await db.execute(q)
+    tasks = result.scalars().all()
+    service = TaskService(db)
+    return [service._to_list_dict(t) for t in tasks]
+
+
+@router.patch("/{task_id}/rank")
+async def update_task_rank(
+    task_id: str,
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """Update task rank and optionally move to sprint."""
+    from sqlalchemy import delete
+    from app.models.task import SprintIssue, Task
+    task = await db.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    task.rank = data.get("rank", 0)
+    if data.get("sprint_id"):
+        await db.execute(delete(SprintIssue).where(SprintIssue.issue_id == task_id))
+        db.add(SprintIssue(sprint_id=data["sprint_id"], issue_id=task_id, rank=task.rank))
+    await db.commit()
+    return {"message": "Rank updated"}
+
+
+@router.get("/dashboard/stats")
+async def get_dashboard_stats(
+    project_id: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """Aggregated issue stats with Redis cache."""
+    from fastapi.responses import JSONResponse
+    from app.services.dashboard_service import DashboardService
+    svc = DashboardService(db)
+    data, hit = await svc.get_stats(project_id)
+    resp = JSONResponse(content=data)
+    resp.headers["X-Cache"] = "HIT" if hit else "MISS"
+    return resp
+
+
 @router.get("/{task_id}")
 async def get_task(
     task_id: str,
@@ -165,7 +222,24 @@ async def get_task(
     task = await service.get_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    return service.to_detail_dict(task)
+    detail = service.to_detail_dict(task)
+    from app.repositories.attachment_repo import IssueAttachmentRepository
+    from app.repositories.work_log_repo import WorkLogRepository
+    from app.repositories.custom_field_repo import IssueCustomValueRepository
+    detail["attachments"] = [
+        {"id": a.id, "filename": a.filename, "size_bytes": a.size_bytes,
+         "content_type": a.content_type, "created_at": a.created_at.isoformat()}
+        for a in await IssueAttachmentRepository(db).list_by_issue(task_id)
+    ]
+    detail["work_logs"] = [
+        {"id": w.id, "hours": w.hours, "log_date": w.log_date.isoformat(),
+         "comment": w.comment, "user_id": w.user_id}
+        for w in await WorkLogRepository(db).list_by_issue(task_id)
+    ]
+    detail["custom_field_values"] = await IssueCustomValueRepository(db).get_values_for_issue(task_id)
+    detail["story_points"] = task.story_points
+    detail["component_id"] = task.component_id
+    return detail
 
 
 @router.get("/{task_id}/children")
@@ -210,6 +284,18 @@ async def create_task(
         )
     except TaskDepthExceededError:
         raise HTTPException(status_code=400, detail="Maximum task depth exceeded")
+    # Set component_id and story_points directly on the task object
+    if data.component_id or data.story_points is not None:
+        if data.component_id:
+            task.component_id = data.component_id
+        if data.story_points is not None:
+            task.story_points = data.story_points
+        await db.commit()
+    if data.sprint_id:
+        from app.models.task import SprintIssue
+        si = SprintIssue(sprint_id=data.sprint_id, issue_id=task.id, rank=0)
+        db.add(si)
+        await db.commit()
     return {"id": task.id, "human_id": task.human_id, "message": "Task created"}
 
 
@@ -240,286 +326,3 @@ async def delete_task(
     if not deleted:
         raise HTTPException(status_code=404, detail="Task not found")
     return {"message": "Task deleted"}
-
-
-# ---- Activity Feed ----
-
-@router.get("/{task_id}/activity")
-async def get_activity(
-    task_id: str,
-    limit: int = Query(default=20, le=100),
-    before: str | None = None,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_auth),
-):
-    """Get combined activity feed (comments + activities)."""
-    from datetime import datetime as dt
-
-    from sqlalchemy import literal_column, select, union_all
-    from sqlalchemy.orm import joinedload
-
-    from app.models.db_models import TaskActivity, TaskComment
-
-    # Parse before timestamp
-    before_dt = None
-    if before:
-        try:
-            before_dt = dt.fromisoformat(before)
-        except ValueError:
-            pass
-
-    # Query comments
-    comments_q = (
-        select(
-            TaskComment.id,
-            TaskComment.created_at,
-            literal_column("'comment'").label("entry_type"),
-        )
-        .where(TaskComment.task_id == task_id)
-    )
-    if before_dt:
-        comments_q = comments_q.where(TaskComment.created_at < before_dt)
-
-    # Query activities
-    activities_q = (
-        select(
-            TaskActivity.id,
-            TaskActivity.created_at,
-            literal_column("'activity'").label("entry_type"),
-        )
-        .where(TaskActivity.task_id == task_id)
-    )
-    if before_dt:
-        activities_q = activities_q.where(TaskActivity.created_at < before_dt)
-
-    # Combine and sort
-    combined = union_all(comments_q, activities_q).subquery()
-    final_q = (
-        select(combined.c.id, combined.c.entry_type)
-        .order_by(combined.c.created_at.desc())
-        .limit(limit)
-    )
-    result = await db.execute(final_q)
-    entries = result.all()
-
-    # Split IDs by type
-    comment_ids = [eid for eid, etype in entries if etype == "comment"]
-    activity_ids = [eid for eid, etype in entries if etype == "activity"]
-
-    # Batch fetch with joinedload (2 queries instead of N)
-    comments_map = {}
-    if comment_ids:
-        res = await db.execute(
-            select(TaskComment)
-            .options(joinedload(TaskComment.author))
-            .where(TaskComment.id.in_(comment_ids))
-        )
-        comments_map = {c.id: c for c in res.unique().scalars()}
-
-    activities_map = {}
-    if activity_ids:
-        res = await db.execute(
-            select(TaskActivity)
-            .options(joinedload(TaskActivity.actor))
-            .where(TaskActivity.id.in_(activity_ids))
-        )
-        activities_map = {a.id: a for a in res.unique().scalars()}
-
-    # Build feed preserving UNION ALL order
-    feed = []
-    for entry_id, entry_type in entries:
-        if entry_type == "comment":
-            comment = comments_map.get(entry_id)
-            if comment:
-                feed.append({
-                    "entry_type": "comment",
-                    "id": comment.id,
-                    "content": comment.content,
-                    "is_edited": comment.is_edited,
-                    "created_at": comment.created_at.isoformat(),
-                    "updated_at": comment.updated_at.isoformat() if comment.updated_at else None,
-                    "author": {
-                        "id": comment.author.id,
-                        "username": comment.author.username,
-                        "display_name": comment.author.display_name,
-                    } if comment.author else None,
-                })
-        else:
-            activity = activities_map.get(entry_id)
-            if activity:
-                feed.append({
-                    "entry_type": "activity",
-                    "id": activity.id,
-                    "action_type": activity.action_type,
-                    "field_name": activity.field_name,
-                    "old_value": activity.old_value,
-                    "new_value": activity.new_value,
-                    "created_at": activity.created_at.isoformat(),
-                    "actor": {
-                        "id": activity.actor.id,
-                        "username": activity.actor.username,
-                        "display_name": activity.actor.display_name,
-                    } if activity.actor else None,
-                })
-
-    return feed
-
-
-# ---- Comments ----
-
-@router.post("/{task_id}/comments")
-async def create_comment(
-    task_id: str,
-    data: CommentCreate,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_auth),
-):
-    """Create a comment on a task."""
-    from app.models.db_models import TaskComment
-    service = TaskService(db)
-
-    task = await service.get_task(task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    comment = TaskComment(
-        task_id=task_id,
-        author_id=user.id,
-        content=data.content,
-    )
-    db.add(comment)
-
-    # Record activity
-    await service._record_activity(
-        task_id, user.id, "commented",
-        new_value={"comment_id": comment.id},
-    )
-
-    await db.commit()
-    await db.refresh(comment)
-
-    return {
-        "id": comment.id,
-        "content": comment.content,
-        "created_at": comment.created_at.isoformat(),
-        "author": {
-            "id": user.id,
-            "username": user.username,
-            "display_name": user.display_name,
-        },
-    }
-
-
-@router.put("/{task_id}/comments/{comment_id}")
-async def update_comment(
-    task_id: str,
-    comment_id: str,
-    data: CommentUpdate,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_auth),
-):
-    """Edit a comment (only author or admin)."""
-    from sqlalchemy import select
-
-    from app.models.db_models import TaskComment
-
-    result = await db.execute(
-        select(TaskComment).where(
-            TaskComment.id == comment_id,
-            TaskComment.task_id == task_id,
-        )
-    )
-    comment = result.scalar_one_or_none()
-    if not comment:
-        raise HTTPException(status_code=404, detail="Comment not found")
-
-    if comment.author_id != user.id and not user.is_admin:
-        raise HTTPException(status_code=403, detail="Not allowed to edit this comment")
-
-    comment.content = data.content
-    comment.is_edited = True
-    comment.updated_at = datetime.utcnow()
-    await db.commit()
-
-    return {"message": "Comment updated"}
-
-
-@router.delete("/{task_id}/comments/{comment_id}")
-async def delete_comment(
-    task_id: str,
-    comment_id: str,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_auth),
-):
-    """Delete a comment (only author or admin)."""
-    from sqlalchemy import delete, select
-
-    from app.models.db_models import TaskComment
-
-    result = await db.execute(
-        select(TaskComment).where(
-            TaskComment.id == comment_id,
-            TaskComment.task_id == task_id,
-        )
-    )
-    comment = result.scalar_one_or_none()
-    if not comment:
-        raise HTTPException(status_code=404, detail="Comment not found")
-
-    if comment.author_id != user.id and not user.is_admin:
-        raise HTTPException(status_code=403, detail="Not allowed to delete this comment")
-
-    await db.execute(delete(TaskComment).where(TaskComment.id == comment_id))
-    await db.commit()
-
-    return {"message": "Comment deleted"}
-
-
-# ---- Relations ----
-
-@router.get("/{task_id}/relations")
-async def get_relations(
-    task_id: str,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_auth),
-):
-    """Get all relations for a task."""
-    from app.services.task_relation_service import TaskRelationService
-    service = TaskRelationService(db)
-    return await service.get_relations(task_id)
-
-
-@router.post("/{task_id}/relations")
-async def create_relation(
-    task_id: str,
-    data: dict,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_auth),
-):
-    """Create a relation between tasks."""
-    from app.services.task_relation_service import TaskRelationService
-    service = TaskRelationService(db)
-    target_task_id = data.get("target_task_id")
-    relation_type = data.get("relation_type")
-    if not target_task_id or not relation_type:
-        raise HTTPException(status_code=400, detail="target_task_id and relation_type are required")
-    relation = await service.create_relation(task_id, target_task_id, relation_type, user.id)
-    await db.commit()
-    return {"id": relation.id, "message": "Relation created"}
-
-
-@router.delete("/{task_id}/relations/{relation_id}")
-async def delete_relation(
-    task_id: str,
-    relation_id: str,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_auth),
-):
-    """Delete a relation (both directions)."""
-    from app.services.task_relation_service import TaskRelationService
-    service = TaskRelationService(db)
-    deleted = await service.delete_relation(relation_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Relation not found")
-    await db.commit()
-    return {"message": "Relation deleted"}

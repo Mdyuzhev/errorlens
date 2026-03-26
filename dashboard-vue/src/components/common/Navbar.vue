@@ -14,8 +14,8 @@
       <router-link to="/test-plans" class="nav-link">
         Test Plans
       </router-link>
-      <router-link to="/tasks" class="nav-link">
-        Tasks
+      <router-link to="/issues" class="nav-link">
+        Issues
       </router-link>
       <router-link to="/articles" class="nav-link">
         Articles
