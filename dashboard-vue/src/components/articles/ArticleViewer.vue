@@ -310,9 +310,9 @@ onBeforeUnmount(() => {
 .viewer-content { padding: 32px 40px 48px; min-width: 0; }
 .viewer-document :deep(.grid-editor) { height: auto; }
 .viewer-document :deep(.grid-body) { padding: 0; overflow: visible; }
-.viewer-document :deep(.grid-col) { background: none; border: none; border-radius: 0; padding: 0; min-height: 0; }
-.viewer-document :deep(.grid-row-wrapper) { margin-bottom: 0; }
-.viewer-document :deep(.grid-row) { gap: 0; }
+.viewer-document :deep(.grid-col) { background: transparent !important; border: none !important; border-radius: 0 !important; padding: 0 !important; min-height: 0 !important; }
+.viewer-document :deep(.grid-row-wrapper) { margin-bottom: 8px; gap: 0; }
+.viewer-document :deep(.grid-row) { gap: 24px; }
 
 /* toc */
 .viewer-toc { padding: 28px 16px 28px 0; border-left: 1px solid rgba(255,255,255,0.07); position: sticky; top: 0; align-self: start; }
