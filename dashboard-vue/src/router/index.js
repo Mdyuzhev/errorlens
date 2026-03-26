@@ -21,16 +21,25 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/testcases',
-    name: 'testcases',
-    component: () => import('@/views/TestCasesView.vue'),
+    path: '/qa',
+    name: 'qa',
+    component: () => import('@/views/QAView.vue'),
     meta: { requiresAuth: true }
   },
   {
+    path: '/qa/:tab',
+    name: 'qa-tab',
+    component: () => import('@/views/QAView.vue'),
+    meta: { requiresAuth: true },
+    props: true
+  },
+  {
+    path: '/testcases',
+    redirect: '/qa'
+  },
+  {
     path: '/testcases/:id',
-    name: 'testcase',
-    component: () => import('@/views/TestCasesView.vue'),
-    meta: { requiresAuth: true }
+    redirect: to => `/qa?open=${to.params.id}`
   },
   {
     path: '/tasks',
@@ -70,9 +79,7 @@ const routes = [
   },
   {
     path: '/test-plans',
-    name: 'test-plans',
-    component: () => import('@/views/TestPlansView.vue'),
-    meta: { requiresAuth: true }
+    redirect: '/qa?tab=plans'
   },
   {
     path: '/test-plans/runs/:runId',

@@ -365,3 +365,17 @@ export const gitlabApi = {
 }
 
 export const issuesApi = tasksApi
+
+// QA API
+export const qaApi = {
+  getDashboard: (projectId) =>
+    api.get('/api/v1/qa/dashboard', { params: { project_id: projectId } }),
+  getProjectRuns: (projectId) =>
+    api.get(`/v1/test-plans/project/${projectId}/runs`),
+  exportCsv: (projectId, folderId, ids) => {
+    const params = new URLSearchParams({ project_id: projectId })
+    if (folderId) params.append('folder_id', folderId)
+    if (ids) ids.forEach(id => params.append('ids', id))
+    return api.get(`/testcases/export/csv?${params}`, { responseType: 'blob' })
+  },
+}
