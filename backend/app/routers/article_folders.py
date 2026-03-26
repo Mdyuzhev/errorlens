@@ -15,7 +15,9 @@ from app.middleware.jwt_auth import (
     require_auth,
 )
 from app.models.user import User
+from app.repositories.article_folder_repo import ArticleFolderRepository
 from app.services.article_folder_service import ArticleFolderService
+from app.services.article_service import ArticleService
 
 router = APIRouter(prefix="/articles/folders", tags=["article-folders"])
 
@@ -97,9 +99,6 @@ async def update_folder(
 ):
     """Update folder name. Requires member role."""
     service = ArticleFolderService(db)
-    # Get folder to check project
-    from app.repositories.article_folder_repo import ArticleFolderRepository
-
     repo = ArticleFolderRepository(db)
     folder = await repo.get_by_id(folder_id)
     if not folder:
@@ -122,8 +121,6 @@ async def delete_folder(
     user: User = Depends(require_auth),
 ):
     """Delete folder. Articles move to parent. Requires admin role."""
-    from app.repositories.article_folder_repo import ArticleFolderRepository
-
     repo = ArticleFolderRepository(db)
     folder = await repo.get_by_id(folder_id)
     if not folder:
@@ -143,8 +140,6 @@ async def move_folder(
     user: User = Depends(require_auth),
 ):
     """Move folder to new parent. Requires member role."""
-    from app.repositories.article_folder_repo import ArticleFolderRepository
-
     repo = ArticleFolderRepository(db)
     folder = await repo.get_by_id(folder_id)
     if not folder:
@@ -159,6 +154,27 @@ async def move_folder(
         "name": moved.name,
         "parent_id": moved.parent_id,
     }
+
+
+@router.get("/{folder_id}/articles")
+async def list_folder_articles(
+    folder_id: str,
+    exclude: str | None = Query(default=None, description="Article ID to exclude"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """List articles in a folder."""
+    repo = ArticleFolderRepository(db)
+    folder = await repo.get_by_id(folder_id)
+    if not folder:
+        raise HTTPException(status_code=404, detail="Folder not found")
+
+    await check_project_access(folder.project_id, user, db)
+
+    service = ArticleService(db)
+    return await service.get_folder_articles(
+        folder_id, exclude_article_id=exclude, limit=10
+    )
 
 
 # This endpoint is on /articles/{id}/move-to-folder but registered in this router
