@@ -1,0 +1,53 @@
+export default {
+  nav: {
+    qa: 'QA',
+    issues: '问题',
+    articles: '文章',
+    generator: '生成器',
+    settings: '设置',
+    sessions: '会话',
+    logout: '退出',
+    notifications: '通知',
+    markAllRead: '全部标为已读',
+    noNotifications: '暂无通知',
+    loading: '加载中...',
+  },
+  home: {
+    title: 'ErrorLens',
+    subtitle: 'AI驱动的QA平台',
+    qa: { title: 'QA', desc: '测试用例、计划和运行' },
+    issues: { title: '问题', desc: '任务和缺陷跟踪' },
+    articles: { title: '文章', desc: '团队知识库' },
+  },
+  qa: {
+    title: 'QA',
+    newCase: '+ 新测试用例',
+    tabs: {
+      tree: '树形视图',
+      plans: '测试计划',
+      runs: '运行',
+      dashboard: '仪表盘',
+      sessions: '会话',
+      results: '结果',
+    },
+  },
+  common: {
+    save: '保存',
+    cancel: '取消',
+    delete: '删除',
+    edit: '编辑',
+    create: '创建',
+    search: '搜索',
+    loading: '加载中...',
+    noData: '暂无数据',
+  },
+  theme: {
+    dark: '深色',
+    light: '浅色',
+  },
+  lang: {
+    ru: 'Русский',
+    en: 'English',
+    zh: '中文',
+  },
+}

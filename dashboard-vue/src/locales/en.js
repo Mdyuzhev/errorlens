@@ -1,0 +1,53 @@
+export default {
+  nav: {
+    qa: 'QA',
+    issues: 'Issues',
+    articles: 'Articles',
+    generator: 'Generator',
+    settings: 'Settings',
+    sessions: 'Sessions',
+    logout: 'Logout',
+    notifications: 'Notifications',
+    markAllRead: 'Mark all read',
+    noNotifications: 'No notifications',
+    loading: 'Loading...',
+  },
+  home: {
+    title: 'ErrorLens',
+    subtitle: 'AI-powered QA Platform',
+    qa: { title: 'QA', desc: 'Test cases, plans & runs' },
+    issues: { title: 'Issues', desc: 'Task & bug tracker' },
+    articles: { title: 'Articles', desc: 'Team knowledge base' },
+  },
+  qa: {
+    title: 'QA',
+    newCase: '+ New Test Case',
+    tabs: {
+      tree: 'Tree',
+      plans: 'Test Plans',
+      runs: 'Runs',
+      dashboard: 'Dashboard',
+      sessions: 'Sessions',
+      results: 'Results',
+    },
+  },
+  common: {
+    save: 'Save',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    edit: 'Edit',
+    create: 'Create',
+    search: 'Search',
+    loading: 'Loading...',
+    noData: 'No data',
+  },
+  theme: {
+    dark: 'Dark',
+    light: 'Light',
+  },
+  lang: {
+    ru: 'Русский',
+    en: 'English',
+    zh: '中文',
+  },
+}
