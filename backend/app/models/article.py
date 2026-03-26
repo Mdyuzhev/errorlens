@@ -10,6 +10,7 @@ from app.models.base import Base, generate_uuid
 
 if TYPE_CHECKING:
     from app.models.project import Project
+    from app.models.user import User
 
 
 class ArticleFolder(Base):
@@ -143,3 +144,23 @@ class ArticleImage(Base):
 
     def __repr__(self) -> str:
         return f"<ArticleImage {self.object_key}>"
+
+
+class ArticleVersion(Base):
+    """Snapshot of an article at a point in time (version history)."""
+
+    __tablename__ = "article_versions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    article_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("articles.id", ondelete="CASCADE"), index=True
+    )
+    title: Mapped[str] = mapped_column(String(500))
+    content: Mapped[str] = mapped_column(Text)
+    saved_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<ArticleVersion article={self.article_id}>"
