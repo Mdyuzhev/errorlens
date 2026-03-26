@@ -176,6 +176,20 @@ export const articlesApi = {
   }),
   deleteImage: (imageId) => api.delete(`/articles/images/${imageId}`),
   getArticleImages: (articleId) => api.get(`/articles/${articleId}/images`),
+  // Breadcrumbs
+  getBreadcrumbs: (articleId) => api.get(`/articles/${articleId}/breadcrumbs`),
+  // Folder articles (child pages)
+  getFolderArticles: (folderId, excludeId = null) =>
+    api.get(`/articles/folders/${folderId}/articles`, {
+      params: excludeId ? { exclude: excludeId } : {}
+    }),
+  // PDF export — blob response
+  exportPdf: (articleId) =>
+    api.get(`/articles/${articleId}/export/pdf`, { responseType: 'blob' }),
+  // Versions
+  getVersions: (articleId) => api.get(`/articles/${articleId}/versions`),
+  getVersion: (articleId, versionId) =>
+    api.get(`/articles/${articleId}/versions/${versionId}`),
 }
 
 // Entity Links API — with 30s in-memory cache
