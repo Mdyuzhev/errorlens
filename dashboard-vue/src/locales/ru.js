@@ -1,0 +1,53 @@
+export default {
+  nav: {
+    qa: 'QA',
+    issues: 'Issues',
+    articles: 'Articles',
+    generator: 'Generator',
+    settings: 'Settings',
+    sessions: 'Sessions',
+    logout: 'Выйти',
+    notifications: 'Уведомления',
+    markAllRead: 'Прочитать все',
+    noNotifications: 'Нет уведомлений',
+    loading: 'Загрузка...',
+  },
+  home: {
+    title: 'ErrorLens',
+    subtitle: 'AI-платформа для QA-инженеров',
+    qa: { title: 'QA', desc: 'Тест-кейсы, планы и прогоны' },
+    issues: { title: 'Issues', desc: 'Задачи и баг-трекер' },
+    articles: { title: 'Articles', desc: 'База знаний команды' },
+  },
+  qa: {
+    title: 'QA',
+    newCase: '+ Новый тест-кейс',
+    tabs: {
+      tree: 'Дерево',
+      plans: 'Тест-планы',
+      runs: 'Прогоны',
+      dashboard: 'Дашборд',
+      sessions: 'Сессии',
+      results: 'Результаты',
+    },
+  },
+  common: {
+    save: 'Сохранить',
+    cancel: 'Отмена',
+    delete: 'Удалить',
+    edit: 'Редактировать',
+    create: 'Создать',
+    search: 'Поиск',
+    loading: 'Загрузка...',
+    noData: 'Нет данных',
+  },
+  theme: {
+    dark: 'Тёмная',
+    light: 'Светлая',
+  },
+  lang: {
+    ru: 'Русский',
+    en: 'English',
+    zh: '中文',
+  },
+}
