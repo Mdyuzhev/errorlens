@@ -122,6 +122,10 @@ export const tasksApi = {
   jqlValidate: (jql) => api.get('/tasks/jql-validate', { params: { jql } }),
   jqlSuggest: (field, query, projectId) => api.get('/tasks/jql-suggest', { params: { field, query, project_id: projectId } }),
   jqlAi: (query, projectId) => api.post('/tasks/jql-ai', { query, project_id: projectId }),
+  // Issues extensions
+  getBacklog: (params) => api.get('/tasks/backlog', { params }),
+  updateRank: (id, data) => api.patch(`/tasks/${id}/rank`, data),
+  getDashboardStats: (projectId) => api.get('/tasks/dashboard/stats', { params: { project_id: projectId } }),
 }
 
 // Saved Filters API
@@ -298,6 +302,56 @@ export const automationsApi = {
   getRun: (id) => api.get(`/v1/automations/runs/${id}`),
 }
 
+// Sprints API
+export const sprintsApi = {
+  list: (projectId, status = null) =>
+    api.get('/api/v1/sprints', { params: { project_id: projectId, status } }),
+  create: (data) => api.post('/api/v1/sprints', data),
+  update: (id, data) => api.put(`/api/v1/sprints/${id}`, data),
+  remove: (id) => api.delete(`/api/v1/sprints/${id}`),
+  start: (id) => api.post(`/api/v1/sprints/${id}/start`),
+  complete: (id, data) => api.post(`/api/v1/sprints/${id}/complete`, data),
+  burndown: (id) => api.get(`/api/v1/sprints/${id}/burndown`),
+  velocity: (projectId, limit = 5) =>
+    api.get('/api/v1/sprints/velocity', { params: { project_id: projectId, limit } }),
+}
+
+// Components API
+export const componentsApi = {
+  list: (projectId) => api.get('/api/v1/components', { params: { project_id: projectId } }),
+  create: (data) => api.post('/api/v1/components', data),
+  update: (id, data) => api.put(`/api/v1/components/${id}`, data),
+  remove: (id) => api.delete(`/api/v1/components/${id}`),
+}
+
+// Work Logs API
+export const workLogsApi = {
+  list: (issueId) => api.get(`/api/v1/issues/${issueId}/work-logs`),
+  create: (issueId, data) => api.post(`/api/v1/issues/${issueId}/work-log`, data),
+  remove: (issueId, logId) => api.delete(`/api/v1/issues/${issueId}/work-logs/${logId}`),
+}
+
+// Attachments API
+export const attachmentsApi = {
+  list: (issueId) => api.get(`/api/v1/issues/${issueId}/attachments`),
+  upload: (issueId, formData) =>
+    api.post(`/api/v1/issues/${issueId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  remove: (issueId, attId) => api.delete(`/api/v1/issues/${issueId}/attachments/${attId}`),
+}
+
+// Custom Fields API
+export const customFieldsApi = {
+  listFields: (projectId, taskTypeId = null) =>
+    api.get('/api/v1/custom-fields', { params: { project_id: projectId, task_type_id: taskTypeId } }),
+  createField: (data) => api.post('/api/v1/custom-fields', data),
+  updateField: (id, data) => api.put(`/api/v1/custom-fields/${id}`, data),
+  deleteField: (id) => api.delete(`/api/v1/custom-fields/${id}`),
+  getValues: (issueId) => api.get(`/api/v1/custom-fields/values/${issueId}`),
+  setValues: (issueId, values) => api.put(`/api/v1/custom-fields/values/${issueId}`, { values }),
+}
+
 // GitLab API
 export const gitlabApi = {
   listConnections: (projectId) => api.get('/v1/gitlab/connections', { params: { project_id: projectId } }),
@@ -309,3 +363,5 @@ export const gitlabApi = {
   listPipelines: (connId, projId, ref) => api.get(`/v1/gitlab/connections/${connId}/projects/${projId}/pipelines`, { params: { ref } }),
   listBranches: (connId, projId) => api.get(`/v1/gitlab/connections/${connId}/projects/${projId}/branches`),
 }
+
+export const issuesApi = tasksApi
