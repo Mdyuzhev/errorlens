@@ -17,6 +17,9 @@ from app.models.misc import (
 from app.models.project import Folder, Project, ProjectMember
 from app.models.session import AnalysisResult, Session, SessionData
 from app.models.task import (
+    Component,
+    IssueCustomField,
+    IssueCustomValue,
     StatusTransition,
     Task,
     TaskActivity,
@@ -68,6 +71,9 @@ __all__ = [
     "TaskComment",
     "TaskActivity",
     "TaskRelation",
+    "Component",
+    "IssueCustomField",
+    "IssueCustomValue",
     # Article
     "ArticleFolder",
     "Article",

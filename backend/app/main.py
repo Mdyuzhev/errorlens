@@ -21,11 +21,13 @@ from app.routers import (
     articles,
     auth,
     automations,
+    components,
     entity_links,
     exports,
     generation,
     gitlab_connections,
     integrations,
+    issue_custom_fields,
     jql,
     launches,
     notifications,
@@ -155,6 +157,8 @@ app.include_router(launches.router)  # EL022: Launch upload from CI
 app.include_router(saved_filters.router)  # EL023: JQL saved filters
 app.include_router(automations.router)  # EL025: Task Automations
 app.include_router(sprints.router)  # EL-039: Sprint management
+app.include_router(components.router)  # EL-040: Project Components
+app.include_router(issue_custom_fields.router)  # EL-040: Custom Fields
 app.include_router(ws_router)  # Wave 4.0: WebSocket
 
 # Static files setup
