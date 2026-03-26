@@ -67,19 +67,26 @@
 
           <!-- Links tab -->
           <div v-if="activeDetailTab === 'links'" class="tab-links">
-            <div v-if="!form.linked_issue_ids || form.linked_issue_ids.length === 0" class="empty-links">
-              No linked issues
-            </div>
-            <div v-else class="links-list">
-              <a
-                v-for="lid in form.linked_issue_ids"
-                :key="lid"
-                class="link-item"
-                :href="'#/issues/' + lid"
-              >
-                {{ lid }}
-              </a>
-            </div>
+            <LinkSearch
+              title="Issues"
+              empty-text="No linked issues"
+              placeholder="Find issue by ID or title..."
+              :items="issueItems"
+              :search-fn="searchIssues"
+              :exclude-ids="form.linked_issue_ids"
+              @add="addIssue"
+              @remove="removeIssue"
+            />
+            <LinkSearch
+              title="Articles"
+              empty-text="No linked articles"
+              placeholder="Find article by title..."
+              :items="articleItems"
+              :search-fn="searchArticles"
+              :exclude-ids="form.linked_article_ids"
+              @add="addArticle"
+              @remove="removeArticle"
+            />
           </div>
         </div>
       </div>
@@ -137,8 +144,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { tasksApi, articlesApi } from '@/services/api'
 import StepsEditor from './StepsEditor.vue'
+import LinkSearch from './LinkSearch.vue'
 
 const props = defineProps({
   testCase: { type: Object, required: true }
@@ -166,7 +175,26 @@ const form = ref({
   automation_status: '',
   tags: [],
   linked_issue_ids: [],
+  linked_article_ids: [],
 })
+
+// Linked entities preview data
+const linkedIssuesData = ref([])
+const linkedArticlesData = ref([])
+
+const issueItems = computed(() =>
+  form.value.linked_issue_ids.map(id => {
+    const d = linkedIssuesData.value.find(i => i.id === id)
+    return { id, badge: d?.human_id || id.slice(0, 8), label: d?.title || 'Issue' }
+  })
+)
+
+const articleItems = computed(() =>
+  form.value.linked_article_ids.map(id => {
+    const d = linkedArticlesData.value.find(a => a.id === id)
+    return { id, label: d?.title || id.slice(0, 8) }
+  })
+)
 
 onMounted(() => {
   if (props.testCase) {
@@ -181,9 +209,47 @@ onMounted(() => {
       automation_status: props.testCase.automation_status || '',
       tags: [...(props.testCase.tags || [])],
       linked_issue_ids: [...(props.testCase.linked_issue_ids || [])],
+      linked_article_ids: [...(props.testCase.linked_article_ids || [])],
     }
   }
 })
+
+// Search functions for LinkSearch
+async function searchIssues(q) {
+  const res = await tasksApi.list({ q, limit: 10 })
+  const items = Array.isArray(res.data) ? res.data : res.data.items || []
+  return items.map(i => ({ id: i.id, badge: i.human_id, label: i.title, human_id: i.human_id, title: i.title }))
+}
+
+async function searchArticles(q) {
+  const res = await articlesApi.list({ q, limit: 10 })
+  const items = Array.isArray(res.data) ? res.data : res.data.items || []
+  return items.map(a => ({ id: a.id, label: a.title, title: a.title }))
+}
+
+function addIssue(item) {
+  if (!form.value.linked_issue_ids.includes(item.id)) {
+    form.value.linked_issue_ids.push(item.id)
+    linkedIssuesData.value.push({ id: item.id, human_id: item.human_id || item.badge, title: item.title || item.label })
+  }
+}
+
+function removeIssue(id) {
+  form.value.linked_issue_ids = form.value.linked_issue_ids.filter(i => i !== id)
+  linkedIssuesData.value = linkedIssuesData.value.filter(i => i.id !== id)
+}
+
+function addArticle(item) {
+  if (!form.value.linked_article_ids.includes(item.id)) {
+    form.value.linked_article_ids.push(item.id)
+    linkedArticlesData.value.push({ id: item.id, title: item.title || item.label })
+  }
+}
+
+function removeArticle(id) {
+  form.value.linked_article_ids = form.value.linked_article_ids.filter(a => a !== id)
+  linkedArticlesData.value = linkedArticlesData.value.filter(a => a.id !== id)
+}
 
 function handleSave() {
   emit('save', { ...form.value })
@@ -231,122 +297,50 @@ function onTagBackspace() {
 }
 
 .tcv-topbar-left,
-.tcv-topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+.tcv-topbar-right { display: flex; align-items: center; gap: 12px; }
 
 .btn-back {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 13px;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
+  background: none; border: none; color: var(--text-secondary);
+  font-size: 13px; cursor: pointer; padding: 4px 8px; border-radius: 4px;
 }
-.btn-back:hover {
-  color: var(--text-primary);
-  background: var(--bg-tertiary);
-}
+.btn-back:hover { color: var(--text-primary); background: var(--bg-tertiary); }
 
 .tcv-human-id {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 14px;
-  color: var(--accent);
-  font-weight: 600;
+  font-size: 14px; color: var(--accent); font-weight: 600;
 }
-
 .btn-delete {
-  padding: 6px 14px;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 6px;
-  color: #ef4444;
-  font-size: 13px;
-  cursor: pointer;
+  padding: 6px 14px; background: rgba(239, 68, 68, 0.15); border: none;
+  border-radius: 6px; color: #ef4444; font-size: 13px; cursor: pointer;
 }
-.btn-delete:hover {
-  background: rgba(239, 68, 68, 0.25);
-}
-
+.btn-delete:hover { background: rgba(239, 68, 68, 0.25); }
 .btn-cancel {
-  padding: 6px 14px;
-  background: none;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  color: var(--text-secondary);
-  font-size: 13px;
-  cursor: pointer;
+  padding: 6px 14px; background: none; border: 1px solid var(--border-color);
+  border-radius: 6px; color: var(--text-secondary); font-size: 13px; cursor: pointer;
 }
-.btn-cancel:hover {
-  color: var(--text-primary);
-}
-
+.btn-cancel:hover { color: var(--text-primary); }
 .btn-save {
-  padding: 6px 18px;
-  background: var(--accent);
-  border: none;
-  border-radius: 6px;
-  color: white;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
+  padding: 6px 18px; background: var(--accent); border: none; border-radius: 6px;
+  color: #fff; font-size: 13px; font-weight: 500; cursor: pointer;
 }
-.btn-save:hover {
-  opacity: 0.85;
-}
+.btn-save:hover { opacity: 0.85; }
 
-/* Body */
-.tcv-body {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 280px;
-  overflow: hidden;
-}
+.tcv-body { flex: 1; display: grid; grid-template-columns: 1fr 280px; overflow: hidden; }
+.tcv-left { display: flex; flex-direction: column; overflow-y: auto; }
 
-.tcv-left {
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  padding: 0;
-}
-
-/* Detail tabs */
 .tcv-tabs {
-  display: flex;
-  gap: 0;
-  padding: 0 20px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  display: flex; gap: 0; padding: 0 20px;
+  border-bottom: 1px solid var(--border-color); background: var(--bg-secondary);
 }
-
 .tcv-tab {
-  padding: 10px 16px;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--text-secondary);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.15s;
+  padding: 10px 16px; background: none; border: none;
+  border-bottom: 2px solid transparent; color: var(--text-secondary);
+  font-size: 13px; cursor: pointer; transition: all 0.15s;
 }
-.tcv-tab:hover {
-  color: var(--text-primary);
-}
-.tcv-tab.active {
-  color: var(--text-primary);
-  border-bottom-color: var(--accent);
-}
+.tcv-tab:hover { color: var(--text-primary); }
+.tcv-tab.active { color: var(--text-primary); border-bottom-color: var(--accent); }
+.tcv-tab-content { flex: 1; padding: 20px; overflow-y: auto; }
 
-.tcv-tab-content {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-}
-
-/* Details tab */
 .field-label {
   display: block;
   font-size: 12px;
@@ -354,9 +348,7 @@ function onTagBackspace() {
   margin-bottom: 6px;
   margin-top: 16px;
 }
-.field-label:first-child {
-  margin-top: 0;
-}
+.field-label:first-child { margin-top: 0; }
 
 .field-input {
   width: 100%;
@@ -369,9 +361,7 @@ function onTagBackspace() {
   outline: none;
   box-sizing: border-box;
 }
-.field-input:focus {
-  border-color: var(--accent);
-}
+.field-input:focus { border-color: var(--accent); }
 
 .field-textarea {
   width: 100%;
@@ -386,43 +376,10 @@ function onTagBackspace() {
   outline: none;
   box-sizing: border-box;
 }
-.field-textarea:focus {
-  border-color: var(--accent);
-}
+.field-textarea:focus { border-color: var(--accent); }
 
-/* Steps tab */
-.tab-steps {
-  padding: 0;
-}
+.tab-steps { padding: 0; }
 
-/* Links tab */
-.empty-links {
-  color: var(--text-secondary);
-  font-size: 13px;
-  padding: 20px 0;
-}
-
-.links-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.link-item {
-  display: inline-flex;
-  padding: 6px 12px;
-  background: var(--bg-tertiary);
-  border-radius: 6px;
-  color: var(--accent);
-  font-size: 13px;
-  text-decoration: none;
-  transition: background 0.15s;
-}
-.link-item:hover {
-  background: var(--bg-card);
-}
-
-/* Sidebar */
 .tcv-sidebar {
   background: var(--bg-secondary);
   border-left: 1px solid var(--border-color);
@@ -430,9 +387,7 @@ function onTagBackspace() {
   overflow-y: auto;
 }
 
-.sidebar-field {
-  margin-bottom: 20px;
-}
+.sidebar-field { margin-bottom: 20px; }
 
 .sidebar-label {
   display: block;
@@ -455,11 +410,8 @@ function onTagBackspace() {
   outline: none;
   cursor: pointer;
 }
-.sidebar-select:focus {
-  border-color: var(--accent);
-}
+.sidebar-select:focus { border-color: var(--accent); }
 
-/* Tags */
 .tags-wrap {
   display: flex;
   flex-wrap: wrap;
@@ -477,7 +429,7 @@ function onTagBackspace() {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  background: var(--accent-muted);
+  background: var(--bg-secondary);
   border-radius: 4px;
   color: var(--accent);
   font-size: 12px;
@@ -492,9 +444,7 @@ function onTagBackspace() {
   padding: 0;
   line-height: 1;
 }
-.tag-remove:hover {
-  color: #ef4444;
-}
+.tag-remove:hover { color: #ef4444; }
 
 .tag-input {
   flex: 1;
@@ -505,7 +455,5 @@ function onTagBackspace() {
   font-size: 12px;
   outline: none;
 }
-.tag-input::placeholder {
-  color: var(--text-secondary);
-}
+.tag-input::placeholder { color: var(--placeholder-color); }
 </style>
