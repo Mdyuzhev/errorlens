@@ -13,17 +13,20 @@ import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
+import { useLocaleStore } from '@/stores/locale'
 import Navbar from '@/components/common/Navbar.vue'
 import Toasts from '@/components/common/Toasts.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
 const themeStore = useThemeStore()
+const localeStore = useLocaleStore()
 
 const isAuthenticated = computed(() => auth.isAuthenticated)
 
 onMounted(() => {
   themeStore.init()
+  localeStore.init()
 })
 </script>
 
