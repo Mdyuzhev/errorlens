@@ -32,6 +32,7 @@ from app.routers import (
     projects,
     saved_filters,
     sessions,
+    sprints,
     task_settings,
     task_workflow,
     tasks,
@@ -153,6 +154,7 @@ app.include_router(gitlab_connections.router)  # EL020: GitLab Integration
 app.include_router(launches.router)  # EL022: Launch upload from CI
 app.include_router(saved_filters.router)  # EL023: JQL saved filters
 app.include_router(automations.router)  # EL025: Task Automations
+app.include_router(sprints.router)  # EL-039: Sprint management
 app.include_router(ws_router)  # Wave 4.0: WebSocket
 
 # Static files setup
