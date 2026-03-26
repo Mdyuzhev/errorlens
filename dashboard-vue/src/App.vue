@@ -1,7 +1,7 @@
 <template>
   <div class="app">
     <Navbar v-if="isAuthenticated && route.path !== '/login'" />
-    <main class="main-content">
+    <main :class="['main-content', { 'main-content--fullscreen': isFullscreen }]">
       <router-view />
     </main>
     <Toasts />
@@ -23,6 +23,9 @@ const themeStore = useThemeStore()
 const localeStore = useLocaleStore()
 
 const isAuthenticated = computed(() => auth.isAuthenticated)
+const isFullscreen = computed(() =>
+  ['/articles', '/qa', '/issues'].some(p => route.path.startsWith(p))
+)
 
 onMounted(() => {
   themeStore.init()
@@ -43,5 +46,10 @@ onMounted(() => {
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
+}
+
+.main-content--fullscreen {
+  padding: 0;
+  max-width: 100%;
 }
 </style>

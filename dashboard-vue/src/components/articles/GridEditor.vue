@@ -407,11 +407,21 @@ onBeforeUnmount(() => {
 .grid-col[data-span="3"] { grid-column: span 3; }
 .grid-col {
   position: relative;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: transparent;
+  border: 1px dashed var(--border-color);
   border-radius: 8px;
   padding: 12px;
-  min-height: 120px;
+  min-height: 80px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.grid-col:hover {
+  border-color: var(--text-secondary);
+}
+
+.grid-col:focus-within {
+  border-color: var(--accent);
+  background: var(--accent-bg);
 }
 .grid-col:hover .col-toolbar { opacity: 1; }
 

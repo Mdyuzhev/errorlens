@@ -817,10 +817,6 @@ onMounted(async () => {
   overflow: hidden;
 }
 
-.editor-body :deep(.grid-body) {
-  max-width: 1100px;
-  margin: 0 auto;
-}
 
 .btn-subheader-toggle {
   background: none;
