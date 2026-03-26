@@ -1,9 +1,5 @@
 <template>
   <div class="articles-page">
-    <div class="page-header">
-      <h1>Articles</h1>
-    </div>
-
     <!-- Hidden file inputs -->
     <input
       ref="importFileInput"
@@ -124,10 +120,18 @@
         <button v-if="editingArticle" type="button" class="btn btn-danger btn-sm" @click="deleteArticle">
           Delete
         </button>
+        <button
+          type="button"
+          class="btn-subheader-toggle"
+          @click="showSubheader = !showSubheader"
+          :title="showSubheader ? 'Скрыть метаданные' : 'Категория и теги'"
+        >
+          {{ showSubheader ? '▲' : '▼' }} Meta
+        </button>
         <button type="button" class="btn btn-primary btn-sm" @click="saveArticle">Save</button>
       </div>
 
-      <div class="editor-subheader">
+      <div v-show="showSubheader" class="editor-subheader">
         <input v-model="form.category" class="subheader-input" placeholder="Category" />
         <input v-model="tagsInput" class="subheader-input" placeholder="Tags (comma-separated)" />
         <button type="button" class="btn-import-small" @click="triggerEditorImport" :disabled="importing">
@@ -165,6 +169,7 @@ const store = useArticlesStore()
 
 const showEditor = ref(false)
 const showViewer = ref(false)
+const showSubheader = ref(false)
 const viewingArticle = ref(null)
 const editingArticle = ref(null)
 const gridEditorRef = ref(null)
@@ -531,28 +536,36 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.articles-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 60px);
+  overflow: hidden;
+}
+
 .articles-layout {
   display: flex;
-  gap: 20px;
-  margin-top: 16px;
+  gap: 0;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .sidebar {
-  width: 250px;
-  min-width: 250px;
-  background: var(--bg-card);
-  border-radius: 12px;
-  padding: 12px;
-  align-self: flex-start;
-  position: sticky;
-  top: 20px;
-  max-height: calc(100vh - 160px);
+  width: 240px;
+  min-width: 240px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  padding: 12px 8px;
   overflow-y: auto;
+  flex-shrink: 0;
 }
 
 .main-area {
   flex: 1;
   min-width: 0;
+  overflow-y: auto;
+  padding: 16px 20px;
 }
 
 .list-header {
@@ -584,8 +597,9 @@ onMounted(async () => {
 
 .articles-list {
   background: var(--bg-card);
-  border-radius: 12px;
+  border-radius: 4px;
   overflow: hidden;
+  border: 1px solid var(--border-color);
 }
 
 .article-row {
@@ -801,6 +815,28 @@ onMounted(async () => {
 .editor-body :deep(.grid-editor) {
   flex: 1;
   overflow: hidden;
+}
+
+.editor-body :deep(.grid-body) {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.btn-subheader-toggle {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.btn-subheader-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 

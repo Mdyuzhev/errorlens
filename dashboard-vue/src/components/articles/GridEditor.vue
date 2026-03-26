@@ -447,7 +447,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  opacity: 0;
+  opacity: 0.35;
   transition: opacity 0.15s;
   padding-top: 4px;
 }
@@ -457,24 +457,25 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  padding-top: 4px;
 }
 
 .add-row-btn {
-  flex: 1;
-  min-width: 100px;
-  padding: 10px 12px;
-  border: 2px dashed var(--border-color);
-  border-radius: 8px;
+  flex: 0 0 auto;
+  padding: 7px 16px;
+  border: 1px dashed var(--border-color);
+  border-radius: 6px;
   background: none;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   transition: all 0.15s;
 }
 
 .add-row-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
+  background: var(--accent-muted);
 }
 
 .grid-col :deep(.ProseMirror) {
