@@ -149,6 +149,25 @@
             <div class="auto-run-time">{{ formatTimeAgo(run.started_at) }}</div>
           </div>
         </div>
+
+        <!-- Linked Test Cases -->
+        <div v-if="linkedTestCases.length > 0 || linkedTestCasesLoading" class="sidebar-section">
+          <h4>Тест-кейсы</h4>
+          <div v-if="linkedTestCasesLoading" class="empty-hint">Загрузка...</div>
+          <div v-else class="linked-cases-list">
+            <div
+              v-for="tc in linkedTestCases"
+              :key="tc.id"
+              class="linked-case-item"
+            >
+              <span class="linked-case-id">{{ tc.human_id || tc.id?.slice(0,8) }}</span>
+              <span class="linked-case-title">{{ tc.title }}</span>
+              <span class="linked-case-status" :class="'tc-status-' + (tc.status || 'draft')">
+                {{ tc.status || 'Draft' }}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -157,7 +176,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useTasksStore } from '@/stores/tasks'
-import { tasksApi, automationsApi } from '@/services/api'
+import { tasksApi, automationsApi, testCasesApi } from '@/services/api'
 import RichEditor from '@/components/common/RichEditor.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 import TaskActivityFeed from './TaskActivityFeed.vue'
@@ -175,6 +194,8 @@ const relations = ref([])
 const automationRuns = ref([])
 const showStatusDropdown = ref(false)
 const allowedTransitions = ref([])
+const linkedTestCases = ref([])
+const linkedTestCasesLoading = ref(false)
 let autoRunsPollTimer = null
 
 function parseContent(raw) {
@@ -266,6 +287,19 @@ async function loadAutomationRuns() {
   } catch { automationRuns.value = [] }
 }
 
+async function loadLinkedTestCases() {
+  if (!props.task?.id) return
+  linkedTestCasesLoading.value = true
+  try {
+    const res = await testCasesApi.list({ linked_issue_id: props.task.id, limit: 20 })
+    linkedTestCases.value = Array.isArray(res.data) ? res.data : res.data.items || []
+  } catch {
+    linkedTestCases.value = []
+  } finally {
+    linkedTestCasesLoading.value = false
+  }
+}
+
 function formatTimeAgo(iso) {
   if (!iso) return ''
   const diff = Math.floor((Date.now() - new Date(iso)) / 1000)
@@ -280,6 +314,7 @@ onMounted(() => {
   loadRelations()
   loadAutomationRuns()
   loadTransitions()
+  loadLinkedTestCases()
 })
 
 onUnmounted(() => {
@@ -291,6 +326,7 @@ watch(() => props.task.id, () => {
   loadRelations()
   loadAutomationRuns()
   loadTransitions()
+  loadLinkedTestCases()
 })
 </script>
 
@@ -633,6 +669,56 @@ watch(() => props.task.id, () => {
   margin-left: 4px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Linked test cases */
+.linked-cases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.linked-case-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: default;
+}
+
+.linked-case-id {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--accent);
+  flex-shrink: 0;
+  background: var(--accent-muted);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.linked-case-title {
+  flex: 1;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.linked-case-status {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  text-transform: capitalize;
+}
+
+.tc-status-draft    { background: rgba(107,114,128,0.15); color: #9ca3af; }
+.tc-status-ready    { background: rgba(16,185,129,0.15);  color: var(--success); }
+.tc-status-approved { background: rgba(124,92,191,0.15);  color: var(--accent); }
 
 @media (max-width: 768px) {
   .viewer-body {
