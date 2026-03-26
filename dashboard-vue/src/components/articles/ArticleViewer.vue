@@ -311,8 +311,60 @@ onBeforeUnmount(() => {
 .viewer-document :deep(.grid-editor) { height: auto; }
 .viewer-document :deep(.grid-body) { padding: 0; overflow: visible; }
 .viewer-document :deep(.grid-col) { background: transparent !important; border: none !important; border-radius: 0 !important; padding: 0 !important; min-height: 0 !important; }
-.viewer-document :deep(.grid-row-wrapper) { margin-bottom: 8px; gap: 0; }
-.viewer-document :deep(.grid-row) { gap: 24px; }
+.viewer-document :deep(.grid-row-wrapper) { margin-bottom: 0; gap: 0; }
+.viewer-document :deep(.grid-row) { gap: 32px; }
+
+/* Убрать фон/рамку у rich-editor и ProseMirror в readonly */
+.viewer-document :deep(.rich-editor) { background: transparent !important; }
+.viewer-document :deep(.rich-editor__content) { background: transparent !important; }
+.viewer-document :deep(.ProseMirror) { background: transparent !important; border: none !important; padding: 0 !important; min-height: 0 !important; outline: none !important; }
+.viewer-document :deep(.rich-editor__counter) { display: none !important; }
+.viewer-document :deep(.editor-toolbar) { display: none !important; }
+
+/* ── Prose: heading sizes ── */
+.viewer-document :deep(.ProseMirror h1) { font-size: 19px; font-weight: 600; color: var(--text-primary); padding-bottom: 8px; border-bottom: 1px solid var(--border-color); margin: 0 0 12px; line-height: 1.4; }
+.viewer-document :deep(.ProseMirror h2) { font-size: 16px; font-weight: 600; color: var(--text-primary); margin: 24px 0 8px; line-height: 1.4; }
+.viewer-document :deep(.ProseMirror h3) { font-size: 14px; font-weight: 600; color: var(--text-primary); margin: 16px 0 6px; line-height: 1.4; }
+
+/* ── Prose: paragraphs ── */
+.viewer-document :deep(.ProseMirror p) { font-size: 14px; color: var(--text-primary); line-height: 1.8; margin: 0 0 16px; opacity: 0.85; }
+
+/* ── Prose: lists ── */
+.viewer-document :deep(.ProseMirror ul) { list-style: disc; padding-left: 20px; margin: 0 0 16px; }
+.viewer-document :deep(.ProseMirror ol) { list-style: decimal; padding-left: 20px; margin: 0 0 16px; }
+.viewer-document :deep(.ProseMirror li) { font-size: 14px; line-height: 1.7; color: var(--text-primary); opacity: 0.85; }
+
+/* ── Prose: inline code ── */
+.viewer-document :deep(.ProseMirror code) { font-family: 'Consolas', 'Fira Code', monospace; font-size: 12px; background: var(--bg-tertiary); color: var(--accent); padding: 2px 6px; border-radius: 4px; }
+
+/* ── Prose: blockquote ── */
+.viewer-document :deep(.ProseMirror blockquote) { border-left: 3px solid var(--accent); padding-left: 16px; margin: 0 0 16px; color: var(--text-secondary); font-style: italic; }
+
+/* ── Prose: horizontal rule ── */
+.viewer-document :deep(.ProseMirror hr) { border: none; border-top: 1px solid var(--border-color); margin: 20px 0; }
+
+/* ── Tables (TipTap table extension) ── */
+.viewer-document :deep(.ProseMirror table) { width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 20px; overflow-x: auto; display: table; }
+.viewer-document :deep(.ProseMirror th) { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); }
+.viewer-document :deep(.ProseMirror td) { padding: 10px 12px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); opacity: 0.85; font-size: 13px; }
+.viewer-document :deep(.ProseMirror tr:hover td) { background: var(--bg-tertiary); }
+
+/* ── Code block (TipTap code block) ── */
+.viewer-document :deep(.ProseMirror pre) { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; overflow-x: auto; margin: 0 0 20px; }
+.viewer-document :deep(.ProseMirror pre code) { background: none; padding: 0; color: var(--text-primary); font-size: 13px; line-height: 1.7; font-family: 'Consolas', 'Fira Code', monospace; }
+
+/* ── Strong / em ── */
+.viewer-document :deep(.ProseMirror strong) { font-weight: 600; color: var(--text-primary); opacity: 1; }
+.viewer-document :deep(.ProseMirror em) { font-style: italic; }
+
+/* ── Callout block in viewer ── */
+.viewer-document :deep(.callout-block .ProseMirror) { background: transparent !important; border: none !important; padding: 0 !important; min-height: 0 !important; }
+.viewer-document :deep(.callout-block .rich-editor) { background: transparent !important; }
+.viewer-document :deep(.callout-block .rich-editor__content) { background: transparent !important; }
+
+/* ── Expand block in viewer ── */
+.viewer-document :deep(.expand-body .ProseMirror) { background: transparent !important; border: none !important; padding: 0 !important; min-height: 0 !important; }
+.viewer-document :deep(.expand-body .rich-editor) { background: transparent !important; }
 
 /* toc */
 .viewer-toc { padding: 28px 16px 28px 0; border-left: 1px solid var(--border-color); position: sticky; top: 0; align-self: start; }
