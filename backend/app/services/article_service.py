@@ -9,7 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import Article, ArticleFolder
+from app.repositories.article_folder_repo import ArticleFolderRepository
 from app.repositories.article_repo import ArticleRepository
+from app.repositories.article_version_repo import ArticleVersionRepository
 from app.services import event_publisher
 from app.services.entity_link_service import EntityLinkService
 from app.services.project_service import ProjectService
@@ -146,6 +148,16 @@ class ArticleService:
         if not article:
             return None
 
+        # Сохранить текущую версию перед обновлением
+        version_repo = ArticleVersionRepository(self.db)
+        await version_repo.create_version(
+            article_id=article.id,
+            title=article.title,
+            content=article.content,
+            saved_by=article.created_by,
+        )
+        await version_repo.delete_oldest_if_limit(article.id, limit=50)
+
         for key, value in updates.items():
             if value is not None:
                 setattr(article, key, value)
@@ -221,3 +233,52 @@ class ArticleService:
             "published_at": article.published_at.isoformat() if article.published_at else None,
             "views": article.views,
         }
+
+    async def get_breadcrumbs(self, article_id: str) -> list[dict]:
+        """Build breadcrumb path from root to article."""
+        article = await self.repo.get_by_id(article_id)
+        if not article:
+            return []
+
+        breadcrumbs: list[dict] = [{"id": "root", "name": "Все статьи", "type": "root"}]
+
+        if article.folder_id:
+            folder_repo = ArticleFolderRepository(self.db)
+            chain: list[dict] = []
+            current_id = article.folder_id
+            while current_id:
+                folder = await folder_repo.get_by_id(current_id)
+                if not folder:
+                    break
+                chain.append({"id": folder.id, "name": folder.name, "type": "folder"})
+                current_id = folder.parent_id
+            chain.reverse()
+            breadcrumbs.extend(chain)
+
+        breadcrumbs.append({"id": article.id, "name": article.title, "type": "article"})
+        return breadcrumbs
+
+    async def get_folder_articles(
+        self,
+        folder_id: str,
+        exclude_article_id: str | None = None,
+        limit: int = 10,
+    ) -> list[dict]:
+        """Get articles in a folder, excluding current article."""
+        articles = await self.repo.list_with_filters(folder_id=folder_id, limit=limit + 1)
+
+        if exclude_article_id:
+            articles = [a for a in articles if a.id != exclude_article_id]
+
+        articles = articles[:limit]
+
+        return [
+            {
+                "id": a.id,
+                "title": a.title,
+                "slug": a.slug,
+                "status": a.status,
+                "updated_at": a.updated_at.isoformat() if a.updated_at else None,
+            }
+            for a in articles
+        ]
