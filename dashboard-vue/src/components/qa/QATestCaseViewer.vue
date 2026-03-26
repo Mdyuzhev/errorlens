@@ -7,6 +7,7 @@
         <span class="tcv-human-id">{{ testCase?.human_id || '' }}</span>
       </div>
       <div class="tcv-topbar-right">
+        <button class="btn-delete" @click="$emit('delete', testCase.id)">Delete</button>
         <button class="btn-cancel" @click="$emit('close')">Cancel</button>
         <button class="btn-save" @click="handleSave">Save</button>
       </div>
@@ -143,7 +144,7 @@ const props = defineProps({
   testCase: { type: Object, required: true }
 })
 
-const emit = defineEmits(['close', 'save'])
+const emit = defineEmits(['close', 'save', 'delete'])
 
 const detailTabs = [
   { key: 'details', label: 'Details' },
@@ -212,10 +213,10 @@ function onTagBackspace() {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: #0f0e17;
+  background: var(--bg-primary);
   display: flex;
   flex-direction: column;
-  color: #e8e6f0;
+  color: var(--text-primary);
 }
 
 .tcv-topbar {
@@ -225,8 +226,8 @@ function onTagBackspace() {
   height: 48px;
   min-height: 48px;
   padding: 0 20px;
-  background: #16152a;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .tcv-topbar-left,
@@ -239,43 +240,56 @@ function onTagBackspace() {
 .btn-back {
   background: none;
   border: none;
-  color: #7a788a;
+  color: var(--text-secondary);
   font-size: 13px;
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 4px;
 }
 .btn-back:hover {
-  color: #e8e6f0;
-  background: #22203a;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
 }
 
 .tcv-human-id {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 14px;
-  color: #9b7de0;
+  color: var(--accent);
   font-weight: 600;
+}
+
+.btn-delete {
+  padding: 6px 14px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  color: #ef4444;
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn-delete:hover {
+  background: rgba(239, 68, 68, 0.25);
 }
 
 .btn-cancel {
   padding: 6px 14px;
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
-  color: #7a788a;
+  color: var(--text-secondary);
   font-size: 13px;
   cursor: pointer;
 }
 .btn-cancel:hover {
-  color: #e8e6f0;
+  color: var(--text-primary);
 }
 
 .btn-save {
   padding: 6px 18px;
-  background: #7c5cbf;
+  background: var(--accent);
   border: none;
   border-radius: 6px;
-  color: #e8e6f0;
+  color: var(--text-primary);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -304,8 +318,8 @@ function onTagBackspace() {
   display: flex;
   gap: 0;
   padding: 0 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  background: #16152a;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
 }
 
 .tcv-tab {
@@ -313,17 +327,17 @@ function onTagBackspace() {
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: #7a788a;
+  color: var(--text-secondary);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.15s;
 }
 .tcv-tab:hover {
-  color: #e8e6f0;
+  color: var(--text-primary);
 }
 .tcv-tab.active {
-  color: #e8e6f0;
-  border-bottom-color: #7c5cbf;
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
 }
 
 .tcv-tab-content {
@@ -336,7 +350,7 @@ function onTagBackspace() {
 .field-label {
   display: block;
   font-size: 12px;
-  color: #7a788a;
+  color: var(--text-secondary);
   margin-bottom: 6px;
   margin-top: 16px;
 }
@@ -347,25 +361,25 @@ function onTagBackspace() {
 .field-input {
   width: 100%;
   padding: 8px 12px;
-  background: #22203a;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
-  color: #e8e6f0;
+  color: var(--text-primary);
   font-size: 14px;
   outline: none;
   box-sizing: border-box;
 }
 .field-input:focus {
-  border-color: #7c5cbf;
+  border-color: var(--accent);
 }
 
 .field-textarea {
   width: 100%;
   padding: 8px 12px;
-  background: #22203a;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
-  color: #e8e6f0;
+  color: var(--text-primary);
   font-size: 13px;
   font-family: inherit;
   resize: vertical;
@@ -373,7 +387,7 @@ function onTagBackspace() {
   box-sizing: border-box;
 }
 .field-textarea:focus {
-  border-color: #7c5cbf;
+  border-color: var(--accent);
 }
 
 /* Steps tab */
@@ -383,7 +397,7 @@ function onTagBackspace() {
 
 /* Links tab */
 .empty-links {
-  color: #4a4858;
+  color: var(--placeholder-color);
   font-size: 13px;
   padding: 20px 0;
 }
@@ -397,21 +411,21 @@ function onTagBackspace() {
 .link-item {
   display: inline-flex;
   padding: 6px 12px;
-  background: #22203a;
+  background: var(--bg-tertiary);
   border-radius: 6px;
-  color: #9b7de0;
+  color: var(--accent);
   font-size: 13px;
   text-decoration: none;
   transition: background 0.15s;
 }
 .link-item:hover {
-  background: #2d2b47;
+  background: var(--bg-card);
 }
 
 /* Sidebar */
 .tcv-sidebar {
-  background: #16152a;
-  border-left: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
   padding: 20px 16px;
   overflow-y: auto;
 }
@@ -426,23 +440,23 @@ function onTagBackspace() {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #7a788a;
+  color: var(--text-secondary);
   margin-bottom: 6px;
 }
 
 .sidebar-select {
   width: 100%;
   padding: 7px 10px;
-  background: #22203a;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
-  color: #e8e6f0;
+  color: var(--text-primary);
   font-size: 13px;
   outline: none;
   cursor: pointer;
 }
 .sidebar-select:focus {
-  border-color: #7c5cbf;
+  border-color: var(--accent);
 }
 
 /* Tags */
@@ -451,8 +465,8 @@ function onTagBackspace() {
   flex-wrap: wrap;
   gap: 6px;
   padding: 8px;
-  background: #22203a;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   min-height: 36px;
   align-items: center;
@@ -465,14 +479,14 @@ function onTagBackspace() {
   padding: 2px 8px;
   background: rgba(124, 92, 191, 0.2);
   border-radius: 4px;
-  color: #9b7de0;
+  color: var(--accent);
   font-size: 12px;
 }
 
 .tag-remove {
   background: none;
   border: none;
-  color: #7a788a;
+  color: var(--text-secondary);
   font-size: 14px;
   cursor: pointer;
   padding: 0;
@@ -487,11 +501,11 @@ function onTagBackspace() {
   min-width: 60px;
   background: none;
   border: none;
-  color: #e8e6f0;
+  color: var(--text-primary);
   font-size: 12px;
   outline: none;
 }
 .tag-input::placeholder {
-  color: #4a4858;
+  color: var(--placeholder-color);
 }
 </style>

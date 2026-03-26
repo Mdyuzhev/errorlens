@@ -55,6 +55,15 @@
       />
     </div>
 
+    <!-- TestCase Viewer -->
+    <QATestCaseViewer
+      v-if="viewingTestCase"
+      :test-case="viewingTestCase"
+      @close="closeViewer"
+      @save="saveTestCase"
+      @delete="deleteTestCase"
+    />
+
     <!-- Create modal -->
     <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
       <div class="modal-box">
@@ -89,6 +98,7 @@ import { useQAStore } from '@/stores/qa'
 import { useLocaleStore } from '@/stores/locale'
 import { projectsApi } from '@/services/api'
 import QATree from '@/components/qa/QATree.vue'
+import QATestCaseViewer from '@/components/qa/QATestCaseViewer.vue'
 
 const QAPlans      = defineAsyncComponent(() => import('@/components/qa/QAPlans.vue'))
 const QARuns       = defineAsyncComponent(() => import('@/components/qa/QARuns.vue'))
@@ -115,6 +125,7 @@ const tabs = computed(() => [
 
 const activeTab = ref('tree')
 const projectId = ref(null)
+const viewingTestCase = ref(null)
 const showCreateModal = ref(false)
 const newCase = ref({ title: '', priority: 'medium' })
 
@@ -143,8 +154,28 @@ function switchTab(key) {
   router.replace({ query: { ...route.query, tab: key } })
 }
 
-function openCase(id) {
-  store.fetchTestCase(id)
+async function openCase(id) {
+  const tc = await store.fetchTestCase(id)
+  if (tc) viewingTestCase.value = tc
+}
+
+function closeViewer() {
+  viewingTestCase.value = null
+}
+
+async function saveTestCase(formData) {
+  if (!viewingTestCase.value) return
+  const ok = await store.updateTestCase(viewingTestCase.value.id, formData)
+  if (ok) {
+    viewingTestCase.value = null
+    await store.fetchTestCases()
+  }
+}
+
+async function deleteTestCase(id) {
+  if (!confirm('Удалить тест-кейс?')) return
+  const ok = await store.deleteTestCase(id)
+  if (ok) viewingTestCase.value = null
 }
 
 async function createCase() {
