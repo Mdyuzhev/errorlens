@@ -10,7 +10,13 @@ const routes = [
   },
   {
     path: '/',
-    name: 'dashboard',
+    name: 'home',
+    component: () => import('@/views/HomeView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/sessions',
+    name: 'sessions',
     component: () => import('@/views/DashboardView.vue'),
     meta: { requiresAuth: true }
   },
