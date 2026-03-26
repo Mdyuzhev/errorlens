@@ -43,9 +43,31 @@ class RecordResultRequest(BaseModel):
     status: str
     comment: str | None = None
     error_details: str | None = None
+    assigned_to: str | None = None
 
 
 # --- Run endpoints (must be BEFORE /{plan_id} to avoid route conflict) ---
+
+@router.get("/project/{project_id}/runs")
+async def list_project_runs(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """All runs across all plans for a project."""
+    await check_project_access(project_id, user, db)
+    service = TestPlanService(db)
+    plans = await service.list_plans(project_id)
+    all_runs = []
+    for plan in plans:
+        runs = await service.repo.list_runs(plan["id"])
+        for r in runs:
+            summary = service.run_to_summary(r)
+            summary["plan_name"] = plan["name"]
+            all_runs.append(summary)
+    all_runs.sort(key=lambda x: x.get("started_at", ""), reverse=True)
+    return all_runs
+
 
 @router.get("/runs/{run_id}")
 async def get_run(
@@ -78,6 +100,7 @@ async def record_result(
         comment=data.comment,
         error_details=data.error_details,
         executed_by=user.id,
+        assigned_to=data.assigned_to,
     )
 
 
