@@ -289,7 +289,7 @@ function onTagBackspace() {
   background: var(--accent);
   border: none;
   border-radius: 6px;
-  color: var(--text-primary);
+  color: white;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -397,7 +397,7 @@ function onTagBackspace() {
 
 /* Links tab */
 .empty-links {
-  color: var(--placeholder-color);
+  color: var(--text-secondary);
   font-size: 13px;
   padding: 20px 0;
 }
@@ -477,7 +477,7 @@ function onTagBackspace() {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  background: rgba(124, 92, 191, 0.2);
+  background: var(--accent-muted);
   border-radius: 4px;
   color: var(--accent);
   font-size: 12px;
@@ -506,6 +506,6 @@ function onTagBackspace() {
   outline: none;
 }
 .tag-input::placeholder {
-  color: var(--placeholder-color);
+  color: var(--text-secondary);
 }
 </style>
