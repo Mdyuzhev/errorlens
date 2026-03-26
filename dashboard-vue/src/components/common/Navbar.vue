@@ -5,30 +5,39 @@
     </div>
 
     <div class="nav-links">
-      <router-link to="/" class="nav-link">
-        Sessions
-      </router-link>
-      <router-link to="/qa" class="nav-link">
-        QA
-      </router-link>
-      <router-link to="/issues" class="nav-link">
-        Issues
-      </router-link>
-      <router-link to="/articles" class="nav-link">
-        Articles
-      </router-link>
-      <router-link to="/results" class="nav-link">
-        Results
-      </router-link>
-      <router-link to="/generator" class="nav-link nav-link-accent">
-        Generator
-      </router-link>
-      <router-link to="/settings" class="nav-link">
-        Settings
-      </router-link>
+      <router-link to="/qa" class="nav-link">{{ t('nav.qa') }}</router-link>
+      <router-link to="/issues" class="nav-link">{{ t('nav.issues') }}</router-link>
+      <router-link to="/articles" class="nav-link">{{ t('nav.articles') }}</router-link>
+      <router-link to="/generator" class="nav-link nav-link-accent">{{ t('nav.generator') }}</router-link>
+      <router-link to="/settings" class="nav-link">{{ t('nav.settings') }}</router-link>
     </div>
 
     <div class="nav-user">
+      <!-- Theme toggle -->
+      <button class="btn-theme" @click="themeStore.toggle()" :title="isDark ? 'Светлая тема' : 'Тёмная тема'">
+        <span v-if="isDark">☀️</span>
+        <span v-else>🌙</span>
+      </button>
+
+      <!-- Language switcher -->
+      <div class="lang-wrapper" ref="langWrapper">
+        <button class="btn-lang" @click="showLangMenu = !showLangMenu">
+          {{ localeStore.currentLocaleLabel }}
+          <span class="lang-arrow">▾</span>
+        </button>
+        <div v-if="showLangMenu" class="lang-dropdown">
+          <button
+            v-for="lang in ['ru', 'en', 'zh']"
+            :key="lang"
+            class="lang-option"
+            :class="{ active: localeStore.locale === lang }"
+            @click="selectLang(lang)"
+          >
+            {{ t(`lang.${lang}`) }}
+          </button>
+        </div>
+      </div>
+
       <!-- Notifications bell -->
       <div class="notif-wrapper" ref="notifWrapper">
         <button class="btn-bell" @click="toggleDropdown" :title="`${notifStore.unreadCount} непрочитанных`">
@@ -41,12 +50,12 @@
 
         <div v-if="showDropdown" class="notif-dropdown">
           <div class="notif-header">
-            <span>Уведомления</span>
-            <button v-if="notifStore.unreadCount > 0" class="btn-mark-all" @click="markAllRead">Прочитать все</button>
+            <span>{{ t('nav.notifications') }}</span>
+            <button v-if="notifStore.unreadCount > 0" class="btn-mark-all" @click="markAllRead">{{ t('nav.markAllRead') }}</button>
           </div>
 
-          <div v-if="notifStore.loading" class="notif-loading">Загрузка...</div>
-          <div v-else-if="notifStore.notifications.length === 0" class="notif-empty">Нет уведомлений</div>
+          <div v-if="notifStore.loading" class="notif-loading">{{ t('nav.loading') }}</div>
+          <div v-else-if="notifStore.notifications.length === 0" class="notif-empty">{{ t('nav.noNotifications') }}</div>
           <div v-else class="notif-list">
             <div
               v-for="n in notifStore.notifications.slice(0, 10)"
@@ -67,23 +76,40 @@
       </div>
 
       <span class="username">{{ auth.user?.username }}</span>
-      <button @click="logout" class="btn-logout">Logout</button>
+      <button @click="logout" class="btn-logout">{{ t('nav.logout') }}</button>
     </div>
   </nav>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
+import { useThemeStore } from '@/stores/theme'
+import { useLocaleStore } from '@/stores/locale'
 
 const router = useRouter()
 const auth = useAuthStore()
 const notifStore = useNotificationsStore()
+const themeStore = useThemeStore()
+const localeStore = useLocaleStore()
 
 const showDropdown = ref(false)
 const notifWrapper = ref(null)
+const showLangMenu = ref(false)
+const langWrapper = ref(null)
+
+const isDark = computed(() => themeStore.theme === 'dark')
+
+function t(key) {
+  return localeStore.t(key)
+}
+
+function selectLang(lang) {
+  localeStore.setLocale(lang)
+  showLangMenu.value = false
+}
 let pollInterval = null
 
 function toggleDropdown() {
@@ -96,6 +122,9 @@ function toggleDropdown() {
 function onClickOutside(e) {
   if (notifWrapper.value && !notifWrapper.value.contains(e.target)) {
     showDropdown.value = false
+  }
+  if (langWrapper.value && !langWrapper.value.contains(e.target)) {
+    showLangMenu.value = false
   }
 }
 
@@ -375,5 +404,88 @@ onUnmounted(() => {
   text-align: center;
   color: var(--text-secondary);
   font-size: 13px;
+}
+
+/* Theme toggle */
+.btn-theme {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 6px;
+  border-radius: 8px;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.btn-theme:hover {
+  background: var(--bg-secondary);
+}
+
+/* Language switcher */
+.lang-wrapper {
+  position: relative;
+}
+
+.btn-lang {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-lang:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.lang-arrow {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.lang-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 120px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: var(--shadow-dropdown);
+  z-index: 200;
+  overflow: hidden;
+}
+
+.lang-option {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.lang-option:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.lang-option.active {
+  color: var(--accent);
+  font-weight: 600;
 }
 </style>
