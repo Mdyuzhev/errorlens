@@ -1,57 +1,69 @@
 <template>
   <div class="article-viewer">
-    <div class="viewer-header">
+    <!-- TOPBAR -->
+    <div class="viewer-topbar">
       <button class="btn-back" @click="emit('close')">← Назад</button>
-      <span class="viewer-title">{{ article.title }}</span>
-      <span class="viewer-status" :class="article.status">{{ article.status }}</span>
-      <button class="btn btn-secondary btn-sm" @click="handleExportPdf">PDF</button>
-      <button class="btn btn-secondary btn-sm" @click="openHistory">История</button>
-      <button class="btn btn-primary btn-sm" @click="emit('edit')">Edit</button>
+      <div class="topbar-sep"></div>
+      <span class="topbar-path">Articles</span>
+      <div class="topbar-gap"></div>
+      <button class="btn-action" @click="openHistory">История</button>
+      <button class="btn-action" @click="handleExportPdf">PDF</button>
+      <button class="btn-action btn-edit" @click="emit('edit')">Edit</button>
     </div>
 
-    <nav class="viewer-breadcrumbs" v-if="breadcrumbs.length">
-      <template v-for="(crumb, idx) in breadcrumbs" :key="crumb.id">
-        <span v-if="idx > 0" class="crumb-sep">›</span>
-        <span
-          v-if="crumb.type !== 'article'"
-          class="crumb-link"
-          @click="handleBreadcrumbClick(crumb)"
-        >{{ crumb.name }}</span>
-        <span v-else class="crumb-current">{{ crumb.name }}</span>
-      </template>
-    </nav>
-
-    <div v-if="article.category || articleTags.length" class="viewer-subheader">
-      <span v-if="article.category" class="viewer-category">{{ article.category }}</span>
-      <span v-for="tag in articleTags" :key="tag" class="viewer-tag">{{ tag }}</span>
+    <!-- ARTICLE HEAD -->
+    <div class="viewer-article-head">
+      <div class="viewer-crumbs" v-if="breadcrumbs.length">
+        <template v-for="(crumb, idx) in breadcrumbs" :key="crumb.id">
+          <span v-if="idx > 0" class="crumb-sep">›</span>
+          <span
+            v-if="crumb.type !== 'article'"
+            class="crumb-link"
+            @click="handleBreadcrumbClick(crumb)"
+          >{{ crumb.name }}</span>
+          <span v-else>{{ crumb.name }}</span>
+        </template>
+      </div>
+      <div class="viewer-title-row">
+        <span class="viewer-title">{{ article.title }}</span>
+        <span class="viewer-badge" :class="article.status">{{ article.status }}</span>
+      </div>
+      <div class="viewer-meta">
+        <div class="viewer-meta-author" v-if="article.author">
+          <div class="viewer-avatar">{{ authorInitial }}</div>
+          <span>{{ article.author }}</span>
+        </div>
+        <span class="viewer-dot" v-if="article.author">·</span>
+        <span>{{ formatDate(article.updated_at || article.created_at) }}</span>
+        <span class="viewer-dot">·</span>
+        <span>{{ article.views || 0 }} просмотров</span>
+      </div>
+      <div class="viewer-tags" v-if="article.category || articleTags.length">
+        <span v-if="article.category" class="viewer-tag category">{{ article.category }}</span>
+        <span v-for="tag in articleTags" :key="tag" class="viewer-tag">{{ tag }}</span>
+      </div>
     </div>
 
-    <div class="viewer-meta">
-      <span v-if="article.author">{{ article.author }}</span>
-      <span class="meta-sep" v-if="article.author">·</span>
-      <span>{{ formatDate(article.updated_at || article.created_at) }}</span>
-      <span class="meta-sep">·</span>
-      <span>{{ article.views || 0 }} просмотров</span>
-    </div>
-
+    <!-- BODY -->
     <div class="viewer-body">
-      <div class="viewer-content-area">
+      <div class="viewer-content">
         <div class="viewer-document">
           <GridEditor :modelValue="gridContent" :readonly="true" />
         </div>
         <div class="child-pages" v-if="folderArticles.length">
-          <h3>Статьи в этой папке</h3>
-          <ul>
-            <li v-for="a in folderArticles" :key="a.id">
-              <a href="#" @click.prevent="emit('open-article', a.id)">{{ a.title }}</a>
-            </li>
-          </ul>
+          <div class="child-pages-label">В этой папке</div>
+          <div
+            v-for="a in folderArticles"
+            :key="a.id"
+            class="child-page-item"
+            @click="emit('open-article', a.id)"
+          >📄 {{ a.title }}</div>
         </div>
       </div>
 
-      <aside class="viewer-toc" v-if="tocItems.length">
-        <div class="toc-title">Содержание</div>
-        <ul>
+      <div class="viewer-toc" v-if="tocItems.length">
+        <div class="toc-label">Содержание</div>
+        <ul class="toc-list">
           <li
             v-for="item in tocItems"
             :key="item.id"
@@ -59,25 +71,28 @@
             @click="scrollToHeading(item.id)"
           >{{ item.text }}</li>
         </ul>
-      </aside>
+      </div>
     </div>
 
-    <div class="history-panel" v-if="showHistory">
+    <!-- HISTORY PANEL -->
+    <div class="viewer-history" :class="{ open: showHistory }">
       <div class="history-header">
         <span>История версий</span>
         <button class="history-close" @click="showHistory = false; selectedVersion = null">✕</button>
       </div>
-      <div v-if="historyLoading" class="history-loading">Загрузка...</div>
-      <ul v-else class="history-list">
-        <li
+      <div v-if="historyLoading" style="padding: 16px; color: #7a788a; font-size: 13px;">Загрузка...</div>
+      <template v-else>
+        <div
           v-for="v in store.versions[article.id] || []"
           :key="v.id"
-          @click="loadVersion(v.id)"
+          class="history-item"
           :class="{ active: selectedVersion?.id === v.id }"
+          @click="loadVersion(v.id)"
         >
-          {{ formatDate(v.created_at) }} — {{ v.title }}
-        </li>
-      </ul>
+          <div class="history-date">{{ formatDate(v.created_at) }}</div>
+          <div class="history-title">{{ v.title }}</div>
+        </div>
+      </template>
       <div v-if="selectedVersion" class="version-preview">
         <GridEditor :modelValue="versionGridContent" :readonly="true" />
       </div>
@@ -133,6 +148,10 @@ const folderArticles = computed(() =>
     : []
 )
 
+const authorInitial = computed(() =>
+  (props.article.author || '?')[0].toUpperCase()
+)
+
 const versionGridContent = computed(() => {
   if (!selectedVersion.value?.content) return { version: 'grid-1', rows: [] }
   try {
@@ -179,7 +198,7 @@ async function loadVersion(versionId) {
 }
 
 function buildToc() {
-  const docEl = document.querySelector('.viewer-document')
+  const docEl = document.querySelector('.viewer-content')
   if (!docEl) return
   const headings = docEl.querySelectorAll('h1, h2, h3')
   tocItems.value = []
@@ -226,54 +245,104 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.article-viewer { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; background: var(--bg-primary); }
-.viewer-header { display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 16px; background: var(--bg-card); border-bottom: 1px solid var(--bg-secondary); flex-shrink: 0; }
-.btn-back { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 14px; padding: 4px 8px; border-radius: 6px; white-space: nowrap; }
-.btn-back:hover { background: var(--bg-secondary); color: var(--text-primary); }
-.viewer-title { flex: 1; font-size: 18px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.viewer-status { padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; flex-shrink: 0; }
-.viewer-status.published { background: rgba(16, 185, 129, 0.2); color: #10b981; }
-.viewer-status.draft { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
-.btn-sm { padding: 4px 12px !important; font-size: 13px !important; }
-.viewer-breadcrumbs { display: flex; align-items: center; gap: 6px; padding: 6px 16px; background: var(--bg-card); border-bottom: 1px solid var(--bg-secondary); font-size: 13px; flex-shrink: 0; }
-.crumb-sep { color: var(--text-secondary); }
-.crumb-link { color: var(--accent); cursor: pointer; }
+.article-viewer {
+  position: fixed; inset: 0; z-index: 1000;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  background: #0f0e17;
+  color: #e8e6f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+
+/* topbar */
+.viewer-topbar {
+  display: flex; align-items: center; gap: 8px;
+  height: 46px; padding: 0 20px;
+  background: #16152a;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+.btn-back { background: none; border: none; color: #9997aa; cursor: pointer; font-size: 13px; padding: 5px 10px; border-radius: 6px; }
+.btn-back:hover { background: #22203a; color: #e8e6f0; }
+.topbar-sep { width: 1px; height: 18px; background: rgba(255,255,255,0.09); margin: 0 4px; }
+.topbar-path { font-size: 12px; color: #4a4858; }
+.topbar-gap { flex: 1; }
+.btn-action { background: transparent; border: 1px solid rgba(255,255,255,0.14); color: #b0aec0; cursor: pointer; font-size: 12px; padding: 5px 14px; border-radius: 6px; line-height: 1.4; }
+.btn-action:hover { border-color: rgba(255,255,255,0.3); color: #e8e6f0; background: #22203a; }
+.btn-edit { background: #7c5cbf; border-color: #7c5cbf; color: #fff; font-weight: 500; }
+.btn-edit:hover { background: #8f6fd4; border-color: #8f6fd4; }
+
+/* article-head */
+.viewer-article-head {
+  padding: 24px 40px 18px;
+  background: #16152a;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+.viewer-crumbs { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 12px; color: #7a788a; }
+.crumb-link { color: #9b7de0; cursor: pointer; }
 .crumb-link:hover { text-decoration: underline; }
-.crumb-current { color: var(--text-secondary); }
-.viewer-subheader { display: flex; align-items: center; gap: 8px; padding: 6px 16px; background: var(--bg-card); border-bottom: 1px solid var(--bg-secondary); flex-shrink: 0; }
-.viewer-category { font-size: 13px; color: var(--accent); font-weight: 500; }
-.viewer-tag { font-size: 12px; color: var(--text-secondary); background: var(--bg-secondary); padding: 2px 8px; border-radius: 10px; }
-.viewer-meta { display: flex; align-items: center; gap: 6px; padding: 6px 16px; background: var(--bg-card); border-bottom: 1px solid var(--bg-secondary); font-size: 12px; color: var(--text-secondary); flex-shrink: 0; }
-.meta-sep { color: var(--text-secondary); opacity: 0.5; }
-.viewer-body { flex: 1; overflow-y: auto; background: var(--bg-secondary); padding: 40px 20px; display: flex; gap: 24px; }
-.viewer-content-area { flex: 1; min-width: 0; }
-.viewer-document { background: var(--bg-card); max-width: 860px; margin: 0 auto; padding: 60px 80px; border-radius: 8px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3); min-height: calc(100vh - 180px); }
+.crumb-sep { color: #4a4858; font-size: 11px; }
+
+.viewer-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+.viewer-title { font-size: 26px; font-weight: 600; color: #e8e6f0; line-height: 1.3; }
+.viewer-badge { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; flex-shrink: 0; margin-top: 5px; }
+.viewer-badge.published { background: rgba(16,185,129,0.12); color: #10b981; }
+.viewer-badge.draft { background: rgba(245,158,11,0.12); color: #f59e0b; }
+
+.viewer-meta { display: flex; align-items: center; gap: 14px; font-size: 12px; color: #7a788a; }
+.viewer-meta-author { display: flex; align-items: center; gap: 6px; }
+.viewer-avatar { width: 22px; height: 22px; border-radius: 50%; background: rgba(124,92,191,0.2); border: 1px solid rgba(124,92,191,0.4); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; color: #9b7de0; }
+.viewer-dot { color: #4a4858; }
+
+.viewer-tags { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.viewer-tag { font-size: 11px; padding: 2px 9px; border-radius: 10px; background: #22203a; color: #7a788a; border: 1px solid rgba(255,255,255,0.07); }
+.viewer-tag.category { color: #9b7de0; background: rgba(124,92,191,0.12); border-color: rgba(124,92,191,0.25); }
+
+/* body grid */
+.viewer-body {
+  display: grid;
+  grid-template-columns: 1fr 200px;
+  align-items: start;
+  overflow-y: auto;
+}
+.viewer-content { padding: 32px 40px 48px; min-width: 0; }
 .viewer-document :deep(.grid-editor) { height: auto; }
 .viewer-document :deep(.grid-body) { padding: 0; overflow: visible; }
-.viewer-toc { width: 200px; flex-shrink: 0; position: sticky; top: 0; max-height: calc(100vh - 100px); overflow-y: auto; }
-.toc-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px; }
-.viewer-toc ul { list-style: none; padding: 0; margin: 0; }
-.toc-item { font-size: 13px; color: var(--text-secondary); cursor: pointer; padding: 4px 8px; border-radius: 4px; }
-.toc-item:hover { color: var(--text-primary); background: var(--bg-tertiary); }
-.toc-item.active { color: var(--accent); border-left: 2px solid var(--accent); }
-.toc-h2 { padding-left: 16px; }
-.toc-h3 { padding-left: 28px; }
-@media (max-width: 1280px) { .viewer-toc { display: none; } }
-.child-pages { max-width: 860px; margin: 24px auto 0; padding: 20px 24px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color); }
-.child-pages h3 { font-size: 14px; font-weight: 600; color: var(--text-primary); margin: 0 0 12px; }
-.child-pages ul { list-style: none; padding: 0; margin: 0; }
-.child-pages li { padding: 6px 0; border-bottom: 1px solid var(--bg-secondary); }
-.child-pages li:last-child { border-bottom: none; }
-.child-pages a { color: var(--accent); text-decoration: none; font-size: 14px; }
-.child-pages a:hover { text-decoration: underline; }
-.history-panel { position: fixed; top: 0; right: 0; width: 360px; height: 100vh; background: var(--bg-card); border-left: 1px solid var(--border-color); z-index: 1001; display: flex; flex-direction: column; box-shadow: -4px 0 24px rgba(0, 0, 0, 0.2); }
-.history-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--bg-secondary); font-weight: 600; color: var(--text-primary); }
-.history-close { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 16px; padding: 4px 8px; border-radius: 4px; }
-.history-close:hover { background: var(--bg-secondary); color: var(--text-primary); }
-.history-loading { padding: 16px; color: var(--text-secondary); font-size: 13px; }
-.history-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
-.history-list li { padding: 10px 16px; font-size: 13px; color: var(--text-secondary); cursor: pointer; border-bottom: 1px solid var(--bg-secondary); }
-.history-list li:hover { background: var(--bg-secondary); }
-.history-list li.active { background: var(--bg-tertiary); color: var(--accent); }
-.version-preview { border-top: 1px solid var(--border-color); padding: 16px; overflow-y: auto; max-height: 50vh; }
+
+/* toc */
+.viewer-toc { padding: 28px 16px 28px 0; border-left: 1px solid rgba(255,255,255,0.07); position: sticky; top: 0; align-self: start; }
+.toc-label { font-size: 11px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: #4a4858; margin-bottom: 10px; padding-left: 10px; }
+.toc-list { list-style: none; padding: 0; margin: 0; }
+.toc-item { display: block; font-size: 12px; color: #7a788a; padding: 4px 10px; border-radius: 0 4px 4px 0; cursor: pointer; border-left: 2px solid transparent; margin-bottom: 1px; }
+.toc-item:hover { color: #e8e6f0; background: #22203a; }
+.toc-item.active { color: #9b7de0; border-left-color: #7c5cbf; background: rgba(124,92,191,0.1); }
+.toc-h2 { padding-left: 18px; }
+.toc-h3 { padding-left: 26px; }
+@media (max-width: 1280px) {
+  .viewer-body { grid-template-columns: 1fr; }
+  .viewer-toc { display: none; }
+}
+
+/* child pages */
+.child-pages { margin-top: 32px; padding: 18px 20px; background: #16152a; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; }
+.child-pages-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #4a4858; margin-bottom: 10px; }
+.child-page-item { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.06); color: #9b7de0; font-size: 13px; cursor: pointer; }
+.child-page-item:last-child { border-bottom: none; }
+.child-page-item:hover { color: #b08ae0; }
+
+/* history panel */
+.viewer-history { position: fixed; top: 0; right: 0; bottom: 0; width: 280px; background: #16152a; border-left: 1px solid rgba(255,255,255,0.12); display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.22s ease; z-index: 1010; box-shadow: -8px 0 32px rgba(0,0,0,0.5); }
+.viewer-history.open { transform: translateX(0); }
+.history-header { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.history-header span { font-size: 13px; font-weight: 500; color: #e8e6f0; }
+.history-close { background: none; border: none; color: #7a788a; cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; line-height: 1; }
+.history-close:hover { background: #22203a; color: #e8e6f0; }
+.history-item { padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); cursor: pointer; }
+.history-item:hover { background: #22203a; }
+.history-item.active { background: rgba(124,92,191,0.1); }
+.history-date { font-size: 11px; color: #7a788a; }
+.history-title { font-size: 13px; color: #e8e6f0; margin-top: 2px; }
+.version-preview { border-top: 1px solid rgba(255,255,255,0.08); padding: 16px; overflow-y: auto; max-height: 50vh; }
 </style>
