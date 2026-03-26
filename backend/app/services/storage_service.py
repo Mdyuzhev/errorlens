@@ -86,6 +86,33 @@ class StorageService:
             content_type=content_type,
         )
 
+    def upload_file(
+        self,
+        content: bytes,
+        filename: str,
+        content_type: str,
+        prefix: str,
+    ) -> dict:
+        """Upload arbitrary file to S3 (no image processing)."""
+        if not content:
+            raise ValueError("Empty file")
+
+        key = f"{prefix}/{uuid.uuid4().hex}_{filename}"
+
+        self.client.put_object(
+            Bucket=self.bucket,
+            Key=key,
+            Body=content,
+            ContentType=content_type,
+        )
+
+        return {
+            "object_key": key,
+            "filename": filename,
+            "content_type": content_type,
+            "size_bytes": len(content),
+        }
+
     def delete_image(self, object_key: str) -> bool:
         """Delete image from S3."""
         try:

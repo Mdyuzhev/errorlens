@@ -27,6 +27,7 @@ from app.routers import (
     generation,
     gitlab_connections,
     integrations,
+    issue_attachments,
     issue_custom_fields,
     jql,
     launches,
@@ -43,6 +44,7 @@ from app.routers import (
     testcases,
     testruns,
     tests,
+    work_logs,
 )
 from app.services.auth import init_admin_user
 from app.services.redis_client import close_redis, get_redis
@@ -159,6 +161,8 @@ app.include_router(automations.router)  # EL025: Task Automations
 app.include_router(sprints.router)  # EL-039: Sprint management
 app.include_router(components.router)  # EL-040: Project Components
 app.include_router(issue_custom_fields.router)  # EL-040: Custom Fields
+app.include_router(issue_attachments.router)  # EL-041: Issue attachments
+app.include_router(work_logs.router)  # EL-041: Work logs
 app.include_router(ws_router)  # Wave 4.0: WebSocket
 
 # Static files setup
