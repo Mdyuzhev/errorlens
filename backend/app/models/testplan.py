@@ -135,6 +135,9 @@ class TestPlanRunResult(Base):
     executed_by: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    assigned_to: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Relationships
     run: Mapped["TestPlanRun"] = relationship("TestPlanRun", back_populates="results")

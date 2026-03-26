@@ -45,6 +45,10 @@ class TestCase(Base):
     # Steps as JSON array
     steps: Mapped[dict] = mapped_column(JSON, default=list)
 
+    # QA extensions
+    parameters: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    linked_issue_ids: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
     # Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
