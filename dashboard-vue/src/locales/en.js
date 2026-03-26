@@ -3,7 +3,6 @@ export default {
     qa: 'QA',
     issues: 'Issues',
     articles: 'Articles',
-    generator: 'Generator',
     settings: 'Settings',
     sessions: 'Sessions',
     logout: 'Logout',
@@ -29,6 +28,7 @@ export default {
       dashboard: 'Dashboard',
       sessions: 'Sessions',
       results: 'Results',
+      generator: 'Generator',
     },
   },
   common: {

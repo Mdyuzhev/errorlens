@@ -49,6 +49,10 @@
         v-else-if="activeTab === 'results'"
         :is="ResultsTab"
       />
+      <component
+        v-else-if="activeTab === 'generator'"
+        :is="GeneratorTab"
+      />
     </div>
 
     <!-- Create modal -->
@@ -79,18 +83,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch, defineAsyncComponent } from 'vue'
+import { ref, onMounted, computed, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQAStore } from '@/stores/qa'
 import { useLocaleStore } from '@/stores/locale'
 import { projectsApi } from '@/services/api'
 import QATree from '@/components/qa/QATree.vue'
 
-const QAPlans = defineAsyncComponent(() => import('@/components/qa/QAPlans.vue'))
-const QARuns = defineAsyncComponent(() => import('@/components/qa/QARuns.vue'))
-const QADashboard = defineAsyncComponent(() => import('@/components/qa/QADashboard.vue'))
-const SessionsTab = defineAsyncComponent(() => import('@/views/DashboardView.vue'))
-const ResultsTab  = defineAsyncComponent(() => import('@/views/ResultsView.vue'))
+const QAPlans      = defineAsyncComponent(() => import('@/components/qa/QAPlans.vue'))
+const QARuns       = defineAsyncComponent(() => import('@/components/qa/QARuns.vue'))
+const QADashboard  = defineAsyncComponent(() => import('@/components/qa/QADashboard.vue'))
+const SessionsTab  = defineAsyncComponent(() => import('@/views/DashboardView.vue'))
+const ResultsTab   = defineAsyncComponent(() => import('@/views/ResultsView.vue'))
+const GeneratorTab = defineAsyncComponent(() => import('@/views/GeneratorView.vue'))
 
 const route = useRoute()
 const router = useRouter()
@@ -105,6 +110,7 @@ const tabs = computed(() => [
   { key: 'dashboard', label: t('qa.tabs.dashboard') },
   { key: 'sessions',  label: t('qa.tabs.sessions') },
   { key: 'results',   label: t('qa.tabs.results') },
+  { key: 'generator', label: t('qa.tabs.generator') },
 ])
 
 const activeTab = ref('tree')
@@ -204,6 +210,7 @@ async function createCase() {
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   padding: 0 20px;
+  overflow-x: auto;
 }
 
 .qa-tab {
@@ -216,6 +223,7 @@ async function createCase() {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
+  white-space: nowrap;
 }
 .qa-tab:hover {
   color: var(--text-primary);

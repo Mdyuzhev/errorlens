@@ -1,45 +1,77 @@
 <template>
   <div class="login-page">
-    <div class="login-card">
-      <div class="logo">
-        <div class="logo-icon">🔍</div>
-        <h1>Error<span>Lens</span></h1>
-        <p>AI-powered error analysis</p>
+    <!-- Left: App preview -->
+    <div class="login-preview">
+      <div class="preview-brand">
+        <span class="brand-icon">🔍</span>
+        <span class="brand-name">ErrorLens</span>
       </div>
+      <p class="preview-subtitle">AI-платформа для QA-инженеров</p>
 
-      <div v-if="error" class="error-alert">
-        {{ error }}
+      <div class="preview-cards">
+        <div class="preview-card">
+          <span class="preview-card-icon">🧪</span>
+          <div>
+            <div class="preview-card-title">QA</div>
+            <div class="preview-card-desc">Тест-кейсы, планы и прогоны</div>
+          </div>
+        </div>
+        <div class="preview-card">
+          <span class="preview-card-icon">📋</span>
+          <div>
+            <div class="preview-card-title">Issues</div>
+            <div class="preview-card-desc">Задачи и баг-трекер</div>
+          </div>
+        </div>
+        <div class="preview-card">
+          <span class="preview-card-icon">📚</span>
+          <div>
+            <div class="preview-card-title">Articles</div>
+            <div class="preview-card-desc">База знаний команды</div>
+          </div>
+        </div>
       </div>
+    </div>
 
-      <form @submit.prevent="handleLogin">
-        <div class="form-group">
-          <label for="username">Username</label>
-          <input
-            type="text"
-            id="username"
-            v-model="username"
-            required
-            autofocus
-            placeholder="admin"
-          />
+    <!-- Right: Login form -->
+    <div class="login-form-side">
+      <div class="login-card">
+        <h2 class="login-heading">Войти в систему</h2>
+
+        <div v-if="error" class="error-alert">
+          {{ error }}
         </div>
 
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input
-            type="password"
-            id="password"
-            v-model="password"
-            required
-            placeholder="••••••••"
-          />
-        </div>
+        <form @submit.prevent="handleLogin">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input
+              type="text"
+              id="username"
+              v-model="username"
+              required
+              autofocus
+              placeholder="admin"
+            />
+          </div>
 
-        <button type="submit" class="btn-login" :disabled="loading">
-          <span v-if="loading" class="spinner"></span>
-          <span v-else>Login</span>
-        </button>
-      </form>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              v-model="password"
+              required
+              placeholder="••••••••"
+            />
+          </div>
+
+          <button type="submit" class="btn-login" :disabled="loading">
+            <span v-if="loading" class="spinner"></span>
+            <span v-else>Войти</span>
+          </button>
+        </form>
+      </div>
     </div>
   </div>
 </template>
@@ -77,55 +109,107 @@ async function handleLogin() {
 .login-page {
   min-height: 100vh;
   display: flex;
+}
+
+/* ── Left column: app preview ── */
+.login-preview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 60px 56px;
+  background: linear-gradient(160deg, var(--bg-primary) 0%, #1a0a2e 60%, #2d1b4e 100%);
+}
+
+.preview-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.brand-icon {
+  font-size: 36px;
+}
+
+.brand-name {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.preview-subtitle {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: 0 0 48px;
+}
+
+.preview-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 400px;
+}
+
+.preview-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+}
+
+.preview-card-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.preview-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.preview-card-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ── Right column: login form ── */
+.login-form-side {
+  width: 440px;
+  flex-shrink: 0;
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, #1a0a2e 50%, #2d1b4e 100%);
+  padding: 40px 48px;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border-color);
 }
 
 .login-card {
   width: 100%;
-  max-width: 400px;
-  background: var(--bg-card);
-  padding: 40px;
-  border-radius: 24px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
-.logo {
-  text-align: center;
-  margin-bottom: 32px;
-}
-
-.logo-icon {
-  font-size: 48px;
-  margin-bottom: 8px;
-}
-
-.logo h1 {
-  font-size: 28px;
+.login-heading {
+  font-size: 24px;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 0;
-}
-
-.logo h1 span {
-  color: var(--accent);
-}
-
-.logo p {
-  color: var(--text-secondary);
-  font-size: 14px;
-  margin-top: 4px;
+  margin: 0 0 28px;
 }
 
 .error-alert {
-  background: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.15);
   color: #f87171;
-  padding: 12px;
+  padding: 12px 16px;
   border-radius: 8px;
   margin-bottom: 20px;
   font-size: 14px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .form-group {
@@ -136,38 +220,25 @@ async function handleLogin() {
   display: block;
   margin-bottom: 8px;
   font-weight: 500;
+  font-size: 14px;
   color: var(--text-secondary);
 }
 
 .form-group input {
   width: 100%;
   padding: 12px 16px;
-  background: var(--bg-secondary);
-  border: 2px solid transparent;
-  border-radius: 12px;
-  color: var(--text-primary);
-  font-size: 16px;
-  transition: all 0.2s;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.2);
-}
-
-.form-group input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  font-size: 15px;
 }
 
 .btn-login {
   width: 100%;
-  padding: 14px;
-  background: linear-gradient(135deg, var(--accent) 0%, #9333ea 100%);
+  padding: 13px;
+  background: var(--accent);
   color: white;
   border: none;
-  border-radius: 12px;
-  font-size: 16px;
+  border-radius: 10px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -175,16 +246,39 @@ async function handleLogin() {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  margin-top: 8px;
 }
 
-.btn-login:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
+.btn-login:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .btn-login:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  transform: none;
+}
+
+/* Mobile: stack columns */
+@media (max-width: 768px) {
+  .login-page {
+    flex-direction: column;
+  }
+
+  .login-preview {
+    padding: 40px 24px 32px;
+  }
+
+  .preview-cards {
+    max-width: 100%;
+  }
+
+  .login-form-side {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border-color);
+    padding: 32px 24px;
+  }
 }
 </style>

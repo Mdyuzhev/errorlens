@@ -3,7 +3,6 @@ export default {
     qa: 'QA',
     issues: '问题',
     articles: '文章',
-    generator: '生成器',
     settings: '设置',
     sessions: '会话',
     logout: '退出',
@@ -29,6 +28,7 @@ export default {
       dashboard: '仪表盘',
       sessions: '会话',
       results: '结果',
+      generator: '生成器',
     },
   },
   common: {
