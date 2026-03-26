@@ -151,8 +151,8 @@ onMounted(() => {
 }
 
 .qa-sidebar {
-  background: #16152a;
-  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
   overflow-y: auto;
   padding: 12px 0;
 }
@@ -168,7 +168,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid var(--border-color);
   gap: 8px;
 }
 
@@ -181,10 +181,10 @@ onMounted(() => {
 
 .filter-select {
   padding: 5px 10px;
-  background: #22203a;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
   border-radius: 5px;
-  color: #e8e6f0;
+  color: var(--text-primary);
   font-size: 12px;
   outline: none;
   cursor: pointer;
@@ -192,21 +192,21 @@ onMounted(() => {
 
 .bulk-count {
   font-size: 12px;
-  color: #9b7de0;
+  color: var(--accent);
   font-weight: 500;
 }
 
 .btn-bulk {
   padding: 5px 12px;
-  background: #22203a;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
   border-radius: 5px;
-  color: #e8e6f0;
+  color: var(--text-primary);
   font-size: 12px;
   cursor: pointer;
 }
 .btn-bulk:hover {
-  background: #2d2b47;
+  background: var(--bg-tertiary);
 }
 .btn-bulk-danger {
   color: #ef4444;
@@ -218,14 +218,14 @@ onMounted(() => {
 .btn-export {
   padding: 5px 12px;
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--border-color);
   border-radius: 5px;
-  color: #7a788a;
+  color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
 }
 .btn-export:hover {
-  color: #e8e6f0;
+  color: var(--text-primary);
 }
 
 /* Header & rows */
@@ -240,38 +240,38 @@ onMounted(() => {
 
 .tc-header {
   height: 36px;
-  background: #16152a;
-  color: #7a788a;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .tc-row {
   height: 42px;
   cursor: pointer;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border-color);
   transition: background 0.1s;
 }
 .tc-row:hover {
-  background: #22203a;
+  background: var(--bg-tertiary);
 }
 .tc-row.selected {
-  background: rgba(124, 92, 191, 0.1);
+  background: var(--accent-muted);
 }
 
 .tc-empty {
   padding: 40px 16px;
   text-align: center;
-  color: #7a788a;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
 .col-check { width: 28px; flex-shrink: 0; }
 .col-id { width: 90px; flex-shrink: 0; }
-.col-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #e8e6f0; }
+.col-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
 .col-priority { width: 80px; flex-shrink: 0; }
 .col-status { width: 80px; flex-shrink: 0; }
 .col-auto { width: 90px; flex-shrink: 0; }
@@ -282,13 +282,13 @@ onMounted(() => {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 12px;
   padding: 2px 6px;
-  background: #22203a;
+  background: var(--bg-tertiary);
   border-radius: 4px;
-  color: #9b7de0;
+  color: var(--accent);
 }
 
 .text-subtle {
-  color: #4a4858;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -309,12 +309,12 @@ onMounted(() => {
 
 .status-draft { background: rgba(107, 114, 128, 0.15); color: #9ca3af; }
 .status-ready { background: rgba(16, 185, 129, 0.15); color: #10b981; }
-.status-approved { background: rgba(124, 92, 191, 0.15); color: #9b7de0; }
+.status-approved { background: var(--accent-muted); color: var(--accent); }
 
 .auto-badge { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
 
 input[type="checkbox"] {
-  accent-color: #7c5cbf;
+  accent-color: var(--accent);
   cursor: pointer;
 }
 </style>

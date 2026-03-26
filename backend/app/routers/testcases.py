@@ -45,6 +45,7 @@ class TestCaseUpdate(BaseModel):
     steps: list[dict] | None = None
     parameters: list[dict] | None = None
     linked_issue_ids: list[str] | None = None
+    linked_article_ids: list[str] | None = None
 
 
 @router.get("")
@@ -54,6 +55,7 @@ async def list_testcases(
     folder_id: str | None = None,
     status: str | None = None,
     priority: str | None = None,
+    linked_issue_id: str | None = None,
     limit: int = 50,
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
@@ -68,6 +70,7 @@ async def list_testcases(
         folder_id=folder_id,
         status=status,
         priority=priority,
+        linked_issue_id=linked_issue_id,
         limit=limit,
         offset=offset,
     )
