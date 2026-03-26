@@ -3,28 +3,34 @@
     <!-- Left: App preview -->
     <div class="login-preview">
       <div class="preview-brand">
-        <span class="brand-icon">🔍</span>
+        <svg class="brand-icon" xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <span class="brand-name">ErrorLens</span>
       </div>
       <p class="preview-subtitle">AI-платформа для QA-инженеров</p>
 
       <div class="preview-cards">
         <div class="preview-card">
-          <span class="preview-card-icon">🧪</span>
+          <div class="preview-card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6l3 7H6L9 2z"/><path d="M12 9v13"/><path d="M8 22h8"/><path d="M5 12l-2 4h18l-2-4"/></svg>
+          </div>
           <div>
             <div class="preview-card-title">QA</div>
             <div class="preview-card-desc">Тест-кейсы, планы и прогоны</div>
           </div>
         </div>
         <div class="preview-card">
-          <span class="preview-card-icon">📋</span>
+          <div class="preview-card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 8h7"/><path d="M9 12h7"/><path d="M9 16h4"/></svg>
+          </div>
           <div>
             <div class="preview-card-title">Issues</div>
             <div class="preview-card-desc">Задачи и баг-трекер</div>
           </div>
         </div>
         <div class="preview-card">
-          <span class="preview-card-icon">📚</span>
+          <div class="preview-card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>
+          </div>
           <div>
             <div class="preview-card-title">Articles</div>
             <div class="preview-card-desc">База знаний команды</div>
@@ -129,7 +135,7 @@ async function handleLogin() {
 }
 
 .brand-icon {
-  font-size: 36px;
+  flex-shrink: 0;
 }
 
 .brand-name {
@@ -163,8 +169,15 @@ async function handleLogin() {
 }
 
 .preview-card-icon {
-  font-size: 28px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  background: rgba(124, 92, 191, 0.15);
+  border-radius: 10px;
+  color: var(--accent);
 }
 
 .preview-card-title {

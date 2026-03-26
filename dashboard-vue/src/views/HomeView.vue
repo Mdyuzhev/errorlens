@@ -6,28 +6,40 @@
     </div>
     <div class="home-cards">
       <div class="home-card" @click="router.push('/qa')">
-        <div class="card-icon">&#x1F9EA;</div>
+        <div class="card-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6l3 7H6L9 2z"/><path d="M12 9v13"/><path d="M8 22h8"/><path d="M5 12l-2 4h18l-2-4"/></svg>
+        </div>
         <div class="card-body">
           <div class="card-title">QA</div>
           <div class="card-desc">Test cases, plans and runs</div>
         </div>
-        <div class="card-arrow">&rarr;</div>
+        <div class="card-arrow">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </div>
       </div>
       <div class="home-card" @click="router.push('/issues')">
-        <div class="card-icon">&#x1F4CB;</div>
+        <div class="card-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 8h7"/><path d="M9 12h7"/><path d="M9 16h4"/></svg>
+        </div>
         <div class="card-body">
           <div class="card-title">Issues</div>
           <div class="card-desc">Tasks and bug tracker</div>
         </div>
-        <div class="card-arrow">&rarr;</div>
+        <div class="card-arrow">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </div>
       </div>
       <div class="home-card" @click="router.push('/articles')">
-        <div class="card-icon">&#x1F4DA;</div>
+        <div class="card-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>
+        </div>
         <div class="card-body">
           <div class="card-title">Articles</div>
           <div class="card-desc">Team knowledge base</div>
         </div>
-        <div class="card-arrow">&rarr;</div>
+        <div class="card-arrow">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </div>
       </div>
     </div>
   </div>
@@ -94,8 +106,15 @@ const router = useRouter()
 }
 
 .card-icon {
-  font-size: 32px;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  background: rgba(124, 92, 191, 0.12);
+  border-radius: 12px;
+  color: var(--accent);
 }
 
 .card-body {
@@ -116,9 +135,10 @@ const router = useRouter()
 }
 
 .card-arrow {
-  font-size: 20px;
   color: var(--accent);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
 
 @media (max-width: 768px) {
