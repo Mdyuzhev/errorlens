@@ -9,6 +9,10 @@ export const useArticlesStore = defineStore('articles', {
     folders: [],
     expandedFolders: new Set(),
     selectedFolderId: null,
+    breadcrumbs: {},
+    folderArticles: {},
+    versions: {},
+    currentVersion: null,
     loading: false,
     error: null,
     filters: {
@@ -182,6 +186,62 @@ export const useArticlesStore = defineStore('articles', {
     setFilter(key, value) {
       this.filters[key] = value
       this.fetchArticles()
+    },
+
+    // Breadcrumbs
+    async fetchBreadcrumbs(articleId) {
+      try {
+        const response = await articlesApi.getBreadcrumbs(articleId)
+        this.breadcrumbs[articleId] = response.data
+      } catch {
+        this.breadcrumbs[articleId] = []
+      }
+    },
+
+    // Folder articles (sibling/child pages)
+    async fetchFolderArticles(folderId, excludeId = null) {
+      try {
+        const response = await articlesApi.getFolderArticles(folderId, excludeId)
+        this.folderArticles[folderId] = response.data
+      } catch {
+        this.folderArticles[folderId] = []
+      }
+    },
+
+    // PDF export
+    async downloadPdf(articleId, slug) {
+      try {
+        const response = await articlesApi.exportPdf(articleId)
+        const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `${slug || articleId}.pdf`
+        link.click()
+        URL.revokeObjectURL(url)
+      } catch (error) {
+        this.error = 'Failed to export PDF'
+      }
+    },
+
+    // Versions
+    async fetchVersions(articleId) {
+      try {
+        const response = await articlesApi.getVersions(articleId)
+        this.versions[articleId] = response.data
+      } catch {
+        this.versions[articleId] = []
+      }
+    },
+
+    async fetchVersion(articleId, versionId) {
+      try {
+        const response = await articlesApi.getVersion(articleId, versionId)
+        this.currentVersion = response.data
+        return response.data
+      } catch {
+        this.currentVersion = null
+        return null
+      }
     }
   }
 })
