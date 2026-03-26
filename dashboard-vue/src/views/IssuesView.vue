@@ -143,7 +143,7 @@
       <DashboardView :project-id="currentProjectId" />
     </template>
     <TaskViewer v-if="viewerTask" :task="viewerTask" @close="closeViewer" @edit="openEditor" @open-task="openTaskById" />
-    <TaskDetailView v-if="editorTask" :task="editorTask" @close="closeEditor" @updated="refreshTask" @open-task="openTaskById" />
+    <IssueDetailView v-if="editorTask" :task="editorTask" @close="closeEditor" @updated="refreshTask" @open-task="openTaskById" />
     <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
       <div class="modal-content">
         <button class="modal-close" @click="showCreateModal = false">&times;</button>
@@ -204,7 +204,7 @@ import { useJqlStore } from '@/stores/jql'
 import { taskSettingsApi, projectsApi } from '@/services/api'
 import RichEditor from '@/components/common/RichEditor.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
-import TaskDetailView from '@/components/tasks/TaskDetailView.vue'
+import IssueDetailView from '@/components/issues/IssueDetailView.vue'
 import TaskViewer from '@/components/tasks/TaskViewer.vue'
 import JQLBar from '@/components/tasks/JQLBar.vue'
 import SavedFilters from '@/components/tasks/SavedFilters.vue'
