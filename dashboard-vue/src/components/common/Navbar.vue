@@ -8,11 +8,8 @@
       <router-link to="/" class="nav-link">
         Sessions
       </router-link>
-      <router-link to="/testcases" class="nav-link">
-        Test Cases
-      </router-link>
-      <router-link to="/test-plans" class="nav-link">
-        Test Plans
+      <router-link to="/qa" class="nav-link">
+        QA
       </router-link>
       <router-link to="/issues" class="nav-link">
         Issues
@@ -109,8 +106,8 @@ function onNotifClick(n) {
   if (n.entity_type && n.entity_id) {
     const routes = {
       task: '/tasks',
-      testcase: '/testcases',
-      testplan_run: '/test-plans',
+      testcase: '/qa',
+      testplan_run: '/qa?tab=plans',
       session: '/',
     }
     const path = routes[n.entity_type] || '/'
