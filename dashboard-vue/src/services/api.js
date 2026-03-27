@@ -329,6 +329,7 @@ export const workLogsApi = {
   list: (issueId) => api.get(`/api/v1/issues/${issueId}/work-logs`),
   create: (issueId, data) => api.post(`/api/v1/issues/${issueId}/work-log`, data),
   remove: (issueId, logId) => api.delete(`/api/v1/issues/${issueId}/work-logs/${logId}`),
+  getProjectReport: (projectId, params = {}) => api.get('/api/v1/work-logs/project', { params: { project_id: projectId, ...params } }),
 }
 
 // Attachments API

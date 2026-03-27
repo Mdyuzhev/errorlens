@@ -23,6 +23,8 @@ export const useIssuesStore = defineStore('issues', {
     attachments: {},
     workLogs: {},
     customValues: {},
+    projectWorkLogs: [],
+    projectWorkLogsLoading: false,
   }),
 
   actions: {
@@ -287,6 +289,27 @@ export const useIssuesStore = defineStore('issues', {
         const response = await workLogsApi.list(issueId)
         this.workLogs[issueId] = response.data
       } catch { this.workLogs[issueId] = [] }
+    },
+
+    async fetchProjectWorkLogs(projectId, params = {}) {
+      this.projectWorkLogsLoading = true
+      try {
+        const r = await workLogsApi.getProjectReport(projectId, params)
+        this.projectWorkLogs = r.data
+      } catch (e) {
+        this.projectWorkLogs = []
+      } finally {
+        this.projectWorkLogsLoading = false
+      }
+    },
+
+    async createWorkLogGlobal(data) {
+      try {
+        await workLogsApi.create(data.issue_id, { hours: data.hours, log_date: data.log_date, comment: data.comment })
+        return true
+      } catch (e) {
+        return false
+      }
     },
 
     async createWorkLog(issueId, data) {
