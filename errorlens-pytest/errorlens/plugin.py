@@ -177,7 +177,7 @@ def pytest_runtest_logreport(report):
 def _print_steps_verbose(steps: list, indent: int) -> None:
     prefix = "  " * indent
     for s in steps:
-        icon = "✓" if s.status == "passed" else "✗"
+        icon = "+" if s.status == "passed" else "x"
         print(f"[EL] {prefix}{icon} STEP ({s.duration_ms}ms): {s.name}")
         if s.steps:
             _print_steps_verbose(s.steps, indent + 1)
