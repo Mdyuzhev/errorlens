@@ -50,20 +50,9 @@ GridEditor использует формат `{version:"grid-1",rows:[...]}`.
 
 Компонент не вызывает `api.js` напрямую — только через action Pinia store.
 
-## Известные нарушения (hardcoded hex-цвета)
+## Известные нарушения
 
-Следующие компоненты содержат hardcoded `#16152a`, `#22203a`, `#0f0e17` и требуют
-миграции на CSS-переменные:
-
-| Файл | Кол-во нарушений |
-|------|------------------|
-| `qa/QADashboard.vue` | ~9 (включая Chart.js options) |
-| `qa/QAPlans.vue` | ~15 |
-| `qa/QARuns.vue` | ~6 |
-| `qa/RunsMatrix.vue` | ~5 |
-| `qa/StepsEditor.vue` | ~7 |
-
-`qa/QATestCaseViewer.vue` и `qa/QATree.vue` — исправлены, используют CSS vars.
+Все ранее известные нарушения исправлены. Следовать правилам в `dashboard-vue/CLAUDE.md`.
 
 ## Запрещено
 
