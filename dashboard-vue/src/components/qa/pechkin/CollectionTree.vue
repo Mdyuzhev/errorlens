@@ -15,6 +15,7 @@
             {{ expanded[col.id] ? '\u25BE' : '\u25B8' }}
           </button>
           <span class="collection-name" @click="toggle(col.id)">{{ col.name }}</span>
+          <button class="tree-add-btn small run-btn" @click.stop="openRunner(col)" title="Run collection">&#9654;</button>
           <button class="tree-add-btn small" @click.stop="addFolder(col.id)" title="Add folder">+</button>
           <button class="tree-add-btn small" @click.stop="addRequest(col.id)" title="Add request">R</button>
         </div>
@@ -90,18 +91,29 @@
         </template>
       </div>
     </Teleport>
+
+    <!-- Collection Runner modal -->
+    <CollectionRunner
+      v-if="runnerCollection"
+      :collection-id="runnerCollection.id"
+      :collection-name="runnerCollection.name"
+      :requests="runnerCollection.requests"
+      @close="runnerCollection = null"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { usePechkinStore } from '@/stores/pechkin'
+import CollectionRunner from './CollectionRunner.vue'
 
 const props = defineProps({ projectId: { type: String, required: true } })
 const store = usePechkinStore()
 
 const expanded = reactive({})
 const expandedFolders = reactive({})
+const runnerCollection = ref(null)
 const ctx = reactive({ show: false, x: 0, y: 0, type: '', item: null })
 
 onMounted(() => {
@@ -133,6 +145,23 @@ async function addFolder(colId) {
 
 async function addRequest(colId, folderId = null) {
   await store.createRequest(colId, { name: 'New Request', method: 'GET', url: '', folder_id: folderId })
+}
+
+function openRunner(col) {
+  const reqs = collectAllRequests(col)
+  runnerCollection.value = { id: col.id, name: col.name, requests: reqs }
+}
+
+function collectAllRequests(col) {
+  const list = []
+  for (const folder of (col.folders || [])) {
+    for (const req of (folder.requests || [])) list.push({ id: req.id, name: req.name, method: req.method })
+    for (const sub of (folder.children || [])) {
+      for (const req of (sub.requests || [])) list.push({ id: req.id, name: req.name, method: req.method })
+    }
+  }
+  for (const req of (col.requests || [])) list.push({ id: req.id, name: req.name, method: req.method })
+  return list
 }
 
 function openCtx(e, type, item) {
@@ -173,6 +202,8 @@ async function deleteCollection(id) { if (confirm('Delete collection?')) await s
 }
 .tree-add-btn:hover { color: var(--accent); border-color: var(--accent); }
 .tree-add-btn.small { width: 20px; height: 20px; font-size: 11px; }
+.tree-add-btn.run-btn { font-size: 9px; }
+.tree-add-btn.run-btn:hover { color: var(--success); border-color: var(--success); }
 .tree-loading { padding: 20px; text-align: center; color: var(--text-secondary); font-size: 12px; }
 .tree-list { flex: 1; overflow-y: auto; padding: 4px 0; }
 .tree-row {
