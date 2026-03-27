@@ -151,17 +151,17 @@ function goToRun(run) {
 }
 .run-badge.completed,
 .run-badge.finished {
-  color: #10b981;
-  background: rgba(16, 185, 129, 0.12);
+  color: var(--success);
+  background: var(--accent-bg, var(--accent-muted));
 }
 .run-badge.in_progress,
 .run-badge.active {
-  color: #3b82f6;
-  background: rgba(59, 130, 246, 0.12);
+  color: var(--accent);
+  background: var(--accent-muted);
 }
 .run-badge.aborted {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.12);
+  color: var(--error);
+  background: var(--accent-bg, var(--accent-muted));
 }
 .run-counters {
   display: flex;
@@ -174,16 +174,16 @@ function goToRun(run) {
   font-weight: 500;
 }
 .counter.passed {
-  color: #10b981;
-  background: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+  background: var(--accent-bg, var(--accent-muted));
 }
 .counter.failed {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
+  color: var(--error);
+  background: var(--accent-bg, var(--accent-muted));
 }
 .counter.blocked {
-  color: #f59e0b;
-  background: rgba(245, 158, 11, 0.1);
+  color: var(--warning);
+  background: var(--accent-bg, var(--accent-muted));
 }
 .run-percent {
   color: var(--accent);
