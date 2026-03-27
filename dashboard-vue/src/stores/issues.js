@@ -18,6 +18,8 @@ export const useIssuesStore = defineStore('issues', {
     customFields: [],
     dashboard: null,
     dashboardLoading: false,
+    burndown: [],
+    velocity: [],
     attachments: {},
     workLogs: {},
     customValues: {},
@@ -224,6 +226,20 @@ export const useIssuesStore = defineStore('issues', {
         const response = await componentsApi.list(projectId)
         this.components = response.data
       } catch { this.components = [] }
+    },
+
+    async fetchBurndown(sprintId) {
+      try {
+        const r = await sprintsApi.burndown(sprintId)
+        this.burndown = r.data
+      } catch (e) { this.burndown = [] }
+    },
+
+    async fetchVelocity(projectId, limit = 5) {
+      try {
+        const r = await sprintsApi.velocity(projectId, limit)
+        this.velocity = r.data
+      } catch (e) { this.velocity = [] }
     },
 
     async fetchDashboard(projectId) {
