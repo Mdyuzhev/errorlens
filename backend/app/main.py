@@ -23,6 +23,7 @@ from app.routers import (
     automations,
     components,
     entity_links,
+    eva,
     exports,
     generation,
     gitlab_connections,
@@ -159,6 +160,7 @@ app.include_router(test_plans.router)
 app.include_router(qa.router)  # EL-QA: QA dashboard
 app.include_router(generation.router)  # Wave 4.0: Generation API
 app.include_router(spec_gen.router)  # EL039: Static spec test generator
+app.include_router(eva.router)  # EVA v2.1: Test quality analyzer
 app.include_router(notifications.router)  # EL018: Notifications
 app.include_router(gitlab_connections.router)  # EL020: GitLab Integration
 app.include_router(launches.router)  # EL022: Launch upload from CI
