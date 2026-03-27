@@ -5,7 +5,22 @@
       <EnvSelector :collection-id="store.activeCollectionId" />
     </div>
     <div class="pechkin-tab">
-      <CollectionTree :project-id="projectId" class="pechkin-tree" />
+      <div class="pechkin-sidebar">
+        <div class="sidebar-toggle">
+          <button
+            class="toggle-btn"
+            :class="{ active: sidebarView === 'collections' }"
+            @click="sidebarView = 'collections'"
+          >Collections</button>
+          <button
+            class="toggle-btn"
+            :class="{ active: sidebarView === 'history' }"
+            @click="sidebarView = 'history'"
+          >History</button>
+        </div>
+        <CollectionTree v-if="sidebarView === 'collections'" :project-id="projectId" class="sidebar-panel" />
+        <GlobalHistory v-else :project-id="projectId" class="sidebar-panel" @replay="onReplay" />
+      </div>
       <div class="pechkin-center">
         <RequestEditor v-if="store.activeRequest" />
         <div v-else class="pechkin-empty">
@@ -20,9 +35,10 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { usePechkinStore } from '@/stores/pechkin'
 import CollectionTree from '@/components/qa/pechkin/CollectionTree.vue'
+import GlobalHistory from '@/components/qa/pechkin/GlobalHistory.vue'
 import RequestEditor from '@/components/qa/pechkin/RequestEditor.vue'
 import ResponseViewer from '@/components/qa/pechkin/ResponseViewer.vue'
 import EnvSelector from '@/components/qa/pechkin/EnvSelector.vue'
@@ -32,6 +48,7 @@ const props = defineProps({
 })
 
 const store = usePechkinStore()
+const sidebarView = ref('collections')
 
 const activeCollectionName = computed(() => {
   const col = store.collections.find(c => c.id === store.activeCollectionId)
@@ -49,6 +66,13 @@ async function createQuickRequest() {
     url: '',
   })
   await store.openRequest(req.id)
+}
+
+async function onReplay(historyItem) {
+  if (historyItem.request_id) {
+    await store.openRequest(historyItem.request_id)
+    sidebarView.value = 'collections'
+  }
 }
 </script>
 
@@ -83,7 +107,40 @@ async function createQuickRequest() {
   min-height: 0;
   background: var(--border-color);
 }
-.pechkin-tree,
+.pechkin-sidebar {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+.sidebar-toggle {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+}
+.toggle-btn {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.toggle-btn:hover {
+  color: var(--text-primary);
+}
+.toggle-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.sidebar-panel {
+  flex: 1;
+  overflow: hidden;
+}
 .pechkin-center,
 .pechkin-response {
   overflow: hidden;

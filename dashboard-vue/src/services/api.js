@@ -431,4 +431,5 @@ export const pechkinApi = {
   listRecentHistory: (projectId) => api.get('/api/v1/pechkin/history', { params: { project_id: projectId } }),
   runCollection: (data) => api.post('/api/v1/pechkin/run-collection', data),
   importPostman: (colId, data) => api.post(`/api/v1/pechkin/collections/${colId}/import`, data),
+  importPostmanFile: (colId, formData) => api.post(`/api/v1/pechkin/collections/${colId}/import`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 }

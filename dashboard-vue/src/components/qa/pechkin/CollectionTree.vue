@@ -2,7 +2,17 @@
   <div class="collection-tree">
     <div class="tree-header">
       <span class="tree-title">Collections</span>
-      <button class="tree-add-btn" @click="addCollection" title="New Collection">+</button>
+      <div class="tree-header-actions">
+        <button class="tree-add-btn" @click="triggerImport" title="Import Postman JSON">&#8593;</button>
+        <button class="tree-add-btn" @click="addCollection" title="New Collection">+</button>
+      </div>
+      <input
+        ref="importInput"
+        type="file"
+        accept=".json"
+        style="display: none"
+        @change="handleImportFile"
+      />
     </div>
 
     <div v-if="store.loading" class="tree-loading">Loading...</div>
@@ -111,6 +121,7 @@ import CollectionRunner from './CollectionRunner.vue'
 const props = defineProps({ projectId: { type: String, required: true } })
 const store = usePechkinStore()
 
+const importInput = ref(null)
 const expanded = reactive({})
 const expandedFolders = reactive({})
 const runnerCollection = ref(null)
@@ -177,6 +188,30 @@ async function duplicateReq(id) { await store.duplicateRequest(id) }
 async function deleteReq(id) { if (confirm('Delete request?')) await store.deleteRequest(id) }
 async function deleteFolder(id) { if (confirm('Delete folder?')) await store.deleteFolder(id) }
 async function deleteCollection(id) { if (confirm('Delete collection?')) await store.deleteCollection(id) }
+
+function triggerImport() {
+  importInput.value?.click()
+}
+
+async function handleImportFile(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  // Pick first collection or create one
+  let col = store.collections[0]
+  if (!col) {
+    col = await store.createCollection(props.projectId, 'Imported')
+    expanded[col.id] = true
+  }
+  const formData = new FormData()
+  formData.append('file', file)
+  try {
+    await store.importPostmanFile(col.id, formData)
+  } catch (err) {
+    alert('Import failed: ' + (err?.response?.data?.detail || err.message))
+  }
+  // Reset input so same file can be re-imported
+  if (importInput.value) importInput.value.value = ''
+}
 </script>
 
 <style scoped>
@@ -194,7 +229,8 @@ async function deleteCollection(id) { if (confirm('Delete collection?')) await s
   padding: 12px 14px;
   border-bottom: 1px solid var(--border-color);
 }
-.tree-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.tree-title { font-size: 13px; font-weight: 600; color: var(--text-primary); flex: 1; }
+.tree-header-actions { display: flex; gap: 4px; }
 .tree-add-btn {
   width: 24px; height: 24px; border: 1px solid var(--border-color); border-radius: 4px;
   background: var(--bg-tertiary); color: var(--text-secondary); cursor: pointer; font-size: 14px;

@@ -1,9 +1,10 @@
 """Pechkin (HTTP client) router — collections, requests, proxy, scripts."""
 
+import json
 import logging
 from dataclasses import asdict
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -28,6 +29,7 @@ from app.routers.pechkin_schemas import (
     variable_to_dict,
 )
 from app.services.pechkin_service import PechkinService
+from app.services.postman_importer import import_postman_collection
 
 logger = logging.getLogger(__name__)
 
@@ -369,10 +371,44 @@ async def run_collection(
 
 
 @router.post("/collections/{col_id}/import")
-async def import_postman(
+async def import_postman_endpoint(
     col_id: str,
+    file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
-    """Import Postman collection JSON — stub for task-08."""
-    raise HTTPException(501, "Import not implemented yet (task-08)")
+    """Import Postman Collection v2.1 JSON into existing collection."""
+    try:
+        content = await file.read()
+        json_data = json.loads(content)
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise HTTPException(400, f"Invalid JSON file: {exc}")
+
+    result = import_postman_collection(json_data)
+    repo = PechkinRepository(db)
+
+    # Map imported folder IDs to real DB folder IDs
+    folder_map: dict[str, str] = {}
+    for f in result.folders:
+        parent_id = folder_map.get(f.parent_id) if f.parent_id else None
+        folder = await repo.create_folder(
+            collection_id=col_id, name=f.name, parent_id=parent_id,
+        )
+        folder_map[f.id] = folder.id
+
+    for r in result.requests:
+        folder_id = folder_map.get(r.folder_id) if r.folder_id else None
+        await repo.create_request(
+            collection_id=col_id, folder_id=folder_id,
+            name=r.name, method=r.method, url=r.url,
+            headers=r.headers, body=r.body, body_type=r.body_type,
+            auth=r.auth, pre_request_script=r.pre_request_script,
+            test_script=r.test_script,
+        )
+
+    await db.commit()
+    return {
+        "collection_name": result.collection_name,
+        "imported_folders": len(result.folders),
+        "imported_requests": len(result.requests),
+    }
