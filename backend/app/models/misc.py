@@ -45,6 +45,13 @@ class TestRun(Base):
     failed: Mapped[int] = mapped_column(Integer, default=0)
     skipped: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Launch metadata
+    launch_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    branch: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    environment: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    pipeline_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    source: Mapped[str] = mapped_column(String(20), default="allure")
+
     # Detailed results as JSON
     results: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     output: Mapped[str | None] = mapped_column(Text, nullable=True)

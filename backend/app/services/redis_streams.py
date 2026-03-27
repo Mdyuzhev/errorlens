@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 STREAM_GENERATION = "el:stream:generation"
 STREAM_ANALYSIS = "el:stream:analysis"
+STREAM_LAUNCHES = "el:stream:launches"
 
 
 @dataclass
