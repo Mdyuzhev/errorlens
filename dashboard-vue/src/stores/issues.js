@@ -27,6 +27,8 @@ export const useIssuesStore = defineStore('issues', {
     customValues: {},
     projectWorkLogs: [],
     projectWorkLogsLoading: false,
+    sprintIssues: {},
+    ganttLoading: false,
   }),
 
   actions: {
@@ -295,6 +297,15 @@ export const useIssuesStore = defineStore('issues', {
       } catch (error) {
         this.error = error.response?.data?.detail || 'Delete failed'
         return false
+      }
+    },
+
+    async fetchSprintIssues(sprintId) {
+      try {
+        const r = await sprintsApi.getIssues(sprintId)
+        this.sprintIssues = { ...this.sprintIssues, [sprintId]: r.data }
+      } catch (e) {
+        this.sprintIssues = { ...this.sprintIssues, [sprintId]: [] }
       }
     },
 

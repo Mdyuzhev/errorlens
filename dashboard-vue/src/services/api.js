@@ -315,6 +315,7 @@ export const sprintsApi = {
   burndown: (id) => api.get(`/api/v1/sprints/${id}/burndown`),
   velocity: (projectId, limit = 5) =>
     api.get('/api/v1/sprints/velocity', { params: { project_id: projectId, limit } }),
+  getIssues: (sprintId) => api.get(`/api/v1/sprints/${sprintId}/issues`),
 }
 
 // Components API
