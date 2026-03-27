@@ -160,9 +160,13 @@ async def get_backlog(
 ):
     """Issues without sprint assignment, sorted by rank."""
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
     from app.models.task import SprintIssue, Task
     subq = select(SprintIssue.issue_id)
-    q = select(Task).where(Task.id.not_in(subq))
+    q = select(Task).where(Task.id.not_in(subq)).options(
+        selectinload(Task.task_type),
+        selectinload(Task.task_status),
+    )
     if project_id:
         q = q.where(Task.project_id == project_id)
     if component_id:
