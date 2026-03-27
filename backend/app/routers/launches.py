@@ -2,11 +2,13 @@
 
 import io
 import json
+import logging
 import zipfile
 from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -14,7 +16,44 @@ from app.middleware.jwt_auth import require_auth
 from app.models.user import User
 from app.services.testrun_service import TestRunService
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/v1/launches", tags=["launches"])
+
+
+class StepSchema(BaseModel):
+    name: str
+    status: str = "passed"
+    duration_ms: int = 0
+    parameters: list[dict] = []
+    steps: list["StepSchema"] = []
+    attachments: list[dict] = []
+    status_details: dict = {}
+
+StepSchema.model_rebuild()
+
+class TestResultSchema(BaseModel):
+    name: str
+    full_name: str = ""
+    status: str
+    duration_ms: int = 0
+    markers: list[str] = []
+    parameters: list[dict] = []
+    feature: str = ""
+    story: str = ""
+    severity: str = "normal"
+    links: list[dict] = []
+    steps: list[StepSchema] = []
+    attachments: list[dict] = []
+    status_details: dict = {}
+
+class IngestRequest(BaseModel):
+    launch_name: str = "Unnamed launch"
+    branch: str = ""
+    environment: str = ""
+    pipeline_id: str = ""
+    project_id: str = ""
+    tests: list[TestResultSchema]
 
 
 def _parse_allure_results(zip_data: bytes) -> dict[str, Any]:
@@ -165,4 +204,65 @@ async def upload_launch(
         "failed": parsed["failed"],
         "skipped": parsed["skipped"],
         "broken": parsed["broken"],
+    }
+
+
+@router.post("/ingest")
+async def ingest_launch(
+    request: IngestRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+) -> dict[str, Any]:
+    """Accept native errorlens-pytest plugin report."""
+    if not request.tests:
+        raise HTTPException(status_code=400, detail="tests list is empty")
+
+    passed = sum(1 for t in request.tests if t.status == "passed")
+    failed = sum(1 for t in request.tests if t.status in ("failed", "broken"))
+    skipped = sum(1 for t in request.tests if t.status == "skipped")
+    overall = "passed" if failed == 0 else "failed"
+
+    service = TestRunService(db)
+    run = await service.create_run(test_type="e2e", total_tests=len(request.tests))
+
+    results = [t.model_dump() for t in request.tests]
+
+    run = await service.finish_run(
+        run_id=run.id,
+        status=overall,
+        passed=passed,
+        failed=failed,
+        skipped=skipped,
+        results=results,
+        output=None,
+    )
+
+    # Save metadata (new fields from task-01 migration)
+    try:
+        run.launch_name = request.launch_name
+        run.branch = request.branch
+        run.environment = request.environment
+        run.pipeline_id = request.pipeline_id
+        run.source = "plugin"
+        await db.commit()
+    except Exception:
+        pass  # fields not yet added by migration
+
+    # Publish to Redis Stream
+    try:
+        from app.services.redis_streams import STREAM_LAUNCHES, publish
+        await publish(STREAM_LAUNCHES, {
+            "launch_id": run.id,
+            "project_id": request.project_id,
+        })
+    except Exception as e:
+        logger.warning(f"Redis stream publish failed: {e}")
+
+    return {
+        "id": run.id,
+        "status": overall,
+        "total": len(request.tests),
+        "passed": passed,
+        "failed": failed,
+        "skipped": skipped,
     }
