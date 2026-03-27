@@ -30,7 +30,7 @@
         :depth="0"
         :expanded-ids="expandedIds"
         @toggle="toggleNode"
-        @open="(n) => $emit('open-task', n)"
+        @open="(id) => $emit('open-task', id)"
       />
     </div>
   </div>

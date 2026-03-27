@@ -1,6 +1,6 @@
 <template>
   <div class="tree-node" :style="{ paddingLeft: depth * 24 + 'px' }">
-    <div class="tree-node__row" @click="$emit('open', node)">
+    <div class="tree-node__row" @click="$emit('open', node.id)">
       <!-- Expand toggle -->
       <button
         v-if="node.children && node.children.length"
