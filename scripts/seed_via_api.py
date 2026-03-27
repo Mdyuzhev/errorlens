@@ -1024,6 +1024,180 @@ def seed_issues_full(api: ApiClient, user_map: dict[str, str]) -> None:
     print(f"  Created {wl_count}/15 work log entries")
 
 
+# ---------------------------------------------------------------------------
+# Team simulation: worklogs from individual users + completed sprint
+# ---------------------------------------------------------------------------
+
+SEED_USER_PASSWORD = "Test1234"
+
+
+def seed_team_simulation(api: ApiClient, user_map: dict[str, str]) -> None:
+    """Create realistic team activity: individual worklogs + completed sprint for velocity."""
+    from datetime import date
+
+    if not api.project_id:
+        print("  SKIP: no project_id")
+        return
+
+    # ---------------------------------------------------------------
+    # 1. Create a COMPLETED sprint (Sprint 0) for velocity chart
+    # ---------------------------------------------------------------
+    print("\n  Creating completed Sprint 0 for velocity...")
+    sprint0_start = (now - timedelta(days=21)).date().isoformat()
+    sprint0_end = (now - timedelta(days=8)).date().isoformat()
+    r = api.post("/api/v1/sprints", json={
+        "project_id": api.project_id,
+        "name": "Sprint 0 — Foundation",
+        "goal": "Setup project structure and auth",
+        "start_date": sprint0_start,
+        "end_date": sprint0_end,
+    })
+    sprint0_id = None
+    if r.status_code in (200, 201):
+        sprint0_id = r.json().get("id")
+        # Start it
+        api.post(f"/api/v1/sprints/{sprint0_id}/start")
+        print(f"    Created & started: {sprint0_id}")
+    else:
+        print(f"    WARN: {r.status_code} {r.text[:80]}")
+
+    # Add some existing done-tasks to sprint 0
+    if sprint0_id:
+        r = api.get("/tasks", params={
+            "project_id": api.project_id,
+            "status": "done",
+            "limit": 6,
+        })
+        if r.status_code == 200:
+            data = r.json()
+            items = data.get("items", data) if isinstance(data, dict) else data
+            for i, t in enumerate(items[:6]):
+                api.patch(f"/tasks/{t['id']}/rank", json={
+                    "rank": (i + 1) * 100,
+                    "sprint_id": sprint0_id,
+                })
+            print(f"    Added {min(len(items), 6)} done tasks to Sprint 0")
+
+        # Complete sprint 0
+        api.post(f"/api/v1/sprints/{sprint0_id}/complete")
+        print("    Sprint 0 completed")
+
+    # ---------------------------------------------------------------
+    # 2. Start active sprint (Sprint 1) if not already started
+    # ---------------------------------------------------------------
+    r = api.get("/api/v1/sprints", params={"project_id": api.project_id})
+    if r.status_code == 200:
+        for s in r.json():
+            if s.get("status") == "planned" and s.get("start_date"):
+                api.post(f"/api/v1/sprints/{s['id']}/start")
+                print(f"    Started sprint: {s['name']}")
+                break
+
+    # ---------------------------------------------------------------
+    # 3. Create worklogs from individual user sessions
+    # ---------------------------------------------------------------
+    print("\n  Creating worklogs from individual users...")
+
+    # Get all tasks
+    r = api.get("/tasks", params={"project_id": api.project_id, "limit": 50})
+    if r.status_code != 200:
+        print("    WARN: cannot fetch tasks")
+        return
+    data = r.json()
+    all_tasks = data.get("items", data) if isinstance(data, dict) else data
+    task_ids = [t["id"] for t in all_tasks]
+
+    if not task_ids:
+        print("    WARN: no tasks found")
+        return
+
+    # Work log schedule: (username, task_index, days_ago, hours, comment)
+    worklog_schedule = [
+        # dev_lead — architecture & reviews
+        ("dev_lead", 0, 6, 3.0, "Architecture design session"),
+        ("dev_lead", 1, 5, 1.5, "Code review: auth endpoints"),
+        ("dev_lead", 3, 4, 2.0, "Sprint planning & estimation"),
+        ("dev_lead", 5, 3, 1.0, "PR review: middleware changes"),
+        ("dev_lead", 0, 2, 2.5, "Refactoring auth module"),
+        ("dev_lead", 7, 1, 1.5, "Technical debt discussion"),
+        ("dev_lead", 2, 0, 2.0, "Standup + unblocking team"),
+        # frontend_dev — UI work
+        ("frontend_dev", 2, 6, 4.0, "Dashboard component scaffolding"),
+        ("frontend_dev", 2, 5, 3.5, "Chart.js integration burndown"),
+        ("frontend_dev", 4, 4, 5.0, "Kanban board drag-n-drop"),
+        ("frontend_dev", 4, 3, 2.0, "Fix drag-drop edge cases"),
+        ("frontend_dev", 6, 2, 4.0, "Tree view implementation"),
+        ("frontend_dev", 6, 1, 3.0, "Gantt chart SVG rendering"),
+        ("frontend_dev", 8, 0, 2.5, "CSS variables migration"),
+        # backend_dev — API endpoints
+        ("backend_dev", 1, 6, 5.0, "Implement login/register endpoints"),
+        ("backend_dev", 1, 5, 3.0, "JWT refresh token logic"),
+        ("backend_dev", 3, 4, 4.0, "Project isolation middleware"),
+        ("backend_dev", 3, 3, 2.5, "Fix N+1 queries with selectinload"),
+        ("backend_dev", 5, 2, 3.5, "Sprint API: burndown + velocity"),
+        ("backend_dev", 7, 1, 4.0, "Work log aggregation endpoint"),
+        ("backend_dev", 9, 0, 2.0, "Performance optimization"),
+        # qa_engineer — testing
+        ("qa_engineer", 1, 5, 2.0, "Write auth integration tests"),
+        ("qa_engineer", 3, 4, 3.0, "Test plan: project isolation"),
+        ("qa_engineer", 5, 3, 2.5, "Regression: sprint endpoints"),
+        ("qa_engineer", 4, 2, 4.0, "E2E tests for Kanban board"),
+        ("qa_engineer", 6, 1, 1.5, "Bug report: tree view crash"),
+        ("qa_engineer", 8, 0, 3.0, "Full regression run"),
+        # pm_user — coordination
+        ("pm_user", 0, 5, 1.0, "Requirements clarification"),
+        ("pm_user", 2, 3, 1.5, "Demo preparation"),
+        ("pm_user", 4, 1, 2.0, "Sprint retrospective notes"),
+    ]
+
+    wl_count = 0
+    user_sessions: dict[str, requests.Session] = {}
+
+    for username, task_idx, days_ago, hours, comment in worklog_schedule:
+        if username not in user_map:
+            continue
+        tid = task_ids[task_idx % len(task_ids)]
+        log_date = (date.today() - timedelta(days=days_ago)).isoformat()
+
+        # Get or create user session
+        if username not in user_sessions:
+            s = requests.Session()
+            try:
+                r = s.post(
+                    f"{api.base_url}/auth/login",
+                    json={"username": username, "password": SEED_USER_PASSWORD},
+                )
+                if r.status_code == 200:
+                    token = r.json()["access_token"]
+                    s.headers["Authorization"] = f"Bearer {token}"
+                    user_sessions[username] = s
+                else:
+                    print(f"    WARN: login failed for {username}: {r.status_code}")
+                    continue
+            except Exception as e:
+                print(f"    WARN: login error for {username}: {e}")
+                continue
+
+        session = user_sessions[username]
+        r = session.post(
+            f"{api.base_url}/api/v1/work-logs",
+            json={
+                "issue_id": tid,
+                "hours": hours,
+                "log_date": log_date,
+                "comment": comment,
+            },
+        )
+        if r.status_code in (200, 201):
+            wl_count += 1
+
+    print(f"    Created {wl_count}/{len(worklog_schedule)} work log entries from {len(user_sessions)} users")
+
+    # Close sessions
+    for s in user_sessions.values():
+        s.close()
+
+
 def clean_entity(api: ApiClient, list_path: str, delete_path: str, label: str) -> None:
     params: dict[str, Any] = {"limit": 200}
     if api.project_id:
@@ -1080,7 +1254,7 @@ def main() -> None:
     parser.add_argument("--password", default="admin")
     parser.add_argument(
         "--only",
-        choices=["articles", "testcases", "tasks", "plans", "issues-full"],
+        choices=["articles", "testcases", "tasks", "plans", "issues-full", "team-sim"],
     )
     parser.add_argument("--clean", action="store_true", help="Delete existing data first")
     args = parser.parse_args()
@@ -1140,6 +1314,12 @@ def main() -> None:
         print("\n  Seeding users...")
         user_map = seed_users(api)
         seed_issues_full(api, user_map)
+
+    if args.only == "team-sim":
+        print("\n--- Team Simulation (worklogs from users + completed sprint) ---")
+        print("\n  Seeding users...")
+        user_map = seed_users(api)
+        seed_team_simulation(api, user_map)
 
     print("\nDone!")
 
