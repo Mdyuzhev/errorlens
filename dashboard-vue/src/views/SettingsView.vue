@@ -68,13 +68,49 @@
         <!-- Theme Settings -->
         <div class="settings-card" data-testid="theme-section">
           <h2>Theme</h2>
-          <div class="setting-item">
-            <label>{{ isDarkMode ? 'Dark' : 'Light' }} Mode</label>
-            <label class="toggle-switch" data-testid="theme-toggle">
-              <input type="checkbox" :checked="!isDarkMode" @change="toggleTheme" />
-              <span class="toggle-slider"></span>
-              <span class="toggle-label">{{ isDarkMode ? 'Dark' : 'Light' }}</span>
-            </label>
+          <div class="theme-selector">
+            <div
+              class="theme-option"
+              :class="{ active: themeStore.theme === 'dark' }"
+              @click="themeStore.setTheme('dark')"
+              data-testid="theme-option-dark"
+            >
+              <div class="theme-preview theme-preview--dark">
+                <div class="tp-bar"></div>
+                <div class="tp-card"></div>
+                <div class="tp-btn"></div>
+              </div>
+              <div class="theme-option-label">Dark</div>
+            </div>
+
+            <div
+              class="theme-option"
+              :class="{ active: themeStore.theme === 'light' }"
+              @click="themeStore.setTheme('light')"
+              data-testid="theme-option-light"
+            >
+              <div class="theme-preview theme-preview--light">
+                <div class="tp-bar"></div>
+                <div class="tp-card"></div>
+                <div class="tp-btn"></div>
+              </div>
+              <div class="theme-option-label">Light</div>
+            </div>
+
+            <div
+              class="theme-option"
+              :class="{ active: themeStore.theme === 'retrowave' }"
+              @click="themeStore.setTheme('retrowave')"
+              data-testid="theme-option-retrowave"
+            >
+              <div class="theme-preview theme-preview--retrowave">
+                <div class="tp-bar"></div>
+                <div class="tp-card"></div>
+                <div class="tp-btn"></div>
+              </div>
+              <div class="theme-option-label">RetroWave</div>
+              <div class="theme-option-badge">8-bit</div>
+            </div>
           </div>
         </div>
 
@@ -223,7 +259,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import api from '@/services/api'
@@ -241,12 +277,6 @@ const activeTab = ref('general')
 
 const apiUrl = import.meta.env.VITE_API_URL || '/api'
 const apiStatus = ref('Checking...')
-const isDarkMode = computed(() => themeStore.theme === 'dark')
-
-function toggleTheme() {
-  themeStore.toggle()
-}
-
 const bookmarkletCode = ref('')
 const shortBookmarkletCode = ref('')
 const justCopied = ref(false)
@@ -607,56 +637,84 @@ function copyBookmarklet() {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
-.toggle-switch {
+/* Theme selector */
+.theme-selector {
   display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.theme-option {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   cursor: pointer;
-}
-
-.toggle-switch input {
-  display: none;
-}
-
-.toggle-slider {
+  padding: 8px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  transition: all 0.2s;
   position: relative;
-  width: 44px;
-  height: 24px;
-  background: var(--bg-secondary);
-  border-radius: 12px;
-  transition: all 0.3s;
-  border: 1px solid var(--border-color);
 }
 
-.toggle-slider::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 16px;
-  height: 16px;
-  background: var(--text-secondary);
-  border-radius: 50%;
-  transition: all 0.3s;
+.theme-option:hover {
+  border-color: var(--accent-subtle);
+  background: var(--accent-bg);
 }
 
-.toggle-switch input:checked + .toggle-slider {
-  background: var(--accent);
+.theme-option.active {
+  border-color: var(--accent);
 }
 
-.toggle-switch input:checked + .toggle-slider::after {
-  left: 23px;
-  background: white;
+.theme-preview {
+  width: 120px;
+  height: 72px;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(255,255,255,0.08);
 }
 
-.toggle-label {
+/* Dark preview */
+.theme-preview--dark { background: #0f0a1a; }
+.theme-preview--dark .tp-bar { background: #231a33; height: 14px; width: 100%; }
+.theme-preview--dark .tp-card { background: #231a33; margin: 6px 8px 0; height: 28px; border-radius: 3px; }
+.theme-preview--dark .tp-btn { background: #7c3aed; width: 36px; height: 8px; border-radius: 2px; position: absolute; bottom: 6px; right: 8px; }
+
+/* Light preview */
+.theme-preview--light { background: #f0f4f8; }
+.theme-preview--light .tp-bar { background: #0052cc; height: 14px; width: 100%; }
+.theme-preview--light .tp-card { background: #fff; margin: 6px 8px 0; height: 28px; border-radius: 3px; border: 1px solid #dfe1e6; }
+.theme-preview--light .tp-btn { background: #0052cc; width: 36px; height: 8px; border-radius: 2px; position: absolute; bottom: 6px; right: 8px; }
+
+/* RetroWave preview */
+.theme-preview--retrowave { background: #0a0014; }
+.theme-preview--retrowave .tp-bar { background: #12002a; height: 14px; width: 100%; border-bottom: 1px solid rgba(5,217,232,0.4); }
+.theme-preview--retrowave .tp-card { background: #1a0035; margin: 6px 8px 0; height: 28px; border: 1px solid rgba(5,217,232,0.25); }
+.theme-preview--retrowave .tp-btn { background: #ff2d78; width: 36px; height: 8px; position: absolute; bottom: 6px; right: 8px; box-shadow: 0 0 6px rgba(255,45,120,0.6); }
+
+.theme-option-label {
   font-size: 13px;
   color: var(--text-secondary);
-  min-width: 36px;
+  font-weight: 500;
 }
 
-:global(body.theme-light) .toggle-slider {
-  background: #c4cdd6;
+.theme-option.active .theme-option-label {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.theme-option-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: #ff2d78;
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
 }
 
 .settings-card--full {
