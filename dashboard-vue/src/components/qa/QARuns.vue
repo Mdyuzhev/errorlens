@@ -2,6 +2,26 @@
   <div class="qa-runs">
     <h3 class="runs-title">Test Runs</h3>
 
+    <div class="runs-filters">
+      <select v-model="filterStatus" class="filter-select">
+        <option value="">Все статусы</option>
+        <option value="in_progress">In Progress</option>
+        <option value="completed">Completed</option>
+        <option value="aborted">Aborted</option>
+      </select>
+      <select v-model="filterPlan" class="filter-select">
+        <option value="">Все планы</option>
+        <option v-for="plan in store.plans" :key="plan.id" :value="plan.id">
+          {{ plan.name }}
+        </option>
+      </select>
+      <button
+        v-if="filterStatus || filterPlan"
+        class="filter-reset"
+        @click="filterStatus = ''; filterPlan = ''"
+      >Сбросить</button>
+    </div>
+
     <div v-if="store.loading" class="runs-loading">Loading...</div>
 
     <div v-else-if="!store.allRuns.length" class="runs-empty">
@@ -10,7 +30,7 @@
 
     <div v-else class="runs-list">
       <div
-        v-for="run in store.allRuns"
+        v-for="run in filteredRuns"
         :key="run.id"
         class="run-row"
         @click="goToRun(run)"
@@ -46,7 +66,7 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQAStore } from '@/stores/qa'
 
@@ -57,8 +77,23 @@ const props = defineProps({
 const store = useQAStore()
 const router = useRouter()
 
+const filterStatus = ref('')
+const filterPlan = ref('')
+
+const filteredRuns = computed(() => {
+  let runs = store.allRuns
+  if (filterStatus.value) {
+    runs = runs.filter(r => r.status === filterStatus.value)
+  }
+  if (filterPlan.value) {
+    runs = runs.filter(r => r.plan_id === filterPlan.value || r.test_plan_id === filterPlan.value)
+  }
+  return runs
+})
+
 onMounted(() => {
   store.fetchAllRuns(props.projectId)
+  store.fetchPlans(props.projectId)
 })
 
 function formatDate(d) {
@@ -191,5 +226,39 @@ function goToRun(run) {
   font-weight: 600;
   min-width: 40px;
   text-align: right;
+}
+.runs-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.filter-select {
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+}
+.filter-select:focus {
+  border-color: var(--accent);
+}
+.filter-reset {
+  padding: 6px 12px;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-reset:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 </style>
