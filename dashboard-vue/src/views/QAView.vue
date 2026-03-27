@@ -53,6 +53,12 @@
         v-else-if="activeTab === 'generator'"
         :is="GeneratorTab"
       />
+      <component
+        v-else-if="activeTab === 'coverage'"
+        :is="QACoverage"
+        :project-id="projectId"
+        @open-case="openCase"
+      />
     </div>
 
     <!-- TestCase Viewer -->
@@ -106,6 +112,7 @@ const QADashboard  = defineAsyncComponent(() => import('@/components/qa/QADashbo
 const SessionsTab  = defineAsyncComponent(() => import('@/views/DashboardView.vue'))
 const ResultsTab   = defineAsyncComponent(() => import('@/views/ResultsView.vue'))
 const GeneratorTab = defineAsyncComponent(() => import('@/views/GeneratorView.vue'))
+const QACoverage   = defineAsyncComponent(() => import('@/components/qa/QACoverage.vue'))
 
 const route = useRoute()
 const router = useRouter()
@@ -121,6 +128,7 @@ const tabs = computed(() => [
   { key: 'sessions',  label: t('qa.tabs.sessions') },
   { key: 'results',   label: t('qa.tabs.results') },
   { key: 'generator', label: t('qa.tabs.generator') },
+  { key: 'coverage', label: t('qa.tabs.coverage') },
 ])
 
 const activeTab = ref('tree')

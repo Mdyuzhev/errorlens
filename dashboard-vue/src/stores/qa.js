@@ -23,6 +23,9 @@ export const useQAStore = defineStore('qa', {
 
     dashboard: null,
     dashboardLoading: false,
+
+    coverage: null,
+    coverageLoading: false,
   }),
 
   actions: {
@@ -190,6 +193,18 @@ export const useQAStore = defineStore('qa', {
         this.dashboard = res.data
       } catch { this.dashboard = null }
       finally { this.dashboardLoading = false }
+    },
+
+    async fetchCoverage(projectId, params = {}) {
+      this.coverageLoading = true
+      try {
+        const res = await qaApi.getCoverage(projectId, params)
+        this.coverage = res.data
+      } catch {
+        this.coverage = null
+      } finally {
+        this.coverageLoading = false
+      }
     },
 
     async exportCsv(projectId) {
