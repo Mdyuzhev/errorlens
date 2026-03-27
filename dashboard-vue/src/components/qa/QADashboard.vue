@@ -2,7 +2,10 @@
   <div class="qa-dashboard">
     <div v-if="store.dashboardLoading" class="dash-loading">Loading...</div>
 
-    <div v-else-if="!store.dashboard" class="dash-empty">No data</div>
+    <div v-else-if="!store.dashboard" class="dash-empty">
+      <p>Нет данных для отображения</p>
+      <p class="dash-empty-hint">Запустите первый тест-план чтобы увидеть метрики</p>
+    </div>
 
     <div v-else class="dash-grid">
       <!-- Card 1: By Status (Doughnut) -->
@@ -25,16 +28,45 @@
         </div>
         <div v-else class="card-empty">No failed cases</div>
       </div>
+
+      <!-- Card 3: Trend passed/failed -->
+      <div class="dash-card dash-card-wide">
+        <h4 class="card-title">Trend: Passed / Failed</h4>
+        <div class="chart-wrap" v-if="hasTrendData">
+          <canvas ref="trendCanvas"></canvas>
+        </div>
+        <div v-else class="card-empty">Недостаточно прогонов</div>
+      </div>
+
+      <!-- Card 4: Coverage by folder -->
+      <div class="dash-card">
+        <h4 class="card-title">Coverage by Folder</h4>
+        <div class="chart-wrap" v-if="hasCoverageData">
+          <canvas ref="coverageCanvas"></canvas>
+        </div>
+        <div v-else class="card-empty">Нет данных по папкам</div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import { Chart, DoughnutController, ArcElement, Tooltip, Legend } from 'chart.js'
+import {
+  Chart,
+  DoughnutController, ArcElement,
+  LineController, LineElement, PointElement, LinearScale, CategoryScale,
+  BarController, BarElement,
+  Tooltip, Legend
+} from 'chart.js'
 import { useQAStore } from '@/stores/qa'
 
-Chart.register(DoughnutController, ArcElement, Tooltip, Legend)
+Chart.register(
+  DoughnutController, ArcElement,
+  LineController, LineElement, PointElement, LinearScale, CategoryScale,
+  BarController, BarElement,
+  Tooltip, Legend
+)
 
 const props = defineProps({
   projectId: { type: String, required: true }
@@ -42,14 +74,11 @@ const props = defineProps({
 
 const store = useQAStore()
 const chartCanvas = ref(null)
+const trendCanvas = ref(null)
+const coverageCanvas = ref(null)
 let chartInstance = null
-
-const statusColors = {
-  draft: '#6b7280',
-  ready: '#10b981',
-  approved: '#9b7de0',
-  needs_work: '#f59e0b'
-}
+let trendChart = null
+let coverageChart = null
 
 const topFailed = computed(() => store.dashboard?.top_failed || [])
 
@@ -59,9 +88,31 @@ const hasStatusData = computed(() => {
   return Object.values(s).some(v => v > 0)
 })
 
+const hasTrendData = computed(() => {
+  const t = store.dashboard?.trend
+  return t && t.length > 0
+})
+
+const hasCoverageData = computed(() => {
+  const c = store.dashboard?.coverage
+  return c && Object.keys(c).length > 0
+})
+
 function getCssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
     || getComputedStyle(document.body).getPropertyValue(name).trim()
+}
+
+function getStatusColors(labels) {
+  return labels.map(label => {
+    switch (label) {
+      case 'ready':      return getCssVar('--success')
+      case 'approved':   return getCssVar('--accent')
+      case 'needs_work': return getCssVar('--warning')
+      case 'draft':
+      default:           return getCssVar('--text-secondary')
+    }
+  })
 }
 
 let themeObserver = null
@@ -73,7 +124,7 @@ function buildChart() {
   const data = store.dashboard.by_status
   const labels = Object.keys(data)
   const values = Object.values(data)
-  const colors = labels.map(l => statusColors[l] || '#4a4858')
+  const colors = getStatusColors(labels)
 
   chartInstance = new Chart(chartCanvas.value, {
     type: 'doughnut',
@@ -117,13 +168,117 @@ function destroyChart() {
   }
 }
 
+function buildTrendChart() {
+  if (!trendCanvas.value || !hasTrendData.value) return
+  if (trendChart) { trendChart.destroy(); trendChart = null }
+
+  const trend = store.dashboard.trend
+  const labels = trend.map(p => p.date || p.label || '')
+  const passed = trend.map(p => p.passed || 0)
+  const failed = trend.map(p => p.failed || 0)
+
+  trendChart = new Chart(trendCanvas.value, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Passed',
+          data: passed,
+          borderColor: getCssVar('--success'),
+          backgroundColor: 'transparent',
+          tension: 0.3,
+          pointRadius: 4,
+        },
+        {
+          label: 'Failed',
+          data: failed,
+          borderColor: getCssVar('--error'),
+          backgroundColor: 'transparent',
+          tension: 0.3,
+          pointRadius: 4,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: getCssVar('--text-primary'), font: { size: 12 } } },
+        tooltip: {
+          backgroundColor: getCssVar('--bg-card'),
+          titleColor: getCssVar('--text-primary'),
+          bodyColor: getCssVar('--text-secondary'),
+          borderColor: getCssVar('--border-color'),
+          borderWidth: 1
+        }
+      },
+      scales: {
+        x: { ticks: { color: getCssVar('--text-secondary') }, grid: { color: getCssVar('--border-color') } },
+        y: { ticks: { color: getCssVar('--text-secondary') }, grid: { color: getCssVar('--border-color') } }
+      }
+    }
+  })
+}
+
+function buildCoverageChart() {
+  if (!coverageCanvas.value || !hasCoverageData.value) return
+  if (coverageChart) { coverageChart.destroy(); coverageChart = null }
+
+  const coverage = store.dashboard.coverage
+  const labels = Object.keys(coverage)
+  const values = Object.values(coverage)
+
+  coverageChart = new Chart(coverageCanvas.value, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: '% covered',
+        data: values,
+        backgroundColor: getCssVar('--accent-muted'),
+        borderColor: getCssVar('--accent'),
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: getCssVar('--bg-card'),
+          titleColor: getCssVar('--text-primary'),
+          bodyColor: getCssVar('--text-secondary'),
+          borderColor: getCssVar('--border-color'),
+          borderWidth: 1,
+          callbacks: { label: ctx => `${ctx.raw}%` }
+        }
+      },
+      scales: {
+        x: { ticks: { color: getCssVar('--text-secondary') }, grid: { display: false } },
+        y: {
+          min: 0, max: 100,
+          ticks: { color: getCssVar('--text-secondary'), callback: v => `${v}%` },
+          grid: { color: getCssVar('--border-color') }
+        }
+      }
+    }
+  })
+}
+
 onMounted(async () => {
   await store.fetchDashboard(props.projectId)
   await nextTick()
   buildChart()
+  buildTrendChart()
+  buildCoverageChart()
 
   themeObserver = new MutationObserver(() => {
     buildChart()
+    buildTrendChart()
+    buildCoverageChart()
   })
   themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] })
 })
@@ -131,10 +286,14 @@ onMounted(async () => {
 watch(() => store.dashboard, async () => {
   await nextTick()
   buildChart()
+  buildTrendChart()
+  buildCoverageChart()
 })
 
 onBeforeUnmount(() => {
   destroyChart()
+  if (trendChart) { trendChart.destroy(); trendChart = null }
+  if (coverageChart) { coverageChart.destroy(); coverageChart = null }
   if (themeObserver) { themeObserver.disconnect(); themeObserver = null }
 })
 </script>
@@ -150,9 +309,15 @@ onBeforeUnmount(() => {
   padding: 32px;
   font-size: 13px;
 }
+.dash-empty-hint {
+  font-size: 12px;
+  margin-top: 4px;
+  opacity: 0.7;
+}
 .dash-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
   gap: 16px;
 }
 .dash-card {
@@ -160,6 +325,9 @@ onBeforeUnmount(() => {
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 20px;
+}
+.dash-card-wide {
+  grid-column: span 2;
 }
 .card-title {
   color: var(--text-primary);
