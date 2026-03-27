@@ -111,7 +111,7 @@ const QARuns       = defineAsyncComponent(() => import('@/components/qa/QARuns.v
 const QADashboard  = defineAsyncComponent(() => import('@/components/qa/QADashboard.vue'))
 const SessionsTab  = defineAsyncComponent(() => import('@/views/DashboardView.vue'))
 const ResultsTab   = defineAsyncComponent(() => import('@/views/ResultsView.vue'))
-const GeneratorTab = defineAsyncComponent(() => import('@/views/GeneratorView.vue'))
+const GeneratorTab = defineAsyncComponent(() => import('@/components/qa/SpecGeneratorTab.vue'))
 const QACoverage   = defineAsyncComponent(() => import('@/components/qa/QACoverage.vue'))
 
 const route = useRoute()
