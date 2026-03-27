@@ -45,6 +45,9 @@
     <div class="issues-tabs">
       <button :class="['tab', { active: activeTab === 'board' }]" @click="activeTab = 'board'">Board</button>
       <button :class="['tab', { active: activeTab === 'backlog' }]" @click="activeTab = 'backlog'">Backlog</button>
+      <button :class="['tab', { active: activeTab === 'tree' }]" @click="activeTab = 'tree'">Tree</button>
+      <button :class="['tab', { active: activeTab === 'gantt' }]" @click="activeTab = 'gantt'">Gantt</button>
+      <button :class="['tab', { active: activeTab === 'time' }]" @click="activeTab = 'time'">Time</button>
       <button :class="['tab', { active: activeTab === 'dashboard' }]" @click="activeTab = 'dashboard'">Dashboard</button>
     </div>
 
@@ -139,9 +142,10 @@
         <button class="btn btn-secondary" @click="showCreateSprintModal = true">+ Create Sprint</button>
       </div>
     </template>
-    <template v-else-if="activeTab === 'dashboard'">
-      <DashboardView :project-id="currentProjectId" />
-    </template>
+    <IssueTree v-else-if="activeTab === 'tree'" :project-id="currentProjectId" @open-task="openTaskById" />
+    <GanttChart v-else-if="activeTab === 'gantt'" :project-id="currentProjectId" @open-task="openTaskById" />
+    <TimeReport v-else-if="activeTab === 'time'" :project-id="currentProjectId" />
+    <DashboardView v-else-if="activeTab === 'dashboard'" :project-id="currentProjectId" />
     <TaskViewer v-if="viewerTask" :task="viewerTask" @close="closeViewer" @edit="openEditor" @open-task="openTaskById" />
     <IssueDetailView v-if="editorTask" :task="editorTask" @close="closeEditor" @updated="refreshTask" @open-task="openTaskById" />
     <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
@@ -213,6 +217,9 @@ import SprintPanel from '@/components/issues/SprintPanel.vue'
 import BacklogView from '@/components/issues/BacklogView.vue'
 
 const DashboardView = defineAsyncComponent(() => import('@/components/issues/DashboardView.vue'))
+const TimeReport = defineAsyncComponent(() => import('@/components/issues/TimeReport.vue'))
+const IssueTree = defineAsyncComponent(() => import('@/components/issues/IssueTree.vue'))
+const GanttChart = defineAsyncComponent(() => import('@/components/issues/GanttChart.vue'))
 
 const route = useRoute()
 const store = useIssuesStore()
@@ -387,6 +394,15 @@ watch(activeTab, async (tab) => {
       store.fetchBacklog({ project_id: currentProjectId.value }),
       store.fetchSprints(currentProjectId.value),
     ])
+  }
+  if (tab === 'tree' && currentProjectId.value) {
+    store.fetchTree?.(currentProjectId.value)
+  }
+  if (tab === 'gantt' && currentProjectId.value) {
+    await store.fetchSprints(currentProjectId.value)
+  }
+  if (tab === 'time' && currentProjectId.value) {
+    store.fetchProjectWorkLogs?.(currentProjectId.value)
   }
   if (tab === 'dashboard' && currentProjectId.value) {
     store.fetchDashboard(currentProjectId.value)
