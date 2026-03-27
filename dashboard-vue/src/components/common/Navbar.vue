@@ -13,9 +13,8 @@
 
     <div class="nav-user">
       <!-- Theme toggle -->
-      <button class="btn-theme" @click="themeStore.toggle()" :title="isDark ? 'Светлая тема' : 'Тёмная тема'">
-        <span v-if="isDark">☀️</span>
-        <span v-else>🌙</span>
+      <button class="btn-theme" @click="themeStore.toggle()" :title="themeToggleTitle" data-testid="navbar-theme-btn">
+        {{ themeIcon }}
       </button>
 
       <!-- Language switcher -->
@@ -99,7 +98,19 @@ const notifWrapper = ref(null)
 const showLangMenu = ref(false)
 const langWrapper = ref(null)
 
-const isDark = computed(() => themeStore.theme === 'dark')
+const themeIcon = computed(() => {
+  const icons = { dark: '🌙', light: '☀️', retrowave: '👾' }
+  return icons[themeStore.theme] || '🌙'
+})
+
+const themeToggleTitle = computed(() => {
+  const titles = {
+    dark: 'Светлая тема',
+    light: 'RetroWave тема',
+    retrowave: 'Тёмная тема'
+  }
+  return titles[themeStore.theme] || 'Переключить тему'
+})
 
 function t(key) {
   return localeStore.t(key)

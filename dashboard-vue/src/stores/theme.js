@@ -6,7 +6,7 @@ export const useThemeStore = defineStore('theme', () => {
 
   function init() {
     const saved = localStorage.getItem('el-theme')
-    if (saved === 'light' || saved === 'dark') {
+    if (saved === 'light' || saved === 'dark' || saved === 'retrowave') {
       theme.value = saved
     }
     applyTheme()
@@ -19,14 +19,16 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   function toggle() {
-    setTheme(theme.value === 'dark' ? 'light' : 'dark')
+    const cycle = { dark: 'light', light: 'retrowave', retrowave: 'dark' }
+    setTheme(cycle[theme.value])
   }
 
   function applyTheme() {
+    document.body.classList.remove('theme-light', 'theme-retrowave')
     if (theme.value === 'light') {
       document.body.classList.add('theme-light')
-    } else {
-      document.body.classList.remove('theme-light')
+    } else if (theme.value === 'retrowave') {
+      document.body.classList.add('theme-retrowave')
     }
   }
 
