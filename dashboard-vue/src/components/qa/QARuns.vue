@@ -83,14 +83,14 @@ function goToRun(run) {
   padding: 0;
 }
 .runs-title {
-  color: #e8e6f0;
+  color: var(--text-primary);
   font-size: 16px;
   font-weight: 600;
   margin: 0 0 16px 0;
 }
 .runs-loading,
 .runs-empty {
-  color: #7a788a;
+  color: var(--text-secondary);
   text-align: center;
   padding: 32px;
   font-size: 13px;
@@ -107,11 +107,11 @@ function goToRun(run) {
   padding: 12px 16px;
   border-radius: 6px;
   cursor: pointer;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border-color);
   transition: background 0.15s;
 }
 .run-row:hover {
-  background: #22203a;
+  background: var(--bg-tertiary);
 }
 .run-info {
   flex: 1;
@@ -121,7 +121,7 @@ function goToRun(run) {
   gap: 2px;
 }
 .run-name {
-  color: #e8e6f0;
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 500;
   overflow: hidden;
@@ -129,7 +129,7 @@ function goToRun(run) {
   white-space: nowrap;
 }
 .run-plan {
-  color: #7a788a;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 .run-meta {
@@ -138,7 +138,7 @@ function goToRun(run) {
   gap: 8px;
 }
 .run-date {
-  color: #7a788a;
+  color: var(--text-secondary);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -186,7 +186,7 @@ function goToRun(run) {
   background: rgba(245, 158, 11, 0.1);
 }
 .run-percent {
-  color: #9b7de0;
+  color: var(--accent);
   font-size: 14px;
   font-weight: 600;
   min-width: 40px;
