@@ -47,13 +47,23 @@
             />
           </td>
           <td class="col-data">
+            <div
+              v-if="looksLikeCode(step.data) && focusedDataIdx !== idx"
+              class="data-code-preview"
+              @click="focusedDataIdx = idx"
+            >
+              <pre class="data-pre"><code ref="codeRefs" v-text="step.data"></code></pre>
+            </div>
             <textarea
+              v-else
               v-model="step.data"
               class="cell-input"
               placeholder="Test data..."
               rows="1"
               @input="autoResize($event); emitUpdate()"
               @keydown.tab="handleTab(idx, 'data', $event)"
+              @blur="focusedDataIdx = null"
+              @vue:mounted="focusedDataIdx === idx && $el.focus()"
             />
           </td>
           <td class="col-del">
@@ -68,7 +78,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, nextTick } from 'vue'
 
 let keyCounter = 0
 
@@ -77,6 +87,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+
+const focusedDataIdx = ref(null)
 
 function makeStep(s = {}) {
   return {
@@ -93,6 +105,15 @@ watch(() => props.modelValue, (val) => {
   if (JSON.stringify(stripKeys(localSteps.value)) !== JSON.stringify(val)) {
     localSteps.value = val.map(makeStep)
   }
+}, { deep: true })
+
+watch(() => props.modelValue, async () => {
+  await nextTick()
+  document.querySelectorAll('.steps-editor .cell-input').forEach(el => {
+    el.style.height = 'auto'
+    el.style.height = el.scrollHeight + 'px'
+  })
+  highlightAllPreviews()
 }, { deep: true })
 
 function stripKeys(steps) {
@@ -126,6 +147,83 @@ function autoResize(e) {
   el.style.height = el.scrollHeight + 'px'
 }
 
+function looksLikeCode(value) {
+  if (!value || value.length < 4) return false
+  const trimmed = value.trim()
+  return (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+    (trimmed.includes('\n') && (trimmed.includes('=') || trimmed.includes(':')))
+  )
+}
+
+// --- highlight.js (same pattern as CodeBlock.vue) ---
+let hljsLoaded = null
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve()
+      return
+    }
+    const script = document.createElement('script')
+    script.src = src
+    script.onload = resolve
+    script.onerror = reject
+    document.head.appendChild(script)
+  })
+}
+
+function isDarkTheme() {
+  return !document.body.classList.contains('theme-light')
+}
+
+const HLJS_CSS_DARK  = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css'
+const HLJS_CSS_LIGHT = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css'
+const HLJS_CSS_ID    = 'hljs-theme-css'
+
+function applyHljsTheme() {
+  const href = isDarkTheme() ? HLJS_CSS_DARK : HLJS_CSS_LIGHT
+  let link = document.getElementById(HLJS_CSS_ID)
+  if (!link) {
+    link = document.createElement('link')
+    link.id   = HLJS_CSS_ID
+    link.rel  = 'stylesheet'
+    document.head.appendChild(link)
+  }
+  if (link.href !== href) {
+    link.href = href
+  }
+}
+
+async function loadHljs() {
+  if (window.hljs) {
+    applyHljsTheme()
+    return window.hljs
+  }
+  if (!hljsLoaded) {
+    hljsLoaded = loadScript(
+      'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js'
+    )
+  }
+  await hljsLoaded
+  applyHljsTheme()
+  return window.hljs
+}
+
+async function highlightAllPreviews() {
+  await nextTick()
+  try {
+    const hljs = await loadHljs()
+    document.querySelectorAll('.steps-editor .data-pre code').forEach(el => {
+      el.removeAttribute('data-highlighted')
+      hljs.highlightElement(el)
+    })
+  } catch (err) {
+    console.warn('[StepsEditor] highlight.js load failed:', err.message)
+  }
+}
+
 // Drag & drop
 const dragIdx = ref(null)
 const dragOverIdx = ref(null)
@@ -156,6 +254,15 @@ function onDragEnd() {
   dragIdx.value = null
   dragOverIdx.value = null
 }
+
+onMounted(async () => {
+  await nextTick()
+  document.querySelectorAll('.steps-editor .cell-input').forEach(el => {
+    el.style.height = 'auto'
+    el.style.height = el.scrollHeight + 'px'
+  })
+  highlightAllPreviews()
+})
 </script>
 
 <style scoped>
@@ -175,10 +282,10 @@ function onDragEnd() {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #7a788a;
+  color: var(--text-secondary);
   text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  background: #16152a;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
 }
 
 .col-num { width: 40px; }
@@ -192,16 +299,16 @@ function onDragEnd() {
   transition: background 0.1s;
 }
 .step-row:hover {
-  background: #22203a;
+  background: var(--bg-tertiary);
 }
 .step-row.drag-over {
-  border-top: 2px solid #7c5cbf;
+  border-top: 2px solid var(--accent);
 }
 
 .step-row td {
   padding: 6px 10px;
   vertical-align: top;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .step-num {
@@ -211,8 +318,8 @@ function onDragEnd() {
   width: 22px;
   height: 22px;
   border-radius: 4px;
-  background: #22203a;
-  color: #7a788a;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 600;
 }
@@ -224,7 +331,7 @@ function onDragEnd() {
   background: transparent;
   border: 1px solid transparent;
   border-radius: 4px;
-  color: #e8e6f0;
+  color: var(--text-primary);
   font-size: 13px;
   font-family: inherit;
   resize: none;
@@ -234,17 +341,17 @@ function onDragEnd() {
   transition: border-color 0.15s;
 }
 .cell-input:focus {
-  border-color: #7c5cbf;
-  background: #1a1930;
+  border-color: var(--accent);
+  background: var(--bg-secondary);
 }
 .cell-input::placeholder {
-  color: #4a4858;
+  color: var(--text-secondary);
 }
 
 .btn-del {
   background: none;
   border: none;
-  color: #4a4858;
+  color: var(--text-secondary);
   font-size: 18px;
   cursor: pointer;
   padding: 2px 6px;
@@ -253,8 +360,8 @@ function onDragEnd() {
   transition: all 0.15s;
 }
 .btn-del:hover {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.15);
+  color: var(--error-color, #ef4444);
+  background: var(--error-bg, rgba(239, 68, 68, 0.15));
 }
 
 .btn-add-step {
@@ -262,15 +369,44 @@ function onDragEnd() {
   padding: 10px;
   margin-top: 4px;
   background: none;
-  border: 1px dashed #4a4858;
+  border: 1px dashed var(--border-color);
   border-radius: 6px;
-  color: #7a788a;
+  color: var(--text-secondary);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.15s;
 }
 .btn-add-step:hover {
-  border-color: #7c5cbf;
-  color: #9b7de0;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.data-code-preview {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px;
+  transition: background 0.15s;
+}
+.data-code-preview:hover {
+  background: var(--bg-tertiary);
+}
+
+.data-pre {
+  margin: 0;
+  padding: 4px 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.data-pre code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  background: transparent;
+  padding: 0;
 }
 </style>
