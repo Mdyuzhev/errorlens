@@ -30,6 +30,13 @@ from app.models.task import (
 )
 from app.models.testcase import TestCase, TestCaseFolder
 from app.models.testplan import TestPlan, TestPlanCase, TestPlanRun, TestPlanRunResult
+from app.models.pechkin import (
+    PechkinCollection,
+    PechkinFolder,
+    PechkinRequest,
+    PechkinRequestHistory,
+    PechkinVariable,
+)
 from app.models.user import User
 
 # Pydantic models
@@ -91,6 +98,12 @@ __all__ = [
     "SavedFilter",
     "AutomationRule",
     "AutomationRun",
+    # Pechkin
+    "PechkinCollection",
+    "PechkinFolder",
+    "PechkinRequest",
+    "PechkinRequestHistory",
+    "PechkinVariable",
     # User
     "User",
     # Pydantic
