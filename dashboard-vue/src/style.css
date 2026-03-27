@@ -357,3 +357,125 @@ body.theme-light textarea {
   color: var(--text-primary);
   border-color: var(--border-color);
 }
+
+/* ============================================================ */
+/* RetroWave 8-bit Theme                                        */
+/* ============================================================ */
+
+body.theme-retrowave {
+  --bg-primary:       #0a0014;
+  --bg-secondary:     #12002a;
+  --bg-card:          #1a0035;
+  --bg-tertiary:      #220046;
+  --text-primary:     #ff71ce;
+  --text-secondary:   #05d9e8;
+  --accent:           #ff2d78;
+  --accent-hover:     #ff00aa;
+  --accent-muted:     rgba(255, 45, 120, 0.15);
+  --accent-subtle:    rgba(255, 45, 120, 0.25);
+  --accent-bg:        rgba(255, 45, 120, 0.08);
+  --success:          #39ff14;
+  --error:            #ff0044;
+  --warning:          #ffb300;
+  --border-color:     rgba(5, 217, 232, 0.3);
+  --shadow:           0 0 20px rgba(255, 45, 120, 0.3);
+  --shadow-dropdown:  0 0 30px rgba(5, 217, 232, 0.25);
+  --code-bg:          rgba(0, 0, 0, 0.5);
+  --placeholder-color: rgba(5, 217, 232, 0.4);
+  --spinner-color:    rgba(255, 45, 120, 0.3);
+}
+
+/* RetroWave: Courier New как 8-bit шрифт */
+body.theme-retrowave {
+  font-family: 'Courier New', 'Lucida Console', 'Consolas', monospace;
+}
+
+body.theme-retrowave h1,
+body.theme-retrowave h2,
+body.theme-retrowave h3,
+body.theme-retrowave h4,
+body.theme-retrowave h5,
+body.theme-retrowave h6 {
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.05em;
+}
+
+/* RetroWave: CRT scanlines overlay */
+body.theme-retrowave::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.04) 2px,
+    rgba(0, 0, 0, 0.04) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* RetroWave: острые пиксельные углы везде */
+body.theme-retrowave .card,
+body.theme-retrowave .modal-content,
+body.theme-retrowave .btn,
+body.theme-retrowave input,
+body.theme-retrowave select,
+body.theme-retrowave textarea,
+body.theme-retrowave .badge {
+  border-radius: 0 !important;
+}
+
+/* RetroWave: cyan neon scrollbar */
+body.theme-retrowave ::-webkit-scrollbar-thumb {
+  background: #05d9e8;
+  border-radius: 0;
+  box-shadow: 0 0 6px rgba(5, 217, 232, 0.6);
+}
+
+body.theme-retrowave ::-webkit-scrollbar-thumb:hover {
+  background: #00ffff;
+}
+
+/* RetroWave: navbar cyan border glow */
+body.theme-retrowave .navbar {
+  border-bottom: 1px solid rgba(5, 217, 232, 0.5);
+  box-shadow: 0 0 20px rgba(5, 217, 232, 0.15);
+}
+
+/* RetroWave: btn-primary pink glow */
+body.theme-retrowave .btn-primary {
+  background: linear-gradient(135deg, #ff2d78, #ff00aa);
+  box-shadow: 0 0 15px rgba(255, 45, 120, 0.5);
+}
+
+body.theme-retrowave .btn-primary:hover {
+  box-shadow: 0 0 25px rgba(255, 45, 120, 0.8);
+  transform: translateY(-1px);
+}
+
+/* RetroWave: input cyan focus glow */
+body.theme-retrowave input,
+body.theme-retrowave select,
+body.theme-retrowave textarea {
+  border: 1px solid rgba(5, 217, 232, 0.3);
+  font-family: 'Courier New', monospace;
+}
+
+body.theme-retrowave input:focus,
+body.theme-retrowave select:focus,
+body.theme-retrowave textarea:focus {
+  border-color: #05d9e8;
+  box-shadow: 0 0 10px rgba(5, 217, 232, 0.4), 0 0 0 3px rgba(5, 217, 232, 0.1);
+}
+
+/* RetroWave: card top gradient line */
+body.theme-retrowave .card {
+  border: 1px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+}
