@@ -109,7 +109,7 @@ async def get_velocity(
             })
             continue
 
-        tasks_q = select(Task).where(Task.id.in_(issue_ids))
+        tasks_q = select(Task).where(Task.id.in_(issue_ids)).options(selectinload(Task.task_status))
         tasks_result = await db.execute(tasks_q)
         tasks = tasks_result.scalars().all()
 
