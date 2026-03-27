@@ -123,6 +123,27 @@ export const usePechkinStore = defineStore('pechkin', {
       }
       this.variables[collectionId] = byScope
     },
+    async fetchGlobalHistory(projectId) {
+      try {
+        const resp = await pechkinApi.listRecentHistory(projectId)
+        return resp.data
+      } catch (e) {
+        if (e?.response?.status) return []
+        return []
+      }
+    },
+    async importPostmanCollection(collectionId, jsonData) {
+      const resp = await pechkinApi.importPostman(collectionId, jsonData)
+      const pid = this.collections[0]?.project_id
+      if (pid) await this.fetchCollections(pid)
+      return resp.data
+    },
+    async importPostmanFile(collectionId, formData) {
+      const resp = await pechkinApi.importPostmanFile(collectionId, formData)
+      const pid = this.collections[0]?.project_id
+      if (pid) await this.fetchCollections(pid)
+      return resp.data
+    },
     async duplicateRequest(id) {
       const resp = await pechkinApi.getRequest(id)
       const req = resp.data
