@@ -62,8 +62,12 @@ async def create_collection(
         name=data.name, description=data.description,
     )
     await db.commit()
-    await db.refresh(col)
-    return collection_to_dict(col)
+    return {
+        "id": col.id, "name": col.name, "project_id": col.project_id,
+        "owner_id": col.owner_id, "description": col.description,
+        "sort_order": col.sort_order,
+        "folders": [], "requests": [], "variables": [],
+    }
 
 
 @router.put("/collections/{collection_id}")
