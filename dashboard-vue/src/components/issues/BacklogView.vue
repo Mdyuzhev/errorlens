@@ -125,7 +125,7 @@ function onDrop(event, targetIndex) {
 
 .backlog-row:hover { background: var(--bg-secondary); }
 .backlog-row:last-child { border-bottom: none; }
-.backlog-row.drag-over { background: rgba(124, 58, 237, 0.08); }
+.backlog-row.drag-over { background: var(--accent-muted); }
 
 .row-handle { color: var(--text-secondary); flex-shrink: 0; }
 
