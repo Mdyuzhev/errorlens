@@ -29,6 +29,7 @@ export default {
       sessions: 'Сессии',
       results: 'Результаты',
       generator: 'Генератор',
+      coverage: 'Покрытие',
     },
   },
   common: {

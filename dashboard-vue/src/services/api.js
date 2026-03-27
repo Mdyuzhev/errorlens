@@ -372,6 +372,10 @@ export const qaApi = {
     api.get('/api/v1/qa/dashboard', { params: { project_id: projectId } }),
   getProjectRuns: (projectId) =>
     api.get(`/v1/test-plans/project/${projectId}/runs`),
+  getCoverage: (projectId, params = {}) =>
+    api.get('/api/v1/qa/coverage', {
+      params: { project_id: projectId, ...params }
+    }),
   exportCsv: (projectId, folderId, ids) => {
     const params = new URLSearchParams({ project_id: projectId })
     if (folderId) params.append('folder_id', folderId)
