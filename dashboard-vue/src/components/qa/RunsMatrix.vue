@@ -70,11 +70,11 @@ function formatDate(d) {
 .matrix-table th,
 .matrix-table td {
   padding: 8px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border-color);
   white-space: nowrap;
 }
 .matrix-table thead th {
-  color: #7a788a;
+  color: var(--text-secondary);
   font-weight: 500;
   font-size: 11px;
   text-transform: uppercase;
@@ -83,9 +83,9 @@ function formatDate(d) {
 .case-col {
   position: sticky;
   left: 0;
-  background: #0f0e17;
+  background: var(--bg-secondary);
   z-index: 2;
-  color: #e8e6f0;
+  color: var(--text-primary);
   max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -116,13 +116,19 @@ function formatDate(d) {
   background: #3b82f6;
 }
 .status-dot.untested {
-  background: #22203a;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
 }
 .matrix-empty {
-  color: #7a788a;
+  color: var(--text-secondary);
   text-align: center;
   padding: 24px;
   font-size: 13px;
+}
+</style>
+
+<style>
+body.theme-light .runs-matrix .case-col {
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.08);
 }
 </style>

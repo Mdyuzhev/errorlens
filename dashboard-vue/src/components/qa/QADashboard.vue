@@ -59,6 +59,13 @@ const hasStatusData = computed(() => {
   return Object.values(s).some(v => v > 0)
 })
 
+function getCssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+    || getComputedStyle(document.body).getPropertyValue(name).trim()
+}
+
+let themeObserver = null
+
 function buildChart() {
   if (!chartCanvas.value || !store.dashboard?.by_status) return
   destroyChart()
@@ -86,16 +93,16 @@ function buildChart() {
         legend: {
           position: 'bottom',
           labels: {
-            color: '#e8e6f0',
+            color: getCssVar('--text-primary'),
             padding: 12,
             font: { size: 12 }
           }
         },
         tooltip: {
-          backgroundColor: '#16152a',
-          titleColor: '#e8e6f0',
-          bodyColor: '#e8e6f0',
-          borderColor: 'rgba(255,255,255,0.07)',
+          backgroundColor: getCssVar('--bg-card'),
+          titleColor: getCssVar('--text-primary'),
+          bodyColor: getCssVar('--text-secondary'),
+          borderColor: getCssVar('--border-color'),
           borderWidth: 1
         }
       }
@@ -114,6 +121,11 @@ onMounted(async () => {
   await store.fetchDashboard(props.projectId)
   await nextTick()
   buildChart()
+
+  themeObserver = new MutationObserver(() => {
+    buildChart()
+  })
+  themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] })
 })
 
 watch(() => store.dashboard, async () => {
@@ -123,6 +135,7 @@ watch(() => store.dashboard, async () => {
 
 onBeforeUnmount(() => {
   destroyChart()
+  if (themeObserver) { themeObserver.disconnect(); themeObserver = null }
 })
 </script>
 
@@ -132,7 +145,7 @@ onBeforeUnmount(() => {
 }
 .dash-loading,
 .dash-empty {
-  color: #7a788a;
+  color: var(--text-secondary);
   text-align: center;
   padding: 32px;
   font-size: 13px;
@@ -143,13 +156,13 @@ onBeforeUnmount(() => {
   gap: 16px;
 }
 .dash-card {
-  background: #16152a;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 20px;
 }
 .card-title {
-  color: #e8e6f0;
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 600;
   margin: 0 0 16px 0;
@@ -159,7 +172,7 @@ onBeforeUnmount(() => {
   position: relative;
 }
 .card-empty {
-  color: #7a788a;
+  color: var(--text-secondary);
   text-align: center;
   padding: 24px;
   font-size: 13px;
@@ -175,13 +188,13 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   padding: 8px 10px;
   border-radius: 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border-color);
 }
 .flaky-row:hover {
-  background: #22203a;
+  background: var(--bg-tertiary);
 }
 .flaky-name {
-  color: #e8e6f0;
+  color: var(--text-primary);
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -190,7 +203,7 @@ onBeforeUnmount(() => {
   margin-right: 12px;
 }
 .flaky-count {
-  color: #ef4444;
+  color: var(--error);
   font-size: 14px;
   font-weight: 600;
   flex-shrink: 0;
