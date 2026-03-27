@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,6 +62,48 @@ async def create_work_log(
     await db.commit()
     await db.refresh(wl)
     return {"id": wl.id, "message": "Work log created"}
+
+
+@router.get("/project")
+async def get_project_work_logs(
+    project_id: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """Aggregated work log report grouped by user with task details."""
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy import func
+    from app.models.task import Task
+    from app.models.user import User as UserModel
+
+    q = (
+        select(WorkLog)
+        .options(joinedload(WorkLog.task))
+        .join(Task, WorkLog.issue_id == Task.id)
+        .where(Task.project_id == project_id)
+        .order_by(WorkLog.log_date.desc())
+    )
+    result = await db.execute(q)
+    logs = result.unique().scalars().all()
+
+    by_user: dict[str, dict] = {}
+    for wl in logs:
+        uid = wl.user_id or "unknown"
+        if uid not in by_user:
+            by_user[uid] = {"user_id": uid, "total_hours": 0.0, "entries": []}
+        by_user[uid]["total_hours"] += wl.hours
+        by_user[uid]["entries"].append({
+            "id": wl.id,
+            "hours": wl.hours,
+            "log_date": wl.log_date.isoformat() if wl.log_date else None,
+            "comment": wl.comment,
+            "task": {
+                "id": wl.task.id,
+                "human_id": wl.task.human_id,
+                "title": wl.task.title,
+            } if wl.task else None,
+        })
+    return list(by_user.values())
 
 
 @router.put("/{log_id}")

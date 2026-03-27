@@ -398,3 +398,6 @@ class WorkLog(Base):
     log_date: Mapped[datetime] = mapped_column(DateTime)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    task: Mapped[Optional["Task"]] = relationship("Task", foreign_keys=[issue_id], lazy="selectin")
