@@ -126,6 +126,7 @@ export const tasksApi = {
   getBacklog: (params) => api.get('/tasks/backlog', { params }),
   updateRank: (id, data) => api.patch(`/tasks/${id}/rank`, data),
   getDashboardStats: (projectId) => api.get('/tasks/dashboard/stats', { params: { project_id: projectId } }),
+  getTree: (projectId) => api.get('/tasks/tree', { params: { project_id: projectId } }),
 }
 
 // Saved Filters API

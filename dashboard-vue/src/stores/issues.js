@@ -18,6 +18,8 @@ export const useIssuesStore = defineStore('issues', {
     customFields: [],
     dashboard: null,
     dashboardLoading: false,
+    treeData: [],
+    treeLoading: false,
     attachments: {},
     workLogs: {},
     customValues: {},
@@ -224,6 +226,18 @@ export const useIssuesStore = defineStore('issues', {
         const response = await componentsApi.list(projectId)
         this.components = response.data
       } catch { this.components = [] }
+    },
+
+    async fetchTree(projectId) {
+      this.treeLoading = true
+      try {
+        const r = await tasksApi.getTree(projectId)
+        this.treeData = r.data
+      } catch (e) {
+        this.treeData = []
+      } finally {
+        this.treeLoading = false
+      }
     },
 
     async fetchDashboard(projectId) {
