@@ -24,6 +24,13 @@
         </tbody>
       </table>
     </div>
+    <div class="matrix-legend">
+      <span class="legend-item"><span class="status-dot passed"></span> Passed</span>
+      <span class="legend-item"><span class="status-dot failed"></span> Failed</span>
+      <span class="legend-item"><span class="status-dot blocked"></span> Blocked</span>
+      <span class="legend-item"><span class="status-dot skipped"></span> Skipped</span>
+      <span class="legend-item"><span class="status-dot untested"></span> Not run</span>
+    </div>
   </div>
   <div v-else class="matrix-empty">No runs to display</div>
 </template>
@@ -101,23 +108,36 @@ function formatDate(d) {
   border-radius: 50%;
 }
 .status-dot.passed {
-  background: #10b981;
+  background: var(--success);
 }
 .status-dot.failed {
-  background: #ef4444;
+  background: var(--error);
 }
 .status-dot.blocked {
-  background: #f59e0b;
+  background: var(--warning);
 }
 .status-dot.skipped {
-  background: #6b7280;
+  background: var(--text-secondary);
 }
 .status-dot.in_progress {
-  background: #3b82f6;
+  background: var(--accent);
 }
 .status-dot.untested {
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
+}
+.matrix-legend {
+  display: flex;
+  gap: 16px;
+  padding: 10px 0 4px;
+  flex-wrap: wrap;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 .matrix-empty {
   color: var(--text-secondary);

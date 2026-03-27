@@ -27,9 +27,11 @@
           v-for="(tc, idx) in planCases"
           :key="tc.id"
           class="case-row"
+          :class="{ 'drag-over': dragOverCaseIdx === idx }"
           draggable="true"
           @dragstart="onDragStart(idx)"
           @dragover.prevent="onDragOver(idx)"
+          @dragleave="onDragLeave"
           @drop="onDrop(idx)"
         >
           <span class="drag-handle">&#9776;</span>
@@ -141,6 +143,7 @@ const selectedPlan = ref(null)
 const showAddCases = ref(false)
 const addIds = reactive(new Set())
 let dragIdx = null
+const dragOverCaseIdx = ref(null)
 
 const planCases = computed(() => selectedPlan.value?.cases || [])
 
@@ -209,10 +212,15 @@ function onDragStart(idx) {
 }
 
 function onDragOver(idx) {
-  /* allow drop */
+  dragOverCaseIdx.value = idx
+}
+
+function onDragLeave() {
+  dragOverCaseIdx.value = null
 }
 
 async function onDrop(idx) {
+  dragOverCaseIdx.value = null
   if (dragIdx === null || dragIdx === idx) return
   const cases = [...planCases.value]
   const [moved] = cases.splice(dragIdx, 1)
@@ -240,10 +248,10 @@ async function onDrop(idx) {
 .plan-info { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; }
 .plan-row-name { color: var(--text-primary); font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plan-badge, .status-badge, .run-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; text-transform: capitalize; }
-.plan-badge.draft, .status-badge.draft { color: #6b7280; background: rgba(107,114,128,0.12); }
-.plan-badge.ready, .status-badge.ready, .plan-badge.active, .status-badge.active { color: #10b981; background: rgba(16,185,129,0.12); }
-.plan-badge.approved, .status-badge.approved { color: var(--accent); background: rgba(155,125,224,0.12); }
-.plan-badge.completed, .status-badge.completed { color: #3b82f6; background: rgba(59,130,246,0.12); }
+.plan-badge.draft, .status-badge.draft { color: var(--text-secondary); background: var(--bg-tertiary); }
+.plan-badge.ready, .status-badge.ready, .plan-badge.active, .status-badge.active { color: var(--success); background: var(--accent-bg, var(--accent-muted)); }
+.plan-badge.approved, .status-badge.approved { color: var(--accent); background: var(--accent-muted); }
+.plan-badge.completed, .status-badge.completed { color: var(--accent); background: var(--accent-muted); }
 .plan-stats { display: flex; gap: 12px; }
 .stat { color: var(--text-secondary); font-size: 12px; }
 .stat.accent { color: var(--accent); font-weight: 500; }
@@ -263,14 +271,15 @@ async function onDrop(idx) {
 .case-row { gap: 8px; padding: 8px 12px; cursor: grab; }
 .drag-handle { color: var(--text-secondary); font-size: 14px; cursor: grab; user-select: none; }
 .case-title { flex: 1; color: var(--text-primary); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.remove-btn { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 16px; padding: 0 4px; opacity: 0.6; }
+.remove-btn { background: none; border: none; color: var(--error); cursor: pointer; font-size: 16px; padding: 0 4px; opacity: 0.6; }
 .remove-btn:hover { opacity: 1; }
 .run-row { gap: 12px; padding: 8px 12px; }
 .run-name { color: var(--text-primary); font-size: 13px; flex: 1; }
 .run-date { color: var(--text-secondary); font-size: 12px; }
-.run-badge.completed, .run-badge.finished { color: #10b981; background: rgba(16,185,129,0.12); }
-.run-badge.in_progress, .run-badge.active { color: #3b82f6; background: rgba(59,130,246,0.12); }
-.run-badge.aborted { color: #ef4444; background: rgba(239,68,68,0.12); }
+.run-badge.completed, .run-badge.finished { color: var(--success); background: var(--accent-bg, var(--accent-muted)); }
+.run-badge.in_progress, .run-badge.active { color: var(--accent); background: var(--accent-muted); }
+.run-badge.aborted { color: var(--error); background: var(--accent-bg, var(--accent-muted)); }
+.case-row.drag-over { border-top: 2px solid var(--accent); }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 100; }
 .modal-box { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; width: 480px; max-height: 70vh; display: flex; flex-direction: column; }
 .modal-title { color: var(--text-primary); font-size: 15px; font-weight: 600; padding: 16px 20px; margin: 0; border-bottom: 1px solid var(--border-color); }
