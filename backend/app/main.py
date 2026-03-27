@@ -54,7 +54,7 @@ from app.services.auth import init_admin_user
 from app.services.redis_client import close_redis, get_redis
 from app.services.seed_demo import seed_demo_data
 from app.services.seed_test_users import seed_test_users
-from app.websocket import ws_router
+from app.websocket import launches_ws_router, ws_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -172,6 +172,7 @@ app.include_router(issue_custom_fields.router)  # EL031: Custom fields
 app.include_router(issue_attachments.router)    # EL031: Attachments
 app.include_router(work_logs.router)        # EL031: Work logs
 app.include_router(ws_router)  # Wave 4.0: WebSocket
+app.include_router(launches_ws_router)  # EL062: Launch streaming WS
 
 # Static files setup
 DASHBOARD_PATH = None

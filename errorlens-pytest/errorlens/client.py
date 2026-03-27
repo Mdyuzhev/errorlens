@@ -25,6 +25,7 @@ class ELClient:
         self.branch = branch
         self.environment = environment
         self.pipeline_id = pipeline_id
+        self._headers = {"Authorization": f"Bearer {self.token}"}
 
     @classmethod
     def from_env(cls) -> "ELClient | None":
@@ -46,23 +47,90 @@ class ELClient:
             pipeline_id=os.getenv("EL_PIPELINE_ID", ""),
         )
 
-    def send(self, tests: list[dict]) -> None:
-        payload = {
-            "launch_name": self.launch_name,
-            "branch": self.branch,
-            "environment": self.environment,
-            "pipeline_id": self.pipeline_id,
-            "project_id": self.project_id,
-            "tests": tests,
-        }
+    def start_launch(self, total_expected: int = 0) -> str:
+        """POST /ingest/start → returns launch_id."""
         try:
-            response = httpx.post(
+            resp = httpx.post(
+                f"{self.url}/api/v1/launches/ingest/start",
+                json={
+                    "launch_name": self.launch_name,
+                    "branch": self.branch,
+                    "environment": self.environment,
+                    "pipeline_id": self.pipeline_id,
+                    "project_id": self.project_id,
+                    "total_expected": total_expected,
+                },
+                headers=self._headers,
+                timeout=15,
+            )
+            resp.raise_for_status()
+            launch_id = resp.json()["launch_id"]
+            logger.info(f"errorlens: started launch {launch_id}")
+            return launch_id
+        except Exception as e:
+            logger.error(f"errorlens: failed to start launch: {e}")
+            return ""
+
+    def send_batch(self, launch_id: str, tests: list[dict]) -> None:
+        """POST /ingest/batch → append tests to running launch."""
+        try:
+            resp = httpx.post(
+                f"{self.url}/api/v1/launches/ingest/batch",
+                json={
+                    "launch_id": launch_id,
+                    "project_id": self.project_id,
+                    "tests": tests,
+                },
+                headers=self._headers,
+                timeout=15,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            logger.info(
+                f"errorlens: batch +{len(tests)} → {data['total']} total "
+                f"({data['passed']}P/{data['failed']}F/{data['skipped']}S)"
+            )
+        except Exception as e:
+            logger.error(f"errorlens: failed to send batch: {e}")
+
+    def finish_launch(self, launch_id: str) -> None:
+        """POST /ingest/finish → finalize the launch."""
+        try:
+            resp = httpx.post(
+                f"{self.url}/api/v1/launches/ingest/finish",
+                json={
+                    "launch_id": launch_id,
+                    "project_id": self.project_id,
+                },
+                headers=self._headers,
+                timeout=15,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            logger.info(
+                f"errorlens: launch finished → {data['status']} "
+                f"({data['total']} tests, {data.get('duration_ms', 0)}ms)"
+            )
+        except Exception as e:
+            logger.error(f"errorlens: failed to finish launch: {e}")
+
+    def send(self, tests: list[dict]) -> None:
+        """Legacy: send all tests at once via /ingest (non-streaming)."""
+        try:
+            resp = httpx.post(
                 f"{self.url}/api/v1/launches/ingest",
-                json=payload,
-                headers={"Authorization": f"Bearer {self.token}"},
+                json={
+                    "launch_name": self.launch_name,
+                    "branch": self.branch,
+                    "environment": self.environment,
+                    "pipeline_id": self.pipeline_id,
+                    "project_id": self.project_id,
+                    "tests": tests,
+                },
+                headers=self._headers,
                 timeout=30,
             )
-            response.raise_for_status()
-            logger.info(f"errorlens-pytest: reported {len(tests)} tests -> {self.url}")
+            resp.raise_for_status()
+            logger.info(f"errorlens: reported {len(tests)} tests -> {self.url}")
         except Exception as e:
-            logger.error(f"errorlens-pytest: failed to send report: {e}")
+            logger.error(f"errorlens: failed to send report: {e}")

@@ -19,19 +19,35 @@ CONSUMER_GROUP = "launches"
 CONSUMER_NAME = f"launch-worker-{uuid.uuid4().hex[:8]}"
 
 
-async def handle_launch(launch_id: str, project_id: str) -> None:
-    """Notify UI that a new launch is available."""
+async def handle_launch(msg_data: dict) -> None:
+    """Forward launch event to UI via Pub/Sub."""
     try:
+        launch_id = msg_data.get("launch_id", "")
+        project_id = msg_data.get("project_id", "")
+        event = msg_data.get("event", "launch_created")
+
         r = await get_redis()
+
+        # Publish to project-specific channel (ResultsView subscribes)
         channel = f"el:ws:launches:{project_id}" if project_id else "el:ws:launches:all"
-        await r.publish(channel, json.dumps({
-            "type": "launch_created",
-            "launch_id": launch_id,
-            "project_id": project_id,
-        }))
-        logger.info(f"Notified UI: launch {launch_id} for project {project_id}")
+        payload = {"type": event, "launch_id": launch_id, "project_id": project_id}
+
+        # Forward extra fields from stream message
+        for k, v in msg_data.items():
+            if k not in ("launch_id", "project_id", "event"):
+                try:
+                    payload[k] = json.loads(v)
+                except (json.JSONDecodeError, TypeError):
+                    payload[k] = v
+
+        await r.publish(channel, json.dumps(payload))
+
+        # Also publish to launch-specific channel (for WS per-launch)
+        await r.publish(f"el:ws:launch:{launch_id}", json.dumps(payload))
+
+        logger.info(f"Notified UI: {event} launch={launch_id}")
     except Exception as e:
-        logger.error(f"Failed to notify UI for launch {launch_id}: {e}")
+        logger.error(f"Failed to notify UI: {e}")
 
 
 async def main() -> None:
@@ -47,9 +63,7 @@ async def main() -> None:
         try:
             messages = await consume(STREAM_LAUNCHES, CONSUMER_GROUP, CONSUMER_NAME, count=10)
             for msg in messages:
-                launch_id = msg.data.get("launch_id", "")
-                project_id = msg.data.get("project_id", "")
-                await handle_launch(launch_id, project_id)
+                await handle_launch(msg.data)
                 await ack(STREAM_LAUNCHES, CONSUMER_GROUP, msg.id)
         except asyncio.CancelledError:
             break

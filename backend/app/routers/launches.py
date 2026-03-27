@@ -213,7 +213,7 @@ async def ingest_launch(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ) -> dict[str, Any]:
-    """Accept native errorlens-pytest plugin report."""
+    """Accept native errorlens-pytest plugin report (batch mode)."""
     if not request.tests:
         raise HTTPException(status_code=400, detail="tests list is empty")
 
@@ -249,14 +249,7 @@ async def ingest_launch(
         pass  # fields not yet added by migration
 
     # Publish to Redis Stream
-    try:
-        from app.services.redis_streams import STREAM_LAUNCHES, publish
-        await publish(STREAM_LAUNCHES, {
-            "launch_id": run.id,
-            "project_id": request.project_id,
-        })
-    except Exception as e:
-        logger.warning(f"Redis stream publish failed: {e}")
+    await _publish_launch_event(run.id, request.project_id, "launch_completed")
 
     return {
         "id": run.id,
@@ -266,3 +259,167 @@ async def ingest_launch(
         "failed": failed,
         "skipped": skipped,
     }
+
+
+# --- Streaming API: start → batch → finish ---
+
+
+class StartRequest(BaseModel):
+    launch_name: str = "Unnamed launch"
+    branch: str = ""
+    environment: str = ""
+    pipeline_id: str = ""
+    project_id: str = ""
+    total_expected: int = 0
+
+
+class BatchRequest(BaseModel):
+    launch_id: str
+    project_id: str = ""
+    tests: list[TestResultSchema]
+
+
+class FinishRequest(BaseModel):
+    launch_id: str
+    project_id: str = ""
+
+
+@router.post("/ingest/start")
+async def ingest_start(
+    request: StartRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+) -> dict[str, Any]:
+    """Start a streaming launch. Returns launch_id for subsequent batches."""
+    service = TestRunService(db)
+    run = await service.create_run(
+        test_type="e2e",
+        total_tests=request.total_expected,
+        status="running",
+    )
+
+    try:
+        run.launch_name = request.launch_name
+        run.branch = request.branch
+        run.environment = request.environment
+        run.pipeline_id = request.pipeline_id
+        run.source = "plugin"
+        await db.commit()
+    except Exception:
+        pass
+
+    await _publish_launch_event(
+        run.id, request.project_id, "launch_started",
+        total=request.total_expected,
+        launch_name=request.launch_name,
+        branch=request.branch,
+        environment=request.environment,
+    )
+
+    return {"launch_id": run.id}
+
+
+@router.post("/ingest/batch")
+async def ingest_batch(
+    request: BatchRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+) -> dict[str, Any]:
+    """Append a batch of test results to a running launch."""
+    if not request.tests:
+        raise HTTPException(status_code=400, detail="tests list is empty")
+
+    service = TestRunService(db)
+    run = await service.get_run(request.launch_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="launch not found")
+
+    new_results = [t.model_dump() for t in request.tests]
+    existing = run.results or []
+    run.results = existing + new_results
+
+    # Update counters
+    batch_passed = sum(1 for t in request.tests if t.status == "passed")
+    batch_failed = sum(1 for t in request.tests if t.status in ("failed", "broken"))
+    batch_skipped = sum(1 for t in request.tests if t.status == "skipped")
+
+    run.passed = (run.passed or 0) + batch_passed
+    run.failed = (run.failed or 0) + batch_failed
+    run.skipped = (run.skipped or 0) + batch_skipped
+    run.total_tests = (run.total_tests or 0) + len(request.tests)
+    await db.commit()
+
+    await _publish_launch_event(
+        run.id, request.project_id, "launch_batch",
+        tests=new_results,
+        passed=run.passed,
+        failed=run.failed,
+        skipped=run.skipped,
+        total=run.total_tests,
+    )
+
+    return {
+        "launch_id": run.id,
+        "batch_size": len(request.tests),
+        "total": run.total_tests,
+        "passed": run.passed,
+        "failed": run.failed,
+        "skipped": run.skipped,
+    }
+
+
+@router.post("/ingest/finish")
+async def ingest_finish(
+    request: FinishRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+) -> dict[str, Any]:
+    """Finalize a streaming launch."""
+    service = TestRunService(db)
+    run = await service.get_run(request.launch_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="launch not found")
+
+    run.status = "passed" if (run.failed or 0) == 0 else "failed"
+    run.finished_at = datetime.utcnow()
+    if run.started_at:
+        run.duration_ms = int(
+            (run.finished_at - run.started_at).total_seconds() * 1000
+        )
+    await db.commit()
+
+    await _publish_launch_event(
+        run.id, request.project_id, "launch_completed",
+        status=run.status,
+        passed=run.passed,
+        failed=run.failed,
+        skipped=run.skipped,
+        total=run.total_tests,
+        duration_ms=run.duration_ms,
+    )
+
+    return {
+        "launch_id": run.id,
+        "status": run.status,
+        "total": run.total_tests,
+        "passed": run.passed,
+        "failed": run.failed,
+        "skipped": run.skipped,
+        "duration_ms": run.duration_ms,
+    }
+
+
+async def _publish_launch_event(
+    launch_id: str, project_id: str, event_type: str, **extra
+) -> None:
+    """Publish launch event to Redis Stream."""
+    try:
+        from app.services.redis_streams import STREAM_LAUNCHES, publish
+        await publish(STREAM_LAUNCHES, {
+            "launch_id": launch_id,
+            "project_id": project_id,
+            "event": event_type,
+            **{k: json.dumps(v) if isinstance(v, (list, dict)) else str(v) for k, v in extra.items()},
+        })
+    except Exception as e:
+        logger.warning(f"Redis stream publish failed: {e}")

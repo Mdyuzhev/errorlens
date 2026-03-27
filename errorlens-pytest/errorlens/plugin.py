@@ -1,11 +1,31 @@
 """Pytest plugin hooks for ErrorLens reporting."""
+import logging
 import time
-from dataclasses import asdict
 
 from .client import ELClient
-from .context import TestContext, clear_current, get_current, set_current, StepData
+from .context import StepData, TestContext, clear_current, get_current, set_current
 
-_results: list[dict] = []
+logger = logging.getLogger(__name__)
+
+BATCH_SIZE = 5
+
+_buffer: list[dict] = []
+_client: ELClient | None = None
+_launch_id: str = ""
+_total_collected: int = 0
+_started: bool = False
+
+
+def pytest_collection_modifyitems(session, config, items):
+    """After collection is done, start streaming launch."""
+    global _client, _launch_id, _started
+    _client = ELClient.from_env()
+    if not _client:
+        return
+    _launch_id = _client.start_launch(len(items))
+    _started = bool(_launch_id)
+    if _started:
+        logger.info(f"errorlens: launch started {_launch_id} ({len(items)} tests)")
 
 
 def pytest_runtest_setup(item):
@@ -30,7 +50,7 @@ def pytest_runtest_setup(item):
 
 
 def pytest_runtest_logreport(report):
-    """Collect test result on each phase."""
+    """Collect test result and flush buffer every BATCH_SIZE tests."""
     ctx = get_current()
     if not ctx:
         return
@@ -45,18 +65,32 @@ def pytest_runtest_logreport(report):
             ctx.status = "skipped"
     if report.when == "teardown":
         ctx.duration_ms = int(time.perf_counter() * 1000 - ctx._start_ms)
-        _results.append(_ctx_to_dict(ctx))
+        _buffer.append(_ctx_to_dict(ctx))
         clear_current()
+
+        global _total_collected
+        _total_collected += 1
+
+        if len(_buffer) >= BATCH_SIZE:
+            _flush_buffer()
 
 
 def pytest_sessionfinish(session, exitstatus):
-    """Send collected results to ErrorLens server."""
-    if not _results:
+    """Flush remaining buffer and finalize launch."""
+    _flush_buffer()
+    if _client and _launch_id:
+        _client.finish_launch(_launch_id)
+        logger.info(f"errorlens: launch finished {_launch_id}")
+
+
+def _flush_buffer():
+    """Send buffered tests as a batch."""
+    global _buffer
+    if not _buffer or not _client or not _launch_id:
         return
-    client = ELClient.from_env()
-    if not client:
-        return
-    client.send(_results)
+    batch = _buffer[:]
+    _buffer = []
+    _client.send_batch(_launch_id, batch)
 
 
 def _step_to_dict(s: StepData) -> dict:

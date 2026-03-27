@@ -1,8 +1,9 @@
 <template>
   <div class="run-card">
     <div class="run-header" @click="$emit('toggle')">
-      <div class="run-status" :class="run.status">
-        {{ run.status === 'passed' ? '✓' : '✗' }}
+      <div class="run-status" :class="[run.status, { 'is-live': live }]">
+        <span v-if="run.status === 'running'" class="live-dot"></span>
+        {{ run.status === 'running' ? '⟳' : run.status === 'passed' ? '✓' : '✗' }}
       </div>
       <div class="run-info">
         <div class="run-title">{{ run.test_type }} — {{ formatDate(run.started_at) }}</div>
@@ -122,6 +123,10 @@ const props = defineProps({
     required: true
   },
   expanded: {
+    type: Boolean,
+    default: false
+  },
+  live: {
     type: Boolean,
     default: false
   }
@@ -495,5 +500,31 @@ function formatDuration(ms) {
   background: var(--accent-muted);
   color: var(--text-secondary);
   font-family: monospace;
+}
+
+/* Running / Live state */
+.run-status.running {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--warning);
+  animation: pulse-live 1.5s ease-in-out infinite;
+}
+
+.run-status.is-live {
+  animation: pulse-live 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.live-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warning);
+  margin-right: 2px;
+  vertical-align: middle;
 }
 </style>
