@@ -166,6 +166,7 @@ async def seed(project_key: str, clear: bool, dry_run: bool) -> None:
         if not all([epic_tid, bug_tid, story_tid]):
             print(f"Missing task types epic/bug/story, got: {list(type_map.keys())}")
             return
+        assert epic_tid and bug_tid and story_tid  # narrowing for type checker
 
         now = datetime.utcnow()
 
