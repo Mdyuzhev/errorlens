@@ -51,8 +51,8 @@
 
       <!-- Score hero -->
       <div class="score-hero">
-        <div class="score-circle" :style="{ borderColor: scoreColor(result.total_score) }">
-          <span class="score-value">{{ result.total_score }}</span>
+        <div class="score-circle" :style="{ borderColor: scoreColor(result.total) }">
+          <span class="score-value">{{ result.total }}</span>
           <span class="score-label">/ 100</span>
         </div>
         <div class="score-meta">
@@ -60,10 +60,10 @@
             class="grade-badge"
             :class="'grade-' + result.grade.toLowerCase()"
           >{{ result.grade }}</span>
-          <p class="grade-desc">{{ result.description }}</p>
+          <p class="grade-desc">{{ result.grade_desc }}</p>
           <div class="file-test-counts">
-            <span>{{ result.files_count }} files</span>
-            <span>{{ result.tests_count }} tests</span>
+            <span>{{ result.files }} files</span>
+            <span>{{ result.tests }} tests</span>
           </div>
         </div>
       </div>
@@ -81,15 +81,15 @@
             <span class="metric-weight">weight {{ meta.weight }}</span>
             <span
               class="metric-score"
-              :style="{ color: scoreColor(result.metrics[key]) }"
-            >{{ result.metrics[key] }}</span>
+              :style="{ color: scoreColor(result.scores[key]) }"
+            >{{ Math.round(result.scores[key] || 0) }}</span>
           </div>
           <div class="bar-track">
             <div
               class="bar-fill"
               :style="{
-                width: result.metrics[key] + '%',
-                background: scoreColor(result.metrics[key])
+                width: (result.scores[key] || 0) + '%',
+                background: scoreColor(result.scores[key] || 0)
               }"
             ></div>
           </div>
@@ -101,20 +101,20 @@
         <h3 class="section-heading">Anti-patterns</h3>
         <ul class="issue-list">
           <li v-for="(ap, i) in result.anti_patterns" :key="i" class="issue-item issue-error">
-            <span class="issue-location">{{ ap.location }}</span>
-            <span class="issue-msg">{{ ap.message }}</span>
+            <span class="issue-location">{{ ap.file }}</span>
+            <span class="issue-msg">{{ ap.pattern }} (x{{ ap.count }}, -{{ ap.penalty }}pts)</span>
           </li>
         </ul>
       </div>
 
       <!-- Copy-paste warning -->
-      <div v-if="result.copy_paste_warning" class="warning-box">
-        <strong>Copy-paste detected:</strong> {{ result.copy_paste_warning }}
+      <div v-if="result.copy_paste?.detected" class="warning-box">
+        <strong>Copy-paste detected:</strong> {{ result.copy_paste.sequence }} sequential tests ({{ result.copy_paste.prefix }}*) — consider parameterizing
       </div>
 
       <!-- Bad naming warning -->
-      <div v-if="result.bad_naming_warning" class="warning-box">
-        <strong>Bad naming:</strong> {{ result.bad_naming_warning }}
+      <div v-if="result.bad_naming?.count" class="warning-box">
+        <strong>Bad naming:</strong> {{ result.bad_naming.found?.join(', ') }} — use descriptive test names
       </div>
 
       <!-- Recommendations -->
@@ -128,22 +128,22 @@
       </div>
 
       <!-- Coverage breakdown -->
-      <div v-if="result.coverage" class="section-block">
+      <div class="section-block">
         <h3 class="section-heading">Coverage Breakdown</h3>
         <div class="coverage-grid">
           <div class="coverage-card">
-            <span class="coverage-num" :style="{ color: scoreColor(result.coverage.negative_pct) }">
-              {{ result.coverage.negative_pct }}%
+            <span class="coverage-num" :style="{ color: scoreColor(negativePct) }">
+              {{ negativePct }}%
             </span>
             <span class="coverage-label">Negative scenarios</span>
-            <span class="coverage-detail">{{ result.coverage.negative_count }} tests</span>
+            <span class="coverage-detail">{{ result.negative_covered }}/{{ result.negative_total }}</span>
           </div>
           <div class="coverage-card">
-            <span class="coverage-num" :style="{ color: scoreColor(result.coverage.edge_pct) }">
-              {{ result.coverage.edge_pct }}%
+            <span class="coverage-num" :style="{ color: scoreColor(edgePct) }">
+              {{ edgePct }}%
             </span>
             <span class="coverage-label">Edge cases</span>
-            <span class="coverage-detail">{{ result.coverage.edge_count }} tests</span>
+            <span class="coverage-detail">{{ result.edge_covered }}/{{ result.edge_total }}</span>
           </div>
         </div>
       </div>
@@ -152,7 +152,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { evaApi } from '@/services/api'
 
 const selectedFile = ref(null)
@@ -160,6 +160,9 @@ const isDragging = ref(false)
 const running = ref(false)
 const result = ref(null)
 const error = ref(null)
+
+const negativePct = computed(() => result.value ? Math.round(result.value.negative_covered / result.value.negative_total * 100) : 0)
+const edgePct = computed(() => result.value ? Math.round(result.value.edge_covered / result.value.edge_total * 100) : 0)
 
 const metricsDisplay = {
   oracle:    { label: 'Oracle Strength',   weight: '30%' },
