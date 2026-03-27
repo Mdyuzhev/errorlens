@@ -1028,7 +1028,7 @@ def seed_issues_full(api: ApiClient, user_map: dict[str, str]) -> None:
 # Team simulation: worklogs from individual users + completed sprint
 # ---------------------------------------------------------------------------
 
-SEED_USER_PASSWORD = "Test1234"
+SEED_USER_PASSWORDS = {u["username"]: u["password"] for u in SEED_USERS}
 
 
 def seed_team_simulation(api: ApiClient, user_map: dict[str, str]) -> None:
@@ -1061,26 +1061,28 @@ def seed_team_simulation(api: ApiClient, user_map: dict[str, str]) -> None:
     else:
         print(f"    WARN: {r.status_code} {r.text[:80]}")
 
-    # Add some existing done-tasks to sprint 0
+    # Add existing tasks to sprint 0 (take first 6 regardless of status)
     if sprint0_id:
         r = api.get("/tasks", params={
             "project_id": api.project_id,
-            "status": "done",
-            "limit": 6,
+            "limit": 8,
         })
         if r.status_code == 200:
             data = r.json()
             items = data.get("items", data) if isinstance(data, dict) else data
+            added = 0
             for i, t in enumerate(items[:6]):
-                api.patch(f"/tasks/{t['id']}/rank", json={
+                resp = api.patch(f"/tasks/{t['id']}/rank", json={
                     "rank": (i + 1) * 100,
                     "sprint_id": sprint0_id,
                 })
-            print(f"    Added {min(len(items), 6)} done tasks to Sprint 0")
+                if resp.status_code in (200, 201):
+                    added += 1
+            print(f"    Added {added} tasks to Sprint 0")
 
         # Complete sprint 0
-        api.post(f"/api/v1/sprints/{sprint0_id}/complete")
-        print("    Sprint 0 completed")
+        r = api.post(f"/api/v1/sprints/{sprint0_id}/complete")
+        print(f"    Sprint 0 complete: {r.status_code}")
 
     # ---------------------------------------------------------------
     # 2. Start active sprint (Sprint 1) if not already started
@@ -1165,7 +1167,7 @@ def seed_team_simulation(api: ApiClient, user_map: dict[str, str]) -> None:
             try:
                 r = s.post(
                     f"{api.base_url}/auth/login",
-                    json={"username": username, "password": SEED_USER_PASSWORD},
+                    json={"username": username, "password": SEED_USER_PASSWORDS.get(username, "Test1234")},
                 )
                 if r.status_code == 200:
                     token = r.json()["access_token"]
