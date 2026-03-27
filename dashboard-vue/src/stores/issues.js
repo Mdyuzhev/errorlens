@@ -20,6 +20,8 @@ export const useIssuesStore = defineStore('issues', {
     dashboardLoading: false,
     burndown: [],
     velocity: [],
+    treeData: [],
+    treeLoading: false,
     attachments: {},
     workLogs: {},
     customValues: {},
@@ -242,6 +244,18 @@ export const useIssuesStore = defineStore('issues', {
         const r = await sprintsApi.velocity(projectId, limit)
         this.velocity = r.data
       } catch (e) { this.velocity = [] }
+    },
+
+    async fetchTree(projectId) {
+      this.treeLoading = true
+      try {
+        const r = await tasksApi.getTree(projectId)
+        this.treeData = r.data
+      } catch (e) {
+        this.treeData = []
+      } finally {
+        this.treeLoading = false
+      }
     },
 
     async fetchDashboard(projectId) {
