@@ -396,3 +396,14 @@ export const specGenApi = {
     return api.post('/api/v1/generator/spec/generate', payload)
   }
 }
+
+// EVA API
+export const evaApi = {
+  analyze(file) {
+    const form = new FormData()
+    form.append('file', file)
+    return api.post('/api/v1/generator/eva/analyze', form, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  }
+}

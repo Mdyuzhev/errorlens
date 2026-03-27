@@ -19,13 +19,23 @@
         LLM
         <span class="mode-hint">smarter, slower</span>
       </button>
+      <button
+        class="mode-btn"
+        :class="{ active: mode === 'eva' }"
+        @click="mode = 'eva'"
+      >
+        EVA
+        <span class="mode-hint">test quality score</span>
+      </button>
     </div>
 
     <!-- LLM mode: existing generator -->
     <component v-if="mode === 'llm'" :is="GeneratorView" />
 
     <!-- Static mode -->
-    <div v-else class="static-mode">
+    <EvaTab v-else-if="mode === 'eva'" />
+
+    <div v-else-if="mode === 'static'" class="static-mode">
       <div class="generator-layout">
 
         <!-- Left panel -->
@@ -161,6 +171,7 @@
 import { ref, computed, defineAsyncComponent } from 'vue'
 import SpecInput from '@/components/qa/SpecInput.vue'
 import EndpointSelector from '@/components/qa/EndpointSelector.vue'
+import EvaTab from '@/components/qa/EvaTab.vue'
 import { specGenApi } from '@/services/api'
 
 const GeneratorView = defineAsyncComponent(() => import('@/views/GeneratorView.vue'))
