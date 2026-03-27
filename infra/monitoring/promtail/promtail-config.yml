@@ -16,18 +16,18 @@ scrape_configs:
         filters:
           - name: name
             values:
-              - "docker-backend-1"
-              - "docker-generator-1"
-              - "docker-notification-worker-1"
-              - "docker-automation-worker-1"
-              - "docker-postgres-1"
-              - "docker-redis-1"
-              - "docker-nginx-1"
-              - "docker-collab-1"
+              - "errorlens-backend-1"
+              - "errorlens-generator-1"
+              - "errorlens-notification-worker-1"
+              - "errorlens-automation-worker-1"
+              - "errorlens-postgres-1"
+              - "errorlens-redis-1"
+              - "errorlens-nginx-1"
+              - "errorlens-collab-1"
     relabel_configs:
       - source_labels: ['__meta_docker_container_name']
         regex: '/(.*)'
         target_label: 'container'
       - source_labels: ['__meta_docker_container_name']
-        regex: '/docker-(.+)-1'
+        regex: '/errorlens-(.+)-1'
         target_label: 'service'
