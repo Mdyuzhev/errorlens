@@ -9,5 +9,8 @@ description = "Native pytest plugin for ErrorLens test reporting"
 requires-python = ">=3.9"
 dependencies = ["httpx>=0.24.0"]
 
+[tool.hatch.build.targets.wheel]
+packages = ["errorlens"]
+
 [project.entry-points."pytest11"]
 errorlens = "errorlens.plugin"

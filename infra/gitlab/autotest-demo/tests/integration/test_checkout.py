@@ -1,43 +1,39 @@
-import allure
+import errorlens as el
 import pytest
 
-pytestmark = [
-    allure.feature("Checkout"),
-    allure.epic("E2E"),
-]
 
-
+@el.feature("Checkout")
 class TestCheckout:
     """End-to-end checkout flow tests."""
 
-    @allure.severity(allure.severity_level.BLOCKER)
+    @el.severity("blocker")
     @pytest.mark.regression
     def test_full_checkout_flow(self, http_session, base_url):
-        """Multi-step checkout: cart → coupon → shipping → order → confirm."""
-        with allure.step("Add item to cart"):
+        """Multi-step checkout: cart -> coupon -> shipping -> order -> confirm."""
+        with el.step("Add item to cart"):
             r = http_session.post(f"{base_url}/post", json={"item": "laptop", "qty": 1})
             assert r.status_code == 200
 
-        with allure.step("Apply coupon"):
+        with el.step("Apply coupon"):
             r = http_session.post(f"{base_url}/post", json={"coupon": "SAVE10"})
             assert r.status_code == 200
 
-        with allure.step("Fill shipping info"):
+        with el.step("Fill shipping info"):
             r = http_session.post(f"{base_url}/post", json={
                 "address": "123 Test St", "city": "Moscow",
             })
             assert r.status_code == 200
 
-        with allure.step("Submit order"):
+        with el.step("Submit order"):
             r = http_session.post(f"{base_url}/post", json={"action": "submit"})
             assert r.status_code == 200
 
-        with allure.step("Verify confirmation"):
+        with el.step("Verify confirmation"):
             r = http_session.get(f"{base_url}/get", params={"order": "confirmed"})
             assert r.status_code == 200
             assert r.json()["args"]["order"] == "confirmed"
 
-    @allure.severity(allure.severity_level.BLOCKER)
+    @el.severity("blocker")
     @pytest.mark.regression
     def test_checkout_with_invalid_card(self, http_session, base_url):
         """Intentionally failing: expects validation error but gets 200."""
@@ -48,7 +44,7 @@ class TestCheckout:
             f"Expected validation error, got {response.status_code}"
         )
 
-    @allure.severity(allure.severity_level.NORMAL)
+    @el.severity("normal")
     @pytest.mark.smoke
     def test_checkout_empty_cart(self, http_session, base_url):
         """Empty cart returns 4xx error."""

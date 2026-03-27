@@ -5,18 +5,16 @@ test_and_upload:
   stage: test_and_upload
   image: python:3.11-slim
   tags: [docker]
+  variables:
+    EL_URL: "$ERRORLENS_URL"
+    EL_TOKEN: "$ERRORLENS_TOKEN"
+    EL_PROJECT_ID: "$ERRORLENS_PROJECT_ID"
+    EL_LAUNCH_NAME: "$CI_PROJECT_NAME / $CI_COMMIT_REF_NAME"
+    EL_BRANCH: "$CI_COMMIT_REF_NAME"
+    EL_ENVIRONMENT: "${APP_ENV:-demo}"
+    EL_PIPELINE_ID: "$CI_PIPELINE_ID"
   before_script:
-    - apt-get update -q && apt-get install -y zip curl -q
     - pip install -r requirements.txt -q
-    - mkdir -p allure-results
   script:
-    - pytest --alluredir=allure-results -v || true
-    - cd allure-results && zip -r ../allure-results.zip . && cd ..
-    - |
-      curl -f -X POST "$ERRORLENS_URL/api/v1/launches/upload" \
-        -H "Authorization: Bearer $ERRORLENS_TOKEN" \
-        -F "file=@allure-results.zip" \
-        -F "name=$CI_PROJECT_NAME / $CI_COMMIT_REF_NAME" \
-        -F "branch=$CI_COMMIT_REF_NAME" \
-        -F "environment=${APP_ENV:-demo}"
+    - pytest -v || true
   allow_failure: true

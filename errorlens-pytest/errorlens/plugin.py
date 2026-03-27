@@ -21,10 +21,11 @@ def pytest_runtest_setup(item):
             {"name": k, "value": str(v)} for k, v in item.callspec.params.items()
         ]
     fn = item.function
-    ctx.feature = getattr(fn, "_el_feature", "")
-    ctx.story = getattr(fn, "_el_story", "")
-    ctx.severity = getattr(fn, "_el_severity", "normal")
-    ctx.links = getattr(fn, "_el_links", [])
+    cls = item.cls
+    ctx.feature = getattr(fn, "_el_feature", "") or getattr(cls, "_el_feature", "")
+    ctx.story = getattr(fn, "_el_story", "") or getattr(cls, "_el_story", "")
+    ctx.severity = getattr(fn, "_el_severity", "") or getattr(cls, "_el_severity", "normal")
+    ctx.links = getattr(fn, "_el_links", []) or getattr(cls, "_el_links", [])
     set_current(ctx)
 
 
