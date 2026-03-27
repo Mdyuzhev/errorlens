@@ -17,6 +17,8 @@ class ELClient:
         branch: str = "",
         environment: str = "",
         pipeline_id: str = "",
+        batch_size: int = 5,
+        timeout: int = 15,
     ):
         self.url = url.rstrip("/")
         self.token = token
@@ -25,6 +27,8 @@ class ELClient:
         self.branch = branch
         self.environment = environment
         self.pipeline_id = pipeline_id
+        self.batch_size = batch_size
+        self.timeout = timeout
         self._headers = {"Authorization": f"Bearer {self.token}"}
 
     @classmethod
@@ -45,6 +49,8 @@ class ELClient:
             branch=os.getenv("EL_BRANCH", ""),
             environment=os.getenv("EL_ENVIRONMENT", ""),
             pipeline_id=os.getenv("EL_PIPELINE_ID", ""),
+            batch_size=int(os.getenv("EL_BATCH_SIZE", "5")),
+            timeout=int(os.getenv("EL_TIMEOUT", "15")),
         )
 
     def start_launch(self, total_expected: int = 0) -> str:
@@ -61,7 +67,7 @@ class ELClient:
                     "total_expected": total_expected,
                 },
                 headers=self._headers,
-                timeout=15,
+                timeout=self.timeout,
             )
             resp.raise_for_status()
             launch_id = resp.json()["launch_id"]
@@ -82,7 +88,7 @@ class ELClient:
                     "tests": tests,
                 },
                 headers=self._headers,
-                timeout=15,
+                timeout=self.timeout,
             )
             resp.raise_for_status()
             data = resp.json()
@@ -103,7 +109,7 @@ class ELClient:
                     "project_id": self.project_id,
                 },
                 headers=self._headers,
-                timeout=15,
+                timeout=self.timeout,
             )
             resp.raise_for_status()
             data = resp.json()

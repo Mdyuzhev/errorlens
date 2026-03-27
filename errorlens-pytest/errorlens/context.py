@@ -27,6 +27,18 @@ class TestContext:
     story: str = ""
     severity: str = "normal"
     links: list[dict] = field(default_factory=list)
+    # --- New fields v2.0 ---
+    title: str = ""
+    description: str = ""
+    epic: str = ""
+    suite: str = ""
+    parent_suite: str = ""
+    tags: list[str] = field(default_factory=list)
+    owner: str = ""
+    test_id: str = ""
+    flaky: bool = False
+    known_issue: str = ""
+    retry_count: int = 0
     steps: list[StepData] = field(default_factory=list)
     attachments: list[dict] = field(default_factory=list)
     status_details: dict = field(default_factory=dict)

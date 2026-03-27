@@ -56,7 +56,7 @@
       >
         <div class="test-header" @click="toggleTest(test.name)">
           <span class="test-status">{{ test.status === 'passed' ? '✓' : '✗' }}</span>
-          <span class="test-name">{{ test.name }}</span>
+          <span class="test-name">{{ test.title || test.name }}</span>
           <span class="test-params" v-if="test.parameters?.length">
             <span v-for="p in test.parameters" :key="p.name" class="test-param-badge">
               {{ p.name }}={{ p.value }}
@@ -72,6 +72,32 @@
             <span v-if="test.feature" class="meta-tag feature">{{ test.feature }}</span>
             <span v-if="test.story" class="meta-tag story">{{ test.story }}</span>
             <span v-if="test.severity && test.severity !== 'normal'" class="meta-tag severity" :class="test.severity">{{ test.severity }}</span>
+          </div>
+
+          <!-- Badges v2.0 -->
+          <div class="test-badges" v-if="test.flaky || test.known_issue || test.owner || test.test_id || test.tags?.length">
+            <span v-if="test.flaky" class="badge badge-flaky" title="Flaky test">Flaky</span>
+            <a v-if="test.known_issue"
+              class="badge badge-known-issue"
+              :href="isUrl(test.known_issue) ? test.known_issue : null"
+              :target="isUrl(test.known_issue) ? '_blank' : null"
+            >
+              {{ test.known_issue }}
+            </a>
+            <span v-if="test.owner" class="badge badge-owner">{{ test.owner }}</span>
+            <a v-if="test.test_id"
+              class="badge badge-id"
+              :href="isUrl(test.test_id) ? test.test_id : null"
+              :target="isUrl(test.test_id) ? '_blank' : null"
+            >
+              {{ test.test_id }}
+            </a>
+            <span v-for="t in (test.tags || [])" :key="t" class="badge badge-tag">{{ t }}</span>
+          </div>
+
+          <!-- Description v2.0 -->
+          <div v-if="test.description" class="test-description">
+            {{ test.description }}
           </div>
 
           <!-- Steps (recursive) -->
@@ -91,6 +117,13 @@
               {{ expandedTraces.includes(test.name) ? '▼' : '▶' }} Stack trace
             </div>
             <pre v-if="expandedTraces.includes(test.name)" class="trace-content">{{ test.statusDetails.trace }}</pre>
+          </div>
+
+          <!-- Links v2.0 -->
+          <div v-if="test.links?.length" class="test-links">
+            <a v-for="l in test.links" :key="l.url" :href="l.url" target="_blank" class="test-link">
+              {{ linkIcon(l) }} {{ l.name || l.url }}
+            </a>
           </div>
 
           <!-- Attachments -->
@@ -186,6 +219,16 @@ function formatDuration(ms) {
   if (!ms) return '-'
   if (ms < 1000) return `${ms}ms`
   return `${(ms / 1000).toFixed(1)}s`
+}
+
+function isUrl(val) {
+  return typeof val === 'string' && (val.startsWith('http://') || val.startsWith('https://'))
+}
+
+function linkIcon(link) {
+  if (link.type === 'issue') return '🐛'
+  if (link.type === 'testcase') return '📋'
+  return '🔗'
 }
 </script>
 
@@ -526,5 +569,63 @@ function formatDuration(ms) {
   background: var(--warning);
   margin-right: 2px;
   vertical-align: middle;
+}
+
+/* Badges v2.0 */
+.test-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.badge-flaky     { background: rgba(245,158,11,0.15); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
+.badge-known-issue { background: rgba(59,130,246,0.15); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); }
+.badge-owner     { background: rgba(107,114,128,0.15); color: var(--text-secondary); }
+.badge-id        { background: rgba(168,85,247,0.15); color: var(--accent); }
+.badge-tag       { background: rgba(16,185,129,0.15); color: var(--success); }
+
+.test-description {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 8px;
+  padding: 8px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent);
+}
+
+.test-fullname-hint {
+  display: block;
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-family: monospace;
+  margin-top: 1px;
+}
+
+/* Links v2.0 */
+.test-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.test-link {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+}
+.test-link:hover {
+  text-decoration: underline;
 }
 </style>

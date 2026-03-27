@@ -29,6 +29,7 @@ class StepSchema(BaseModel):
     steps: list["StepSchema"] = []
     attachments: list[dict] = []
     status_details: dict = {}
+    description: str = ""
 
 StepSchema.model_rebuild()
 
@@ -46,6 +47,18 @@ class TestResultSchema(BaseModel):
     steps: list[StepSchema] = []
     attachments: list[dict] = []
     status_details: dict = {}
+    # --- New fields v2.0 ---
+    title: str = ""
+    description: str = ""
+    epic: str = ""
+    suite: str = ""
+    parent_suite: str = ""
+    tags: list[str] = []
+    owner: str = ""
+    test_id: str = ""
+    flaky: bool = False
+    known_issue: str = ""
+    retry_count: int = 0
 
 class IngestRequest(BaseModel):
     launch_name: str = "Unnamed launch"
