@@ -15,6 +15,8 @@
       draggable="true"
       @dragstart="onDragStart($event, index)"
       @dragover.prevent="onDragOver($event, index)"
+      @dragleave="onDragLeave"
+      @dragend="onDragEnd"
       @drop="onDrop($event, index)"
       :class="{ 'drag-over': dragOverIndex === index }"
     >
@@ -77,6 +79,15 @@ function onDragOver(event, index) {
   dragOverIndex.value = index
 }
 
+function onDragLeave() {
+  dragOverIndex.value = null
+}
+
+function onDragEnd() {
+  dragIndex.value = null
+  dragOverIndex.value = null
+}
+
 function onDrop(event, targetIndex) {
   if (dragIndex.value !== null && dragIndex.value !== targetIndex) {
     emit('rank-change', dragIndex.value, targetIndex)
@@ -118,7 +129,7 @@ function onDrop(event, targetIndex) {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  border-bottom: 1px solid var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
   cursor: grab;
   transition: background 0.15s;
 }
@@ -171,7 +182,7 @@ function onDrop(event, targetIndex) {
   font-size: 11px;
   font-weight: 600;
   color: var(--accent);
-  background: rgba(124, 58, 237, 0.1);
+  background: var(--accent-muted);
   padding: 1px 6px;
   border-radius: 4px;
 }
