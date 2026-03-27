@@ -123,6 +123,19 @@ export const usePechkinStore = defineStore('pechkin', {
       }
       this.variables[collectionId] = byScope
     },
+    async listRawVariables(collectionId) {
+      const resp = await pechkinApi.listVariables(collectionId)
+      return resp.data
+    },
+    async upsertVariable(collectionId, data) {
+      const resp = await pechkinApi.upsertVariable(collectionId, data)
+      await this.fetchVariables(collectionId)
+      return resp.data
+    },
+    async deleteVariable(collectionId, varId) {
+      await pechkinApi.deleteVariable(varId)
+      await this.fetchVariables(collectionId)
+    },
     async duplicateRequest(id) {
       const resp = await pechkinApi.getRequest(id)
       const req = resp.data
