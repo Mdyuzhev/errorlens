@@ -36,6 +36,7 @@ from app.routers import (
     qa,
     saved_filters,
     sessions,
+    spec_gen,
     sprints,
     task_activity,
     task_relations,
@@ -157,6 +158,7 @@ app.include_router(projects.router)
 app.include_router(test_plans.router)
 app.include_router(qa.router)  # EL-QA: QA dashboard
 app.include_router(generation.router)  # Wave 4.0: Generation API
+app.include_router(spec_gen.router)  # EL039: Static spec test generator
 app.include_router(notifications.router)  # EL018: Notifications
 app.include_router(gitlab_connections.router)  # EL020: GitLab Integration
 app.include_router(launches.router)  # EL022: Launch upload from CI

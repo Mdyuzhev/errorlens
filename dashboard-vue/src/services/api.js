@@ -386,3 +386,13 @@ export const qaApi = {
     return api.get(`/testcases/export/csv?${params}`, { responseType: 'blob' })
   },
 }
+
+// Spec Generator API (Pe4King port)
+export const specGenApi = {
+  parseSpec(payload) {
+    return api.post('/api/v1/generator/spec/parse', payload)
+  },
+  generateTests(payload) {
+    return api.post('/api/v1/generator/spec/generate', payload)
+  }
+}
