@@ -19,13 +19,24 @@
         LLM
         <span class="mode-hint">smarter, slower</span>
       </button>
+      <button
+        class="mode-btn"
+        :class="{ active: mode === 'pechkin' }"
+        @click="mode = 'pechkin'"
+      >
+        Pechkin
+        <span class="mode-hint">HTTP client</span>
+      </button>
     </div>
 
+    <!-- Pechkin mode -->
+    <PechkinTab v-if="mode === 'pechkin' && currentProjectId" :project-id="currentProjectId" />
+
     <!-- LLM mode: existing generator -->
-    <component v-if="mode === 'llm'" :is="GeneratorView" />
+    <component v-else-if="mode === 'llm'" :is="GeneratorView" />
 
     <!-- Static mode -->
-    <div v-else class="static-mode">
+    <div v-else-if="mode === 'static'" class="static-mode">
       <div class="generator-layout">
 
         <!-- Left panel -->
@@ -158,12 +169,30 @@
 </template>
 
 <script setup>
-import { ref, computed, defineAsyncComponent } from 'vue'
+import { ref, computed, defineAsyncComponent, onMounted } from 'vue'
 import SpecInput from '@/components/qa/SpecInput.vue'
 import EndpointSelector from '@/components/qa/EndpointSelector.vue'
-import { specGenApi } from '@/services/api'
+import PechkinTab from '@/components/qa/PechkinTab.vue'
+import { specGenApi, projectsApi } from '@/services/api'
 
 const GeneratorView = defineAsyncComponent(() => import('@/views/GeneratorView.vue'))
+
+const props = defineProps({
+  projectId: { type: String, default: null }
+})
+
+const currentProjectId = ref(props.projectId)
+
+onMounted(async () => {
+  if (!currentProjectId.value) {
+    try {
+      const res = await projectsApi.list()
+      if (res.data.length > 0) currentProjectId.value = res.data[0].id
+    } catch (e) {
+      // no projects
+    }
+  }
+})
 
 const mode = ref('static')
 const parsing = ref(false)

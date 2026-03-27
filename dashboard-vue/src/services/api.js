@@ -396,3 +396,28 @@ export const specGenApi = {
     return api.post('/api/v1/generator/spec/generate', payload)
   }
 }
+
+// Pechkin API (HTTP Client)
+export const pechkinApi = {
+  listCollections: (projectId) => api.get('/api/v1/pechkin/collections', { params: { project_id: projectId } }),
+  createCollection: (data) => api.post('/api/v1/pechkin/collections', data),
+  updateCollection: (id, data) => api.put(`/api/v1/pechkin/collections/${id}`, data),
+  deleteCollection: (id) => api.delete(`/api/v1/pechkin/collections/${id}`),
+  createFolder: (colId, data) => api.post(`/api/v1/pechkin/collections/${colId}/folders`, data),
+  updateFolder: (id, data) => api.put(`/api/v1/pechkin/folders/${id}`, data),
+  deleteFolder: (id) => api.delete(`/api/v1/pechkin/folders/${id}`),
+  listRequests: (colId) => api.get(`/api/v1/pechkin/collections/${colId}/requests`),
+  createRequest: (colId, data) => api.post(`/api/v1/pechkin/collections/${colId}/requests`, data),
+  updateRequest: (id, data) => api.put(`/api/v1/pechkin/requests/${id}`, data),
+  deleteRequest: (id) => api.delete(`/api/v1/pechkin/requests/${id}`),
+  getRequest: (id) => api.get(`/api/v1/pechkin/requests/${id}`),
+  execute: (data) => api.post('/api/v1/pechkin/execute', data),
+  executeScript: (type, data) => api.post(`/api/v1/pechkin/execute/${type}`, data),
+  listVariables: (colId) => api.get(`/api/v1/pechkin/collections/${colId}/variables`),
+  upsertVariable: (colId, data) => api.put(`/api/v1/pechkin/collections/${colId}/variables`, data),
+  deleteVariable: (id) => api.delete(`/api/v1/pechkin/variables/${id}`),
+  listHistory: (reqId) => api.get(`/api/v1/pechkin/requests/${reqId}/history`),
+  listRecentHistory: (projectId) => api.get('/api/v1/pechkin/history', { params: { project_id: projectId } }),
+  runCollection: (data) => api.post('/api/v1/pechkin/run-collection', data),
+  importPostman: (colId, data) => api.post(`/api/v1/pechkin/collections/${colId}/import`, data),
+}

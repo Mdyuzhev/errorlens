@@ -52,6 +52,7 @@
       <component
         v-else-if="activeTab === 'generator'"
         :is="GeneratorTab"
+        :project-id="projectId"
       />
       <component
         v-else-if="activeTab === 'coverage'"
