@@ -84,6 +84,9 @@ class PechkinRepository:
     async def create_folder(
         self, collection_id: str, name: str, parent_id: str | None = None,
     ) -> PechkinFolder:
+        col = await self.db.get(PechkinCollection, collection_id)
+        if not col:
+            raise ValueError(f"Collection {collection_id} not found")
         folder = PechkinFolder(
             collection_id=collection_id, name=name, parent_id=parent_id,
         )

@@ -6,7 +6,7 @@
       <button
         class="mode-btn"
         :class="{ active: mode === 'static' }"
-        @click="mode = 'static'"
+        @click.stop="setMode('static')"
       >
         Static
         <span class="mode-hint">instant, no LLM</span>
@@ -14,7 +14,7 @@
       <button
         class="mode-btn"
         :class="{ active: mode === 'llm' }"
-        @click="mode = 'llm'"
+        @click.stop="setMode('llm')"
       >
         LLM
         <span class="mode-hint">smarter, slower</span>
@@ -22,7 +22,7 @@
       <button
         class="mode-btn"
         :class="{ active: mode === 'eva' }"
-        @click="mode = 'eva'"
+        @click.stop="setMode('eva')"
       >
         EVA
         <span class="mode-hint">test quality score</span>
@@ -30,7 +30,7 @@
       <button
         class="mode-btn"
         :class="{ active: mode === 'pechkin' }"
-        @click="mode = 'pechkin'"
+        @click.stop="setMode('pechkin')"
       >
         Pechkin
         <span class="mode-hint">HTTP client</span>
@@ -207,6 +207,10 @@ onMounted(async () => {
 })
 
 const mode = ref('static')
+
+function setMode(m) {
+  mode.value = m
+}
 const parsing = ref(false)
 const generating = ref(false)
 const specText = ref(null)
@@ -347,6 +351,7 @@ function downloadFile() {
   font-weight: 400;
   color: var(--text-secondary);
   margin-top: 2px;
+  pointer-events: none;
 }
 
 .generator-layout {

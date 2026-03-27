@@ -11,6 +11,7 @@ export const usePechkinStore = defineStore('pechkin', {
     history: [],
     variables: {},
     activeEnv: 'collection',
+    globalHistory: [],
     loading: false,
     executing: false,
   }),
@@ -108,6 +109,16 @@ export const usePechkinStore = defineStore('pechkin', {
           request_id: req.id,
         })
         this.response = resp.data
+        const entry = {
+          request_id: req.id,
+          method: req.method,
+          resolved_url: resp.data.resolved_url || req.url,
+          status_code: resp.data.status_code,
+          duration_ms: resp.data.duration_ms,
+          size_bytes: resp.data.size_bytes || 0,
+          executed_at: new Date().toISOString(),
+        }
+        this.globalHistory.unshift(entry)
         if (req.id) {
           const hist = await pechkinApi.listHistory(req.id)
           this.history = hist.data
@@ -139,6 +150,7 @@ export const usePechkinStore = defineStore('pechkin', {
     async fetchGlobalHistory(projectId) {
       try {
         const resp = await pechkinApi.listRecentHistory(projectId)
+        this.globalHistory = resp.data
         return resp.data
       } catch (e) {
         if (e?.response?.status) return []

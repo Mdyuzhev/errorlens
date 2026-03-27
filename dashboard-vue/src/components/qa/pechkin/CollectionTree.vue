@@ -165,12 +165,15 @@ function openRunner(col) {
 
 function collectAllRequests(col) {
   const list = []
-  for (const folder of (col.folders || [])) {
-    for (const req of (folder.requests || [])) list.push({ id: req.id, name: req.name, method: req.method })
-    for (const sub of (folder.children || [])) {
-      for (const req of (sub.requests || [])) list.push({ id: req.id, name: req.name, method: req.method })
+  function walkFolder(folder) {
+    for (const req of (folder.requests || [])) {
+      list.push({ id: req.id, name: req.name, method: req.method })
+    }
+    for (const child of (folder.children || folder.folders || [])) {
+      walkFolder(child)
     }
   }
+  for (const folder of (col.folders || [])) walkFolder(folder)
   for (const req of (col.requests || [])) list.push({ id: req.id, name: req.name, method: req.method })
   return list
 }

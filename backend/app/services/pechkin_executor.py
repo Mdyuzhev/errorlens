@@ -6,9 +6,11 @@ import sys
 
 WRAPPER = '''
 import sys, json
-ctx = json.loads(sys.stdin.read())
-request = ctx.get("request", {})
-response = ctx.get("response")
+_ctx = json.loads(sys.stdin.read())
+context = _ctx
+request = _ctx.get("request", {})
+response = _ctx.get("response")
+env = _ctx.get("env", {})
 __results__ = {"assertions": {"passed":0,"failed":0,"tests":[]}, "output":[], "modified_request": None}
 
 def log(*a): __results__["output"].append(" ".join(str(x) for x in a))

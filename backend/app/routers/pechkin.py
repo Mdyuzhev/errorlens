@@ -61,7 +61,9 @@ async def create_collection(
         project_id=data.project_id, owner_id=user.id,
         name=data.name, description=data.description,
     )
-    return {"id": col.id, "name": col.name}
+    await db.commit()
+    await db.refresh(col)
+    return collection_to_dict(col)
 
 
 @router.put("/collections/{collection_id}")
@@ -80,7 +82,7 @@ async def update_collection(
     return collection_to_dict(col)
 
 
-@router.delete("/collections/{collection_id}")
+@router.delete("/collections/{collection_id}", status_code=200)
 async def delete_collection(
     collection_id: str,
     db: AsyncSession = Depends(get_db),
@@ -90,6 +92,7 @@ async def delete_collection(
     ok = await repo.delete_collection(collection_id)
     if not ok:
         raise HTTPException(404, "Collection not found")
+    await db.commit()
     return {"ok": True}
 
 
@@ -104,9 +107,12 @@ async def create_folder(
     user: User = Depends(require_auth),
 ):
     repo = PechkinRepository(db)
-    folder = await repo.create_folder(
-        collection_id=col_id, name=data.name, parent_id=data.parent_id,
-    )
+    try:
+        folder = await repo.create_folder(
+            collection_id=col_id, name=data.name, parent_id=data.parent_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(404, str(exc))
     return {"id": folder.id, "name": folder.name}
 
 
@@ -124,7 +130,7 @@ async def update_folder(
     return folder_to_dict(folder)
 
 
-@router.delete("/folders/{folder_id}")
+@router.delete("/folders/{folder_id}", status_code=200)
 async def delete_folder(
     folder_id: str,
     db: AsyncSession = Depends(get_db),
@@ -134,6 +140,7 @@ async def delete_folder(
     ok = await repo.delete_folder(folder_id)
     if not ok:
         raise HTTPException(404, "Folder not found")
+    await db.commit()
     return {"ok": True}
 
 
@@ -175,7 +182,8 @@ async def create_request(
         test_snippets=data.test_snippets,
         extract_variables=data.extract_variables,
     )
-    return {"id": req.id, "name": req.name}
+    await db.commit()
+    return request_to_dict(req)
 
 
 @router.get("/requests/{request_id}")
@@ -207,7 +215,7 @@ async def update_request(
     return request_to_dict(req)
 
 
-@router.delete("/requests/{request_id}")
+@router.delete("/requests/{request_id}", status_code=200)
 async def delete_request(
     request_id: str,
     db: AsyncSession = Depends(get_db),
@@ -217,6 +225,7 @@ async def delete_request(
     ok = await repo.delete_request(request_id)
     if not ok:
         raise HTTPException(404, "Request not found")
+    await db.commit()
     return {"ok": True}
 
 
@@ -248,10 +257,11 @@ async def upsert_variable(
         name=data.name, value=data.value,
         is_secret=data.is_secret, is_enabled=data.is_enabled,
     )
+    await db.commit()
     return variable_to_dict(var)
 
 
-@router.delete("/variables/{variable_id}")
+@router.delete("/variables/{variable_id}", status_code=200)
 async def delete_variable(
     variable_id: str,
     db: AsyncSession = Depends(get_db),
@@ -261,6 +271,7 @@ async def delete_variable(
     ok = await repo.delete_variable(variable_id)
     if not ok:
         raise HTTPException(404, "Variable not found")
+    await db.commit()
     return {"ok": True}
 
 
@@ -279,7 +290,7 @@ async def list_history(
     return [history_to_dict(h) for h in entries]
 
 
-@router.delete("/requests/{request_id}/history")
+@router.delete("/requests/{request_id}/history", status_code=200)
 async def clear_history(
     request_id: str,
     db: AsyncSession = Depends(get_db),
@@ -287,7 +298,8 @@ async def clear_history(
 ):
     repo = PechkinRepository(db)
     count = await repo.clear_history(request_id)
-    return {"deleted": count}
+    await db.commit()
+    return {"ok": True, "deleted": count}
 
 
 @router.get("/history")

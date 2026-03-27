@@ -148,10 +148,18 @@ function parseUrlParams() {
 
 function syncParamsToUrl() {
   try {
-    const url = new URL(req.url || 'https://example.com')
+    const raw = req.url || 'https://example.com'
+    const tplMatch = raw.match(/^(\{\{[^}]+\}\})(.*)$/)
+    const prefix = tplMatch ? tplMatch[1] : ''
+    const parseable = tplMatch ? 'https://placeholder.local' + tplMatch[2] : raw
+    const url = new URL(parseable)
     url.search = ''
     params.value.filter(p => p.enabled && p.key).forEach(p => url.searchParams.append(p.key, p.value))
-    req.url = url.toString()
+    if (tplMatch) {
+      req.url = prefix + url.pathname + url.search
+    } else {
+      req.url = url.toString()
+    }
   } catch (e) {
     // invalid URL, skip
   }
@@ -176,10 +184,16 @@ async function send() {
   req.headers = h
 
   // Collect body for form types
-  if (req.body_type === 'form-data' || req.body_type === 'x-www-form-urlencoded') {
+  if (req.body_type === 'x-www-form-urlencoded') {
+    const sp = new URLSearchParams()
+    bodyKv.value.filter(x => x.enabled && x.key).forEach(x => { sp.append(x.key, x.value) })
+    req.body = sp.toString()
+    h['Content-Type'] = 'application/x-www-form-urlencoded'
+  } else if (req.body_type === 'form-data') {
     const obj = {}
     bodyKv.value.filter(x => x.enabled && x.key).forEach(x => { obj[x.key] = x.value })
     req.body = JSON.stringify(obj)
+    h['Content-Type'] = 'multipart/form-data'
   }
 
   // Update store request
@@ -190,8 +204,33 @@ async function send() {
       pre_request_script: req.pre_request_script, test_script: req.test_script,
     })
   }
-  Object.assign(store.activeRequest, req)
+  store.$patch({
+    activeRequest: { ...store.activeRequest, ...req }
+  })
   await store.execute()
+}
+
+function jsonToPythonLiteral(str) {
+  try {
+    const obj = JSON.parse(str)
+    return formatPyValue(obj)
+  } catch (e) {
+    return str
+  }
+}
+
+function formatPyValue(val) {
+  if (val === null) return 'None'
+  if (val === true) return 'True'
+  if (val === false) return 'False'
+  if (typeof val === 'number') return String(val)
+  if (typeof val === 'string') return "'" + val.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'"
+  if (Array.isArray(val)) return '[' + val.map(formatPyValue).join(', ') + ']'
+  if (typeof val === 'object') {
+    const entries = Object.entries(val).map(([k, v]) => formatPyValue(k) + ': ' + formatPyValue(v))
+    return '{' + entries.join(', ') + '}'
+  }
+  return String(val)
 }
 
 const generatedCode = computed(() => {
@@ -214,7 +253,7 @@ const generatedCode = computed(() => {
       s += h.map(x => `\n        '${x.key}': '${x.value}'`).join(',')
       s += '\n    }'
     }
-    if (hasBody) s += `,\n    json=${req.body}`
+    if (hasBody) s += `,\n    json=${jsonToPythonLiteral(req.body)}`
     s += '\n)\nprint(resp.status_code, resp.json())'
     return s
   }
@@ -315,79 +354,38 @@ export default { components: { KvTable } }
 }
 
 /* URL bar */
-.url-bar {
-  display: flex;
-  gap: 0;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border-color);
-}
+.url-bar { display: flex; gap: 0; padding: 12px 14px; border-bottom: 1px solid var(--border-color); }
 .method-select {
-  padding: 8px 10px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px 0 0 6px;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 700;
-  outline: none;
-  min-width: 90px;
+  padding: 8px 10px; background: var(--bg-secondary); border: 1px solid var(--border-color);
+  border-radius: 6px 0 0 6px; color: var(--text-primary); font-size: 13px; font-weight: 700;
+  outline: none; min-width: 90px;
 }
 .sel-get { color: var(--success); }
 .sel-post { color: var(--accent); }
 .sel-put, .sel-patch { color: var(--warning); }
 .sel-delete { color: var(--error); }
 .url-input {
-  flex: 1;
-  padding: 8px 12px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-left: none;
-  color: var(--text-primary);
-  font-size: 13px;
-  outline: none;
-  font-family: monospace;
+  flex: 1; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border-color);
+  border-left: none; color: var(--text-primary); font-size: 13px; outline: none; font-family: monospace;
 }
 .url-input:focus { border-color: var(--accent); }
 .send-btn {
-  padding: 8px 20px;
-  background: var(--accent);
-  border: none;
-  border-radius: 0 6px 6px 0;
-  color: white;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
+  padding: 8px 20px; background: var(--accent); border: none; border-radius: 0 6px 6px 0;
+  color: white; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
 .send-btn:hover { background: var(--accent-hover); }
 .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Tabs */
-.editor-tabs {
-  display: flex;
-  gap: 0;
-  border-bottom: 1px solid var(--border-color);
-  overflow-x: auto;
-}
+.editor-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border-color); overflow-x: auto; }
 .editor-tab {
-  padding: 8px 14px;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-  font-weight: 500;
-  white-space: nowrap;
+  padding: 8px 14px; background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--text-secondary); font-size: 12px; cursor: pointer; font-weight: 500; white-space: nowrap;
 }
 .editor-tab:hover { color: var(--text-primary); }
 .editor-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-.tab-content {
-  flex: 1;
-  overflow: auto;
-  padding: 12px 14px;
-}
+.tab-content { flex: 1; overflow: auto; padding: 12px 14px; }
 
 /* Quick headers */
 .quick-headers { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
@@ -433,15 +431,14 @@ export default { components: { KvTable } }
 .code-lang-btn.active { background: var(--accent-subtle); color: var(--accent); border-color: var(--accent); }
 .code-output-wrap { position: relative; }
 .copy-snippet-btn {
-  position: absolute; top: 8px; right: 8px; z-index: 2;
-  padding: 3px 10px; background: var(--bg-tertiary); border: 1px solid var(--border-color);
+  position: absolute; top: 8px; right: 8px; z-index: 2; padding: 3px 10px;
+  background: var(--bg-tertiary); border: 1px solid var(--border-color);
   border-radius: 4px; color: var(--text-secondary); font-size: 11px; cursor: pointer;
 }
 .copy-snippet-btn:hover { color: var(--text-primary); }
 .code-output {
-  margin: 0; padding: 14px; background: var(--bg-primary);
-  border: 1px solid var(--border-color); border-radius: 6px;
-  color: var(--text-primary); font-family: monospace; font-size: 12px;
+  margin: 0; padding: 14px; background: var(--bg-primary); border: 1px solid var(--border-color);
+  border-radius: 6px; color: var(--text-primary); font-family: monospace; font-size: 12px;
   line-height: 1.5; overflow-x: auto; white-space: pre; max-height: 400px; overflow-y: auto;
 }
 
