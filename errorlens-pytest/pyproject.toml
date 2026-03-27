@@ -1,0 +1,13 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "errorlens-pytest"
+version = "0.1.0"
+description = "Native pytest plugin for ErrorLens test reporting"
+requires-python = ">=3.9"
+dependencies = ["httpx>=0.24.0"]
+
+[project.entry-points."pytest11"]
+errorlens = "errorlens.plugin"
