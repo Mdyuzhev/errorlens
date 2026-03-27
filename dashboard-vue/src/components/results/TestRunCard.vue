@@ -12,6 +12,22 @@
           <span class="duration">{{ formatDuration(run.duration_ms) }}</span>
         </div>
       </div>
+      <!-- Launch metadata badges -->
+      <div class="run-meta" v-if="run.branch || run.environment || run.launch_name">
+        <span v-if="run.launch_name" class="meta-badge launch">
+          {{ run.launch_name }}
+        </span>
+        <span v-if="run.branch" class="meta-badge branch">
+          ⎇ {{ run.branch }}
+        </span>
+        <span v-if="run.environment" class="meta-badge env">
+          {{ run.environment }}
+        </span>
+        <span v-if="run.source === 'plugin'" class="meta-badge source"
+          title="Sent via errorlens-pytest">
+          ⚡ native
+        </span>
+      </div>
       <div class="expand-icon">
         {{ expanded ? '▼' : '▶' }}
       </div>
@@ -19,8 +35,20 @@
 
     <!-- Expanded: Test Cases -->
     <div v-if="expanded && run.results" class="run-details">
+      <div class="result-filters">
+        <button
+          v-for="f in ['all', 'failed', 'passed']"
+          :key="f"
+          :class="['filter-btn', { active: activeFilter === f }]"
+          @click="activeFilter = f"
+        >
+          {{ f === 'all' ? `All (${run.results.length})` :
+             f === 'failed' ? `Failed (${failedCount})` :
+             `Passed (${passedCount})` }}
+        </button>
+      </div>
       <div
-        v-for="test in run.results"
+        v-for="test in filteredTests"
         :key="test.name"
         class="test-case"
         :class="test.status"
@@ -28,6 +56,11 @@
         <div class="test-header" @click="toggleTest(test.name)">
           <span class="test-status">{{ test.status === 'passed' ? '✓' : '✗' }}</span>
           <span class="test-name">{{ test.name }}</span>
+          <span class="test-params" v-if="test.parameters?.length">
+            <span v-for="p in test.parameters" :key="p.name" class="test-param-badge">
+              {{ p.name }}={{ p.value }}
+            </span>
+          </span>
           <span class="test-duration">{{ test.duration || 0 }}ms</span>
         </div>
 
@@ -40,26 +73,10 @@
             <span v-if="test.severity && test.severity !== 'normal'" class="meta-tag severity" :class="test.severity">{{ test.severity }}</span>
           </div>
 
-          <!-- Steps -->
+          <!-- Steps (recursive) -->
           <div v-if="test.steps && test.steps.length" class="test-steps">
             <div class="steps-title">Steps</div>
-            <div
-              v-for="(step, idx) in test.steps"
-              :key="idx"
-              class="step"
-              :class="step.status"
-            >
-              <span class="step-num">{{ idx + 1 }}</span>
-              <span class="step-action">{{ step.name }}</span>
-              <span class="step-status">{{ step.status === 'passed' ? '✓' : '✗' }}</span>
-            </div>
-            <!-- Step-level error -->
-            <div v-for="(step, idx) in test.steps" :key="'err-'+idx">
-              <div v-if="step.statusDetails && step.statusDetails.message" class="error-message step-error">
-                <div class="error-label">Step {{ idx + 1 }} error:</div>
-                <pre>{{ step.statusDetails.message }}</pre>
-              </div>
-            </div>
+            <StepTree :steps="test.steps" />
           </div>
 
           <!-- Error message -->
@@ -96,9 +113,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import StepTree from './StepTree.vue'
 
-defineProps({
+const props = defineProps({
   run: {
     type: Object,
     required: true
@@ -113,6 +131,23 @@ defineEmits(['toggle'])
 
 const expandedTests = ref([])
 const expandedTraces = ref([])
+const activeFilter = ref('all')
+
+const failedCount = computed(() =>
+  props.run.results?.filter(t => t.status === 'failed' || t.status === 'broken').length || 0
+)
+const passedCount = computed(() =>
+  props.run.results?.filter(t => t.status === 'passed').length || 0
+)
+const filteredTests = computed(() => {
+  if (!props.run.results) return []
+  if (activeFilter.value === 'all') return props.run.results
+  return props.run.results.filter(t =>
+    activeFilter.value === 'failed'
+      ? t.status === 'failed' || t.status === 'broken'
+      : t.status === 'passed'
+  )
+})
 
 function toggleTest(testName) {
   const idx = expandedTests.value.indexOf(testName)
@@ -293,36 +328,6 @@ function formatDuration(ms) {
   letter-spacing: 0.5px;
 }
 
-.step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: 12px;
-  border-left: 2px solid var(--bg-secondary);
-  padding-left: 12px;
-  margin-left: 8px;
-}
-
-.step.passed { border-color: #10b981; }
-.step.failed { border-color: #ef4444; }
-
-.step-num {
-  color: var(--text-secondary);
-  min-width: 20px;
-}
-
-.step-action {
-  flex: 1;
-}
-
-.step-status {
-  width: 16px;
-}
-
-.step.passed .step-status { color: #10b981; }
-.step.failed .step-status { color: #ef4444; }
-
 /* Error */
 .error-message {
   margin-top: 8px;
@@ -412,6 +417,82 @@ function formatDuration(ms) {
 
 .test-fullname {
   font-size: 11px;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+/* Run metadata badges */
+.run-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.meta-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--accent-muted);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.meta-badge.branch {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+}
+
+.meta-badge.env {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+}
+
+.meta-badge.source {
+  background: rgba(124, 58, 237, 0.15);
+  color: var(--accent);
+}
+
+/* Result filters */
+.result-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.filter-btn {
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-btn:hover {
+  background: var(--bg-tertiary);
+}
+
+.filter-btn.active {
+  background: var(--accent-muted);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Test parameters */
+.test-params {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.test-param-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--accent-muted);
   color: var(--text-secondary);
   font-family: monospace;
 }
