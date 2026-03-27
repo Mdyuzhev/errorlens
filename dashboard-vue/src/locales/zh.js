@@ -29,6 +29,7 @@ export default {
       sessions: '会话',
       results: '结果',
       generator: '生成器',
+      coverage: '覆盖率',
     },
   },
   common: {
