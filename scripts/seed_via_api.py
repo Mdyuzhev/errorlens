@@ -1055,8 +1055,8 @@ def seed_team_simulation(api: ApiClient, user_map: dict[str, str]) -> None:
     sprint0_id = None
     if r.status_code in (200, 201):
         sprint0_id = r.json().get("id")
-        # Start it
-        api.post(f"/api/v1/sprints/{sprint0_id}/start")
+        # Start it (set status via PUT)
+        api.put(f"/api/v1/sprints/{sprint0_id}", json={"status": "active"})
         print(f"    Created & started: {sprint0_id}")
     else:
         print(f"    WARN: {r.status_code} {r.text[:80]}")
@@ -1080,9 +1080,9 @@ def seed_team_simulation(api: ApiClient, user_map: dict[str, str]) -> None:
                     added += 1
             print(f"    Added {added} tasks to Sprint 0")
 
-        # Complete sprint 0
-        r = api.post(f"/api/v1/sprints/{sprint0_id}/complete")
-        print(f"    Sprint 0 complete: {r.status_code}")
+        # Complete sprint 0 (set status via PUT)
+        r = api.put(f"/api/v1/sprints/{sprint0_id}", json={"status": "completed"})
+        print(f"    Sprint 0 completed: {r.status_code}")
 
     # ---------------------------------------------------------------
     # 2. Start active sprint (Sprint 1) if not already started
@@ -1090,8 +1090,8 @@ def seed_team_simulation(api: ApiClient, user_map: dict[str, str]) -> None:
     r = api.get("/api/v1/sprints", params={"project_id": api.project_id})
     if r.status_code == 200:
         for s in r.json():
-            if s.get("status") == "planned" and s.get("start_date"):
-                api.post(f"/api/v1/sprints/{s['id']}/start")
+            if s.get("status") == "planned" and s.get("start_date") and s.get("id") != sprint0_id:
+                api.put(f"/api/v1/sprints/{s['id']}", json={"status": "active"})
                 print(f"    Started sprint: {s['name']}")
                 break
 
