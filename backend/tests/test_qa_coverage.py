@@ -1,7 +1,6 @@
 """Tests for GET /api/v1/qa/coverage endpoint."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.routers.qa import _coverage_status
 
