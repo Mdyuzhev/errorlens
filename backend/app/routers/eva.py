@@ -5,7 +5,7 @@ from dataclasses import asdict
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from app.models.user import User
-from app.services.auth import require_auth
+from app.middleware.jwt_auth import require_auth
 from app.services.eva_service import EvaService
 
 router = APIRouter(prefix="/api/v1/generator/eva", tags=["eva"])
