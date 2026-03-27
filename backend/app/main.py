@@ -33,6 +33,7 @@ from app.routers import (
     jql,
     launches,
     notifications,
+    pechkin,
     projects,
     qa,
     saved_filters,
@@ -164,6 +165,7 @@ app.include_router(eva.router)  # EVA v2.1: Test quality analyzer
 app.include_router(notifications.router)  # EL018: Notifications
 app.include_router(gitlab_connections.router)  # EL020: GitLab Integration
 app.include_router(launches.router)  # EL022: Launch upload from CI
+app.include_router(pechkin.router)  # Pechkin HTTP client
 app.include_router(saved_filters.router)  # EL023: JQL saved filters
 app.include_router(automations.router)  # EL025: Task Automations
 app.include_router(task_activity.router)    # EL031: Activity + comments (split from tasks.py)
