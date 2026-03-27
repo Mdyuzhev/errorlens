@@ -58,5 +58,31 @@ class DashboardService:
         result2 = await self.db.execute(q2)
         by_priority = {row[0]: row[1] for row in result2.all()}
 
+        # By task type
+        q3 = (
+            select(Task.type_id, func.count(Task.id))
+            .where(Task.project_id == project_id, Task.type_id.isnot(None))
+            .group_by(Task.type_id)
+        )
+        result3 = await self.db.execute(q3)
+        by_type = {row[0]: row[1] for row in result3.all()}
+
+        # By assignee — top 5
+        q4 = (
+            select(Task.assignee_id, func.count(Task.id))
+            .where(Task.project_id == project_id, Task.assignee_id.isnot(None))
+            .group_by(Task.assignee_id)
+            .order_by(func.count(Task.id).desc())
+            .limit(5)
+        )
+        result4 = await self.db.execute(q4)
+        by_assignee = {row[0]: row[1] for row in result4.all()}
+
         total = sum(by_status.values())
-        return {"total": total, "by_status": by_status, "by_priority": by_priority}
+        return {
+            "total": total,
+            "by_status": by_status,
+            "by_priority": by_priority,
+            "by_type": by_type,
+            "by_assignee": by_assignee,
+        }

@@ -126,6 +126,7 @@ export const tasksApi = {
   getBacklog: (params) => api.get('/tasks/backlog', { params }),
   updateRank: (id, data) => api.patch(`/tasks/${id}/rank`, data),
   getDashboardStats: (projectId) => api.get('/tasks/dashboard/stats', { params: { project_id: projectId } }),
+  getTree: (projectId) => api.get('/tasks/tree', { params: { project_id: projectId } }),
 }
 
 // Saved Filters API
@@ -314,6 +315,7 @@ export const sprintsApi = {
   burndown: (id) => api.get(`/api/v1/sprints/${id}/burndown`),
   velocity: (projectId, limit = 5) =>
     api.get('/api/v1/sprints/velocity', { params: { project_id: projectId, limit } }),
+  getIssues: (sprintId) => api.get(`/api/v1/sprints/${sprintId}/issues`),
 }
 
 // Components API
@@ -329,6 +331,7 @@ export const workLogsApi = {
   list: (issueId) => api.get(`/api/v1/issues/${issueId}/work-logs`),
   create: (issueId, data) => api.post(`/api/v1/issues/${issueId}/work-log`, data),
   remove: (issueId, logId) => api.delete(`/api/v1/issues/${issueId}/work-logs/${logId}`),
+  getProjectReport: (projectId, params = {}) => api.get('/api/v1/work-logs/project', { params: { project_id: projectId, ...params } }),
 }
 
 // Attachments API

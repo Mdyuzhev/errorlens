@@ -64,13 +64,35 @@
       </div>
     </div>
 
+    <div class="dashboard-row-wide" v-if="data">
+      <div class="dash-card">
+        <h3>Sprint Burndown — {{ store.activeSprint?.name || 'No active sprint' }}</h3>
+        <div class="chart-wrap-lg"><canvas ref="burndownCanvas"></canvas></div>
+        <div v-if="!store.burndown.length" class="empty-hint">No active sprint with story points</div>
+      </div>
+      <div class="dash-card">
+        <h3>Velocity (last {{ store.velocity.length }} sprints)</h3>
+        <div class="chart-wrap-lg"><canvas ref="velocityCanvas"></canvas></div>
+        <div v-if="!store.velocity.length" class="empty-hint">No completed sprints yet</div>
+      </div>
+    </div>
+
     <div v-else class="empty-state">No dashboard data available</div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useIssuesStore } from '@/stores/issues'
+import {
+  Chart, LineController, BarController, CategoryScale, LinearScale,
+  PointElement, LineElement, BarElement, Filler, Legend, Tooltip,
+} from 'chart.js'
+
+Chart.register(
+  LineController, BarController, CategoryScale, LinearScale,
+  PointElement, LineElement, BarElement, Filler, Legend, Tooltip,
+)
 
 const props = defineProps({
   projectId: { type: String, required: true },
@@ -90,17 +112,152 @@ function barWidth(count, max) {
 }
 
 function priorityColor(name) {
-  const map = { high: '#f59e0b', medium: '#3b82f6', low: '#6b7280', critical: '#ef4444' }
+  const map = { high: 'var(--warning)', medium: 'var(--accent)', low: 'var(--text-secondary)', critical: 'var(--error)' }
   return map[name?.toLowerCase()] || 'var(--accent)'
 }
 
-async function loadDashboard() {
-  if (props.projectId) {
-    await store.fetchDashboard(props.projectId)
+function getCssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
+
+/* ---------- Chart refs & instances ---------- */
+const burndownCanvas = ref(null)
+const velocityCanvas = ref(null)
+let burndownChart = null
+let velocityChart = null
+
+function chartDefaults() {
+  return {
+    color: getCssVar('--text-secondary'),
+    borderColor: getCssVar('--border-color'),
+    gridColor: getCssVar('--bg-tertiary'),
   }
 }
 
-onMounted(loadDashboard)
+function buildBurndown() {
+  if (!burndownCanvas.value || !store.burndown.length) return
+  const ctx = burndownCanvas.value.getContext('2d')
+  if (burndownChart) burndownChart.destroy()
+  const c = chartDefaults()
+  const labels = store.burndown.map(p => p.date)
+  const ideal = store.burndown.map(p => p.ideal)
+  const actual = store.burndown.map(p => p.remaining)
+
+  burndownChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Ideal',
+          data: ideal,
+          borderColor: c.color,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          fill: false,
+        },
+        {
+          label: 'Actual',
+          data: actual,
+          borderColor: getCssVar('--accent'),
+          backgroundColor: getCssVar('--accent-muted'),
+          pointRadius: 3,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: c.color } } },
+      scales: {
+        x: { ticks: { color: c.color }, grid: { color: c.gridColor } },
+        y: { beginAtZero: true, ticks: { color: c.color }, grid: { color: c.gridColor } },
+      },
+    },
+  })
+}
+
+function buildVelocity() {
+  if (!velocityCanvas.value || !store.velocity.length) return
+  const ctx = velocityCanvas.value.getContext('2d')
+  if (velocityChart) velocityChart.destroy()
+  const c = chartDefaults()
+  const labels = store.velocity.map(v => v.name)
+
+  velocityChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Committed',
+          data: store.velocity.map(v => v.committed),
+          backgroundColor: getCssVar('--accent-muted'),
+          borderColor: getCssVar('--accent'),
+          borderWidth: 1,
+        },
+        {
+          label: 'Completed',
+          data: store.velocity.map(v => v.completed),
+          backgroundColor: getCssVar('--success'),
+          borderColor: getCssVar('--success'),
+          borderWidth: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: c.color } } },
+      scales: {
+        x: { ticks: { color: c.color }, grid: { color: c.gridColor } },
+        y: { beginAtZero: true, ticks: { color: c.color }, grid: { color: c.gridColor } },
+      },
+    },
+  })
+}
+
+/* ---------- Theme observer ---------- */
+let themeObserver = null
+
+function setupThemeObserver() {
+  themeObserver = new MutationObserver(() => {
+    buildBurndown()
+    buildVelocity()
+  })
+  themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] })
+}
+
+/* ---------- Load ---------- */
+async function loadDashboard() {
+  if (!props.projectId) return
+  await store.fetchDashboard(props.projectId)
+  await store.fetchSprints(props.projectId)
+  const promises = [store.fetchVelocity(props.projectId)]
+  if (store.activeSprint) {
+    promises.push(store.fetchBurndown(store.activeSprint.id))
+  }
+  await Promise.all(promises)
+  await nextTick()
+  buildBurndown()
+  buildVelocity()
+}
+
+watch(() => store.burndown, () => { nextTick(() => buildBurndown()) })
+watch(() => store.velocity, () => { nextTick(() => buildVelocity()) })
+
+onMounted(() => {
+  loadDashboard()
+  setupThemeObserver()
+})
+
+onBeforeUnmount(() => {
+  if (burndownChart) burndownChart.destroy()
+  if (velocityChart) velocityChart.destroy()
+  if (themeObserver) themeObserver.disconnect()
+})
+
 watch(() => props.projectId, loadDashboard)
 </script>
 
@@ -209,5 +366,21 @@ watch(() => props.projectId, loadDashboard)
   font-size: 12px;
   color: var(--text-secondary);
   font-style: italic;
+}
+
+.dashboard-row-wide {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.chart-wrap-lg {
+  height: 260px;
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  .dashboard-row-wide { grid-template-columns: 1fr; }
 }
 </style>

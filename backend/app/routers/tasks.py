@@ -195,6 +195,53 @@ async def update_task_rank(
     return {"message": "Rank updated"}
 
 
+@router.get("/tree")
+async def get_task_tree(
+    project_id: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """Build hierarchical task tree by parent_id."""
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload, joinedload
+    from app.models.task import Task
+
+    q = select(Task).options(
+        joinedload(Task.task_type),
+        joinedload(Task.assignee_user),
+        joinedload(Task.task_status),
+        selectinload(Task.children),
+    )
+    if project_id:
+        q = q.where(Task.project_id == project_id)
+    result = await db.execute(q)
+    all_tasks = result.unique().scalars().all()
+
+    task_map: dict[str, dict] = {}
+    for t in all_tasks:
+        task_map[t.id] = {
+            "id": t.id,
+            "human_id": t.human_id,
+            "title": t.title,
+            "status": t.status,
+            "priority": t.priority,
+            "parent_id": t.parent_id,
+            "type": {"id": t.task_type.id, "name": t.task_type.name, "icon": t.task_type.icon} if t.task_type else None,
+            "status_obj": {"id": t.task_status.id, "name": t.task_status.name, "color": t.task_status.color} if t.task_status else None,
+            "assignee": {"id": t.assignee_user.id, "display_name": t.assignee_user.display_name} if t.assignee_user else None,
+            "children": [],
+        }
+
+    roots: list[dict] = []
+    for tid, node in task_map.items():
+        pid = node["parent_id"]
+        if pid and pid in task_map:
+            task_map[pid]["children"].append(node)
+        else:
+            roots.append(node)
+    return roots
+
+
 @router.get("/dashboard/stats")
 async def get_dashboard_stats(
     project_id: str = Query(...),

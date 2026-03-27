@@ -18,9 +18,17 @@ export const useIssuesStore = defineStore('issues', {
     customFields: [],
     dashboard: null,
     dashboardLoading: false,
+    burndown: [],
+    velocity: [],
+    treeData: [],
+    treeLoading: false,
     attachments: {},
     workLogs: {},
     customValues: {},
+    projectWorkLogs: [],
+    projectWorkLogsLoading: false,
+    sprintIssues: {},
+    ganttLoading: false,
   }),
 
   actions: {
@@ -226,6 +234,32 @@ export const useIssuesStore = defineStore('issues', {
       } catch { this.components = [] }
     },
 
+    async fetchBurndown(sprintId) {
+      try {
+        const r = await sprintsApi.burndown(sprintId)
+        this.burndown = r.data
+      } catch (e) { this.burndown = [] }
+    },
+
+    async fetchVelocity(projectId, limit = 5) {
+      try {
+        const r = await sprintsApi.velocity(projectId, limit)
+        this.velocity = r.data
+      } catch (e) { this.velocity = [] }
+    },
+
+    async fetchTree(projectId) {
+      this.treeLoading = true
+      try {
+        const r = await tasksApi.getTree(projectId)
+        this.treeData = r.data
+      } catch (e) {
+        this.treeData = []
+      } finally {
+        this.treeLoading = false
+      }
+    },
+
     async fetchDashboard(projectId) {
       this.dashboardLoading = true
       try {
@@ -266,11 +300,41 @@ export const useIssuesStore = defineStore('issues', {
       }
     },
 
+    async fetchSprintIssues(sprintId) {
+      try {
+        const r = await sprintsApi.getIssues(sprintId)
+        this.sprintIssues = { ...this.sprintIssues, [sprintId]: r.data }
+      } catch (e) {
+        this.sprintIssues = { ...this.sprintIssues, [sprintId]: [] }
+      }
+    },
+
     async fetchWorkLogs(issueId) {
       try {
         const response = await workLogsApi.list(issueId)
         this.workLogs[issueId] = response.data
       } catch { this.workLogs[issueId] = [] }
+    },
+
+    async fetchProjectWorkLogs(projectId, params = {}) {
+      this.projectWorkLogsLoading = true
+      try {
+        const r = await workLogsApi.getProjectReport(projectId, params)
+        this.projectWorkLogs = r.data
+      } catch (e) {
+        this.projectWorkLogs = []
+      } finally {
+        this.projectWorkLogsLoading = false
+      }
+    },
+
+    async createWorkLogGlobal(data) {
+      try {
+        await workLogsApi.create(data.issue_id, { hours: data.hours, log_date: data.log_date, comment: data.comment })
+        return true
+      } catch (e) {
+        return false
+      }
     },
 
     async createWorkLog(issueId, data) {
