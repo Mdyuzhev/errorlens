@@ -101,18 +101,19 @@ function makeStep(s = {}) {
 
 const localSteps = ref(props.modelValue.map(makeStep))
 
-watch(() => props.modelValue, (val) => {
+watch(() => props.modelValue, async (val) => {
+  // Сначала обновить localSteps (только если данные реально изменились)
   if (JSON.stringify(stripKeys(localSteps.value)) !== JSON.stringify(val)) {
     localSteps.value = val.map(makeStep)
   }
-}, { deep: true })
-
-watch(() => props.modelValue, async () => {
+  // Затем дождаться обновления DOM
   await nextTick()
+  // Resize всех textarea
   document.querySelectorAll('.steps-editor .cell-input').forEach(el => {
     el.style.height = 'auto'
     el.style.height = el.scrollHeight + 'px'
   })
+  // Highlight JSON превью
   highlightAllPreviews()
 }, { deep: true })
 
@@ -124,9 +125,17 @@ function emitUpdate() {
   emit('update:modelValue', stripKeys(localSteps.value))
 }
 
-function addStep() {
+async function addStep() {
   localSteps.value.push(makeStep())
   emitUpdate()
+  // Перевести фокус на Action-ячейку новой строки
+  await nextTick()
+  const rows = document.querySelectorAll('.steps-editor .step-row')
+  const lastRow = rows[rows.length - 1]
+  if (lastRow) {
+    const firstInput = lastRow.querySelector('.col-action .cell-input')
+    if (firstInput) firstInput.focus()
+  }
 }
 
 function removeStep(idx) {
@@ -345,7 +354,7 @@ onMounted(async () => {
   background: var(--bg-secondary);
 }
 .cell-input::placeholder {
-  color: var(--text-secondary);
+  color: var(--placeholder-color);
 }
 
 .btn-del {
