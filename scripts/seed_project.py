@@ -219,15 +219,34 @@ def setup_project():
         projects = projects.get("items", [])
 
     # Найти или создать проект ErrorLens
+    # Deduplicate projects by id
+    seen = set()
+    unique = []
+    for p in projects:
+        if p["id"] not in seen:
+            seen.add(p["id"])
+            unique.append(p)
+    projects = unique
+
     for p in projects:
         if p.get("key") == "EL" or "ErrorLens" in p.get("name", ""):
             c.project_id = p["id"]
-            # Переименовать в "ErrorLens" если нужно
             if p["name"] != "ErrorLens":
                 c.put(f"{PROJECTS_URL}/{p['id']}", json={"name": "ErrorLens",
                     "description": "Основной проект платформы ErrorLens — AI-powered QA platform"})
             print(f"  Using project: {p['name']} ({c.project_id})")
             return c.project_id
+
+    # Если есть хоть один проект — используем его и переименуем
+    if projects:
+        p = projects[0]
+        c.project_id = p["id"]
+        c.put(f"{PROJECTS_URL}/{p['id']}", json={
+            "name": "ErrorLens",
+            "description": "Основной проект платформы ErrorLens — AI-powered QA platform"
+        })
+        print(f"  Reusing project: {p['name']} → ErrorLens ({c.project_id})")
+        return c.project_id
 
     # Создать новый
     r = c.post(PROJECTS_URL, json={
@@ -1535,8 +1554,9 @@ def print_summary():
     print("="*60)
 
     # Сохранить project_id в файл
-    with open("/tmp/el_project_id.txt", "w") as f:
-        f.write(c.project_id)
+    if c.project_id:
+        with open("/tmp/el_project_id.txt", "w") as f:
+            f.write(c.project_id)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
