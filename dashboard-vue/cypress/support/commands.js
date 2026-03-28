@@ -103,13 +103,13 @@ Cypress.Commands.add('createTestCollection', (name = 'CY-Test') => {
     const token = win.localStorage.getItem('access_token')
     cy.request({
       method: 'GET',
-      url: '/api/v1/projects',
+      url: '/api/projects',
       headers: { Authorization: `Bearer ${token}` }
     }).then(resp => {
       const projectId = resp.body[0]?.id
       cy.request({
         method: 'POST',
-        url: '/api/v1/pechkin/collections',
+        url: '/api/api/v1/pechkin/collections',
         headers: { Authorization: `Bearer ${token}` },
         body: { project_id: projectId, name }
       }).as('createdCollection')
@@ -122,7 +122,7 @@ Cypress.Commands.add('deleteCollection', (id) => {
     const token = win.localStorage.getItem('access_token')
     cy.request({
       method: 'DELETE',
-      url: `/api/v1/pechkin/collections/${id}`,
+      url: `/api/api/v1/pechkin/collections/${id}`,
       headers: { Authorization: `Bearer ${token}` },
       failOnStatusCode: false
     })
@@ -137,7 +137,7 @@ Cypress.Commands.add('createCollectionWithRequest', () => {
     // Get project id
     cy.request({
       method: 'GET',
-      url: '/api/v1/projects',
+      url: '/api/projects',
       headers: { Authorization: `Bearer ${token}` }
     }).then(projResp => {
       const projectId = projResp.body[0]?.id
@@ -145,7 +145,7 @@ Cypress.Commands.add('createCollectionWithRequest', () => {
       const colName = 'CY-Auto-' + Date.now()
       cy.request({
         method: 'POST',
-        url: '/api/v1/pechkin/collections',
+        url: '/api/api/v1/pechkin/collections',
         headers: { Authorization: `Bearer ${token}` },
         body: { project_id: projectId, name: colName }
       }).then(colResp => {
@@ -153,7 +153,7 @@ Cypress.Commands.add('createCollectionWithRequest', () => {
         // Create a request inside the collection
         cy.request({
           method: 'POST',
-          url: `/api/v1/pechkin/collections/${colId}/requests`,
+          url: `/api/api/v1/pechkin/collections/${colId}/requests`,
           headers: { Authorization: `Bearer ${token}` },
           body: { name: 'CY-Request', method: 'GET', url: 'https://httpbin.org/get' }
         }).then(() => {
@@ -179,7 +179,7 @@ Cypress.Commands.add('deleteTestCollection', () => {
       const token = win.localStorage.getItem('access_token')
       cy.request({
         method: 'DELETE',
-        url: `/api/v1/pechkin/collections/${colId}`,
+        url: `/api/api/v1/pechkin/collections/${colId}`,
         headers: { Authorization: `Bearer ${token}` },
         failOnStatusCode: false
       })
