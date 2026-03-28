@@ -199,10 +199,17 @@ Cypress.Commands.add('createIssueViaApi', (overrides = {}) => {
   cy.window().then(win => {
     const token = win.localStorage.getItem('access_token')
     cy.request({
-      method: 'POST', url: '/api/v1/tasks',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: { title: 'CY Test Issue', priority: 'medium', status: 'todo', ...overrides }
-    }).then(r => cy.wrap(r.body.id).as('issueId'))
+      method: 'GET', url: '/api/v1/projects',
+      headers: { Authorization: `Bearer ${token}` }
+    }).then(projResp => {
+      const projects = projResp.body?.items || projResp.body || []
+      const projectId = projects[0]?.id || null
+      cy.request({
+        method: 'POST', url: '/api/v1/tasks',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: { title: 'CY Test Issue', priority: 'medium', status: 'todo', project_id: projectId, ...overrides }
+      }).then(r => cy.wrap(r.body.id).as('issueId'))
+    })
   })
 })
 
