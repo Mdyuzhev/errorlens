@@ -1,0 +1,11 @@
+{
+  "validIssue": {
+    "title": "E2E Test Issue",
+    "priority": "high",
+    "severity": "critical",
+    "environment": "staging",
+    "labels": "bug,cypress"
+  },
+  "minimalIssue": { "title": "Minimal Issue" },
+  "updatedIssue": { "title": "Updated Title", "priority": "low" }
+}

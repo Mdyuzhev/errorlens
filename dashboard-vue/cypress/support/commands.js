@@ -186,3 +186,38 @@ Cypress.Commands.add('deleteTestCollection', () => {
     })
   })
 })
+
+// --- Issues Commands ---
+
+Cypress.Commands.add('goToIssues', () => {
+  cy.loginToApp()
+  cy.visit('/dashboard/#/issues')
+  cy.get('.issues-page, .tasks-page, [class*="issues"]', { timeout: 10000 }).should('exist')
+})
+
+Cypress.Commands.add('createIssueViaApi', (overrides = {}) => {
+  cy.window().then(win => {
+    const token = win.localStorage.getItem('access_token')
+    cy.request({
+      method: 'POST', url: '/api/v1/tasks',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: { title: 'CY Test Issue', priority: 'medium', status: 'todo', ...overrides }
+    }).then(r => cy.wrap(r.body.id).as('issueId'))
+  })
+})
+
+Cypress.Commands.add('deleteIssueViaApi', (id) => {
+  cy.window().then(win => {
+    const token = win.localStorage.getItem('access_token')
+    cy.request({
+      method: 'DELETE', url: `/api/v1/tasks/${id}`,
+      headers: { Authorization: `Bearer ${token}` },
+      failOnStatusCode: false
+    })
+  })
+})
+
+Cypress.Commands.add('openFirstIssueInBoard', () => {
+  cy.get('.task-card', { timeout: 8000 }).first().click()
+  cy.get('.task-detail, .task-detail-overlay, [class*="detail"]', { timeout: 8000 }).should('be.visible')
+})
