@@ -1,13 +1,10 @@
-// Cypress E2E support file
-
 import './commands'
 import '@testing-library/cypress/add-commands'
+import '@4tw/cypress-drag-drop'
 
-beforeEach(() => {
-  cy.clearLocalStorage()
-})
+// НЕ очищать localStorage здесь — авторизация живёт на весь describe-блок
 
 Cypress.on('uncaught:exception', (err, runnable) => {
-  // Prevent Cypress from failing on unhandled promise rejections
+  // Не падать на unhandled promise rejections приложения
   return false
 })

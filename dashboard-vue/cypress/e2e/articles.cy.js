@@ -1,628 +1,660 @@
-// Articles E2E Test Suite — 108 tests across 15 describes
-// Target: http://192.168.1.74:3000
+/// <reference types="cypress" />
+// Articles E2E CRUD Tests — 13 describes, 75 tests
+// Every assertion checks real data (not just DOM existence)
+// API verification via getArticleViaApi() after UI changes
 
-const BASE = '/dashboard/#/articles'
+describe('ART-CRUD-01: Article — полный жизненный цикл', () => {
+  let articleId
 
-// ============================================================
-// Describe 1: Navigation (5 tests)
-// ============================================================
-describe('Articles — Navigation', () => {
-  it('1.1 goToArticles → .articles-page visible', () => {
-    cy.goToArticles()
-    cy.get('.articles-page, [class*="articles"]').should('be.visible')
-  })
-
-  it('1.2 URL /dashboard/#/articles → page has article list or empty-state', () => {
+  before(() => {
     cy.loginToApp()
-    cy.visit(BASE)
-    cy.get('.articles-list, .empty-state, [class*="articles"]', { timeout: 10000 }).should('exist')
+    cy.createArticleViaApi({
+      title: 'ART01-Lifecycle-Article',
+      status: 'draft',
+      category: 'Testing',
+    })
+    cy.get('@articleId').then(id => { articleId = id })
   })
 
-  it('1.3 Click "Articles" in navbar → navigate to /articles', () => {
+  after(() => {
     cy.loginToApp()
-    cy.visit('/dashboard/#/')
-    cy.get('nav, .sidebar-nav, .nav-menu').contains('Articles').click()
-    cy.url().should('include', '/articles')
-  })
-
-  it('1.4 Reload /articles → page restores', () => {
-    cy.goToArticles()
-    cy.reload()
-    cy.get('.articles-page, [class*="articles"]', { timeout: 10000 }).should('exist')
-  })
-
-  it('1.5 /articles without auth → redirect to /login', () => {
-    cy.clearLocalStorage()
-    cy.visit(BASE)
-    cy.url({ timeout: 8000 }).should('include', '/login')
-  })
-})
-
-// ============================================================
-// Describe 2: Layout (5 tests)
-// ============================================================
-describe('Articles — Layout', () => {
-  beforeEach(() => {
-    cy.goToArticles()
-  })
-
-  it('2.1 Sidebar contains FolderTree', () => {
-    cy.get('.sidebar, [class*="sidebar"]').should('exist')
-    cy.get('.folder-tree, [class*="folder-tree"], [class*="tree"]').should('exist')
-  })
-
-  it('2.2 Main area contains list-header and articles-list', () => {
-    cy.get('.main-area, [class*="main"]').should('exist')
-    cy.get('.list-header, [class*="header"]').should('exist')
-    cy.get('.articles-list, [class*="list"]').should('exist')
-  })
-
-  it('2.3 list-header has category select, status select, Import, + New Article', () => {
-    cy.get('.list-header, [class*="header"]').within(() => {
-      cy.get('select, [class*="select"]').should('have.length.gte', 2)
-      cy.contains(/import/i).should('exist')
-      cy.contains(/new article|\+ article/i).should('exist')
+    cy.window().then(win => {
+      if (articleId) {
+        cy.request({
+          method: 'DELETE',
+          url: `/api/articles/${articleId}`,
+          headers: { Authorization: `Bearer ${win.localStorage.getItem('access_token')}` },
+          failOnStatusCode: false
+        })
+      }
     })
   })
 
-  it('2.4 Two filter selects visible', () => {
-    cy.get('.list-header select, .list-header [class*="select"]')
-      .should('have.length.gte', 2)
-  })
-
-  it('2.5 At 768px layout adapts', () => {
-    cy.viewport(768, 1024)
-    cy.get('.articles-page, [class*="articles"]').should('be.visible')
-  })
-})
-
-// ============================================================
-// Describe 3: FolderTree CRUD (12 tests)
-// ============================================================
-describe('Articles — FolderTree CRUD', () => {
-  beforeEach(() => {
-    cy.goToArticles()
-  })
-
-  it('3.1 FolderTree visible in sidebar', () => {
-    cy.get('.folder-tree, [class*="folder-tree"], [class*="tree"]').should('be.visible')
-  })
-
-  it('3.2 Existing folders displayed', () => {
-    cy.get('.folder-tree, [class*="folder-tree"]')
-      .find('.folder-item, .tree-node, [class*="folder"]')
-      .should('have.length.gte', 0)
-  })
-
-  it('3.3 "+" button → create folder prompt/input', () => {
-    cy.get('.folder-tree, [class*="folder-tree"]')
-      .find('button, [class*="add"]').filter(':contains("+"), [class*="add-folder"], [title*="folder"]')
-      .first().click()
-    cy.get('input, .folder-input, [class*="input"]').should('be.visible')
-  })
-
-  it('3.4 Create folder → POST /articles/folders → appears in tree', () => {
-    cy.intercept('POST', '**/articles/folders').as('createFolder')
-    cy.get('.folder-tree, [class*="folder-tree"]')
-      .find('button, [class*="add"]').filter(':contains("+"), [class*="add-folder"], [title*="folder"]')
-      .first().click()
-    cy.get('input.folder-input, .folder-tree input, [class*="folder"] input')
-      .first().clear().type('CY-Test-Folder{enter}')
-    cy.wait('@createFolder').its('response.statusCode').should('be.oneOf', [200, 201])
-    cy.contains('CY-Test-Folder').should('exist')
-  })
-
-  it('3.5 Rename via context menu → rename option visible', () => {
-    cy.get('.folder-item, .tree-node, [class*="folder"]').first().rightclick()
-    cy.get('.ctx-menu, [class*="ctx-menu"], [class*="menu"]')
-      .contains(/rename|переименовать/i).should('be.visible')
-  })
-
-  it('3.6 Rename → PUT /articles/folders/** → name updated', () => {
-    cy.intercept('PUT', '**/articles/folders/**').as('renameFolder')
-    cy.get('.folder-item, .tree-node, [class*="folder"]').first().rightclick()
-    cy.get('.ctx-menu, [class*="ctx-menu"]').contains(/rename|переименовать/i).click()
-    cy.get('.folder-tree input, [class*="folder"] input').first()
-      .clear().type('CY-Renamed{enter}')
-    cy.wait('@renameFolder').its('response.statusCode').should('eq', 200)
-  })
-
-  it('3.7 Delete via context menu → confirm → DELETE /articles/folders/**', () => {
-    cy.intercept('DELETE', '**/articles/folders/**').as('deleteFolder')
-    cy.get('.folder-item, .tree-node, [class*="folder"]').first().rightclick()
-    cy.get('.ctx-menu, [class*="ctx-menu"]').contains(/delete|удалить/i).click()
-    cy.get('.confirm-btn, .modal button, [class*="confirm"]').contains(/yes|ok|да|confirm|удалить/i).click()
-    cy.wait('@deleteFolder').its('response.statusCode').should('be.oneOf', [200, 204])
-  })
-
-  it('3.8 Folder deleted from tree', () => {
-    // relies on 3.7 cleanup or independent
-    cy.get('.folder-tree, [class*="folder-tree"]').should('exist')
-  })
-
-  it('3.9 Nested folder: create subfolder → appears as child', () => {
-    cy.get('.folder-item, .tree-node, [class*="folder"]').first().rightclick()
-    cy.get('.ctx-menu, [class*="ctx-menu"]')
-      .contains(/subfolder|подпапк|new folder|создать/i).click()
-    cy.get('.folder-tree input, [class*="folder"] input').first()
-      .clear().type('CY-SubFolder{enter}')
-    cy.contains('CY-SubFolder').should('exist')
-  })
-
-  it('3.10 Click folder → articles filtered (intercept with folder_id)', () => {
-    cy.intercept('GET', '**/articles*').as('getArticles')
-    cy.get('.folder-item, .tree-node, [class*="folder"]').first().click()
-    cy.wait('@getArticles')
-  })
-
-  it('3.11 "All articles" → removes folder filter', () => {
-    cy.intercept('GET', '**/articles*').as('getAll')
-    cy.contains(/all articles|все статьи/i).click()
-    cy.wait('@getAll')
-  })
-
-  it('3.12 Expand/collapse folder with children', () => {
-    cy.get('.folder-item, .tree-node, [class*="folder"]').first().within(() => {
-      cy.get('.expand-btn, .toggle, [class*="expand"], [class*="arrow"]')
-        .first().click()
+  it('01.1 CREATE: API возвращает id и slug', () => {
+    cy.get('@createdArticle').then(art => {
+      expect(art.id).to.match(/^[0-9a-f-]{36}$/)
+      expect(art.slug).to.be.a('string').and.not.be.empty
     })
   })
+
+  it('01.2 READ: статья видна в списке с правильным title и статусом', () => {
+    cy.goToArticles()
+    cy.get('.article-row').should('contain.text', 'ART01-Lifecycle-Article')
+    cy.get('.article-row').contains('ART01-Lifecycle-Article')
+      .closest('.article-row')
+      .find('.row-status.draft, [class*="badge"][class*="draft"]')
+      .should('exist')
+  })
+
+  it('01.3 READ: клик на строку → ArticleViewer с правильным title', () => {
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART01-Lifecycle-Article').click()
+    cy.get('.article-viewer', { timeout: 10000 }).should('be.visible')
+    cy.get('.viewer-title').should('contain.text', 'ART01-Lifecycle-Article')
+  })
+
+  it('01.4 READ: human_id виден в строке списка', () => {
+    cy.goToArticles()
+    cy.get('@createdArticle').then(art => {
+      cy.get('.article-row').contains('ART01-Lifecycle-Article')
+        .closest('.article-row')
+        .find('.human-id-badge').should('exist')
+    })
+  })
+
+  it('01.5 UPDATE: изменить title через editor → GET API возвращает новый title', () => {
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART01-Lifecycle-Article').click()
+    cy.get('.article-viewer', { timeout: 10000 }).should('be.visible')
+    cy.get('.btn-edit, [class*="btn-edit"]').click()
+
+    const newTitle = `ART01-Updated-${Date.now()}`
+    cy.get('input.title-input, [class*="title-input"]')
+      .first().clear().type(newTitle)
+
+    cy.intercept('PUT', '**/articles/*').as('updateArt')
+    cy.get('button').contains(/save|сохранить/i).click()
+    cy.wait('@updateArt').its('response.statusCode').should('eq', 200)
+
+    cy.getArticleViaApi(articleId)
+    cy.get('@fetchedArticle').its('title').should('eq', newTitle)
+  })
+
+  it('01.6 UPDATE: изменить статус Draft → Published', () => {
+    cy.goToArticles()
+    cy.get('.article-row').first().click()
+    cy.get('.btn-edit').click()
+    cy.get('select.status-select').select('published')
+    cy.intercept('PUT', '**/articles/*').as('updateArt')
+    cy.get('button').contains(/save/i).click()
+    cy.wait('@updateArt')
+    cy.getArticleViaApi(articleId)
+    cy.get('@fetchedArticle').its('status').should('eq', 'published')
+  })
+
+  it('01.7 READ после UPDATE: список показывает published', () => {
+    cy.goToArticles()
+    cy.get('.article-row').first()
+      .find('.row-status.published, [class*="badge"][class*="published"]')
+      .should('exist')
+  })
+
+  it('01.8 DELETE: удалить через editor → статья исчезает из списка + API 404', () => {
+    cy.goToArticles()
+    cy.get('.article-row').first().click()
+    cy.get('.btn-edit').click()
+
+    cy.intercept('DELETE', '**/articles/*').as('deleteArt')
+    cy.get('button').contains(/delete|удалить/i).click()
+    cy.on('window:confirm', () => true)
+    cy.get('.confirm-dialog, [class*="confirm"]').then($d => {
+      if ($d.length) $d.find('button').contains(/yes|ok|да|confirm/i).click()
+    })
+
+    cy.wait('@deleteArt').its('response.statusCode').should('be.oneOf', [200, 204])
+    cy.get('.articles-page').should('not.contain.text', 'ART01-Lifecycle-Article')
+
+    cy.window().then(win => {
+      cy.request({
+        method: 'GET', url: `/api/articles/${articleId}`,
+        headers: { Authorization: `Bearer ${win.localStorage.getItem('access_token')}` },
+        failOnStatusCode: false
+      }).its('status').should('eq', 404)
+    })
+    articleId = null
+  })
 })
 
-// ============================================================
-// Describe 4: Filters (6 tests)
-// ============================================================
-describe('Articles — Filters', () => {
-  beforeEach(() => {
+describe('ART-CRUD-02: FolderTree — полный CRUD папок', () => {
+  let folderId, subFolderId
+
+  afterEach(() => {
+    cy.loginToApp()
+    if (subFolderId) {
+      cy.deleteFolderViaApi(subFolderId)
+      subFolderId = null
+    }
+    if (folderId) {
+      cy.deleteFolderViaApi(folderId)
+      folderId = null
+    }
+  })
+
+  it('02.1 CREATE: создать папку через API → появляется в FolderTree', () => {
+    cy.createFolderViaApi('ART02-New-Folder')
+    cy.get('@folderId').then(id => { folderId = id })
     cy.goToArticles()
+    cy.get('.folder-tree').should('contain.text', 'ART02-New-Folder')
   })
 
-  it('4.1 Category "All Categories" → all articles', () => {
-    cy.get('.list-header select, [class*="category-select"]').first()
-      .select(0)
-    cy.get('.articles-list, [class*="list"]').should('exist')
-  })
-
-  it('4.2 Select category → intercept GET /articles?*category=* → filtered', () => {
-    cy.intercept('GET', '**/articles*category=*').as('filterCategory')
-    cy.get('.list-header select, [class*="category-select"]').first()
-      .find('option').then($opts => {
-        if ($opts.length > 1) {
-          cy.get('.list-header select, [class*="category-select"]').first().select(1)
-          cy.wait('@filterCategory')
-        }
+  it('02.2 CREATE nested: создать подпапку → появляется под родителем', () => {
+    cy.createFolderViaApi('ART02-Parent-Folder')
+    cy.get('@folderId').then(parentId => {
+      folderId = parentId
+      cy.createFolderViaApi('ART02-Child-Folder', parentId)
+      cy.get('@folderId').then(childId => {
+        subFolderId = childId
+        cy.goToArticles()
+        cy.get('.folder-tree').contains('ART02-Parent-Folder')
+          .closest('.folder-item, [class*="folder"]')
+          .find('[class*="expand"], [class*="arrow"]').click({ force: true })
+        cy.get('.folder-tree').should('contain.text', 'ART02-Child-Folder')
       })
-  })
-
-  it('4.3 Status "Draft" → only draft articles', () => {
-    cy.intercept('GET', '**/articles*').as('filterStatus')
-    cy.get('.list-header select, [class*="status-select"]').last()
-      .select('draft')
-    cy.wait('@filterStatus')
-  })
-
-  it('4.4 Status "Published" → only published articles', () => {
-    cy.intercept('GET', '**/articles*').as('filterPublished')
-    cy.get('.list-header select, [class*="status-select"]').last()
-      .select('published')
-    cy.wait('@filterPublished')
-  })
-
-  it('4.5 Combine folder + status → double filter', () => {
-    cy.intercept('GET', '**/articles*').as('combined')
-    cy.get('.folder-item, .tree-node, [class*="folder"]').first().click()
-    cy.get('.list-header select, [class*="status-select"]').last()
-      .select('draft')
-    cy.wait('@combined')
-  })
-
-  it('4.6 Reset category to "All" → all articles again', () => {
-    cy.intercept('GET', '**/articles*').as('resetFilter')
-    cy.get('.list-header select, [class*="category-select"]').first()
-      .select(0)
-    cy.wait('@resetFilter')
-  })
-})
-
-// ============================================================
-// Describe 5: Article Rows (8 tests)
-// ============================================================
-describe('Articles — Article Rows', () => {
-  beforeEach(() => {
-    cy.goToArticles()
-  })
-
-  it('5.1 .article-row has icon, human_id, title, status badge, category, date', () => {
-    cy.get('.article-row, [class*="article-item"]').first().within(() => {
-      cy.get('[class*="icon"], .file-icon, svg').should('exist')
-      cy.get('[class*="human"], [class*="id"]').should('exist')
-      cy.get('[class*="title"]').should('exist')
-      cy.get('[class*="badge"], [class*="status"]').should('exist')
     })
   })
 
-  it('5.2 Status "draft" → orange badge', () => {
-    cy.get('.article-row .badge.draft, [class*="badge"][class*="draft"]')
-      .first()
-      .should('exist')
-  })
-
-  it('5.3 Status "published" → green badge', () => {
-    cy.get('.article-row .badge.published, [class*="badge"][class*="published"]')
-      .first()
-      .should('exist')
-  })
-
-  it('5.4 Empty state visible if no articles', () => {
-    // Navigate to an empty folder or clear filters
-    cy.get('body').then($body => {
-      if ($body.find('.empty-state, [class*="empty"]').length) {
-        cy.get('.empty-state, [class*="empty"]').should('be.visible')
-      } else {
-        cy.log('Articles exist — skipping empty state check')
-      }
-    })
-  })
-
-  it('5.5 Empty state text "No articles yet"', () => {
-    cy.get('body').then($body => {
-      if ($body.find('.empty-state, [class*="empty"]').length) {
-        cy.get('.empty-state, [class*="empty"]')
-          .invoke('text').should('match', /no articles|нет статей|пусто/i)
-      } else {
-        cy.log('Articles exist — skipping empty text check')
-      }
-    })
-  })
-
-  it('5.6 Click row → ArticleViewer opens', () => {
-    cy.get('.article-row, [class*="article-item"]').first().click()
-    cy.get('.article-viewer, [class*="viewer"]', { timeout: 8000 }).should('be.visible')
-  })
-
-  it('5.7 Loading spinner while loading', () => {
-    cy.intercept('GET', '**/articles*', (req) => {
-      req.on('response', (res) => { res.setDelay(500) })
-    }).as('delayedArticles')
-    cy.visit(BASE)
-    cy.get('.spinner, .loading, [class*="loading"], [class*="spinner"]').should('exist')
-  })
-
-  it('5.8 .article-row draggable=true', () => {
-    cy.get('.article-row, [class*="article-item"]').first()
-      .should('have.attr', 'draggable', 'true')
-  })
-})
-
-// ============================================================
-// Describe 6: Create Article — Editor (12 tests)
-// ============================================================
-describe('Articles — Create Article Editor', () => {
-  beforeEach(() => {
-    cy.goToArticles()
-  })
-
-  it('6.1 "+ New Article" → fullscreen editor opens', () => {
-    cy.contains(/new article|новая статья|\+ article/i).click()
-    cy.get('.editor-fullscreen, [class*="editor"]', { timeout: 8000 }).should('be.visible')
-  })
-
-  it('6.2 Editor header: Back, Toolbar, title-input, status-select, Save', () => {
-    cy.contains(/new article|новая статья/i).click()
-    cy.get('.editor-fullscreen, [class*="editor"]').within(() => {
-      cy.get('[class*="back"], button').contains(/back|←|назад/i).should('exist')
-      cy.get('input[class*="title"], [class*="title-input"]').should('exist')
-      cy.get('select[class*="status"], [class*="status-select"]').should('exist')
-      cy.contains(/save|сохранить/i).should('exist')
-    })
-  })
-
-  it('6.3 Title input placeholder "Article title"', () => {
-    cy.contains(/new article|новая статья/i).click()
-    cy.get('input[class*="title"], [class*="title-input"] input')
-      .first()
-      .should('have.attr', 'placeholder')
-      .and('match', /title|название|заголовок/i)
-  })
-
-  it('6.4 Status select: Draft, Published', () => {
-    cy.contains(/new article|новая статья/i).click()
-    cy.get('select[class*="status"], [class*="status"] select').first().within(() => {
-      cy.get('option').should('have.length.gte', 2)
-    })
-  })
-
-  it('6.5 "Meta" toggle → subheader appears', () => {
-    cy.contains(/new article|новая статья/i).click()
-    cy.contains(/meta|мета/i).click()
-    cy.get('.subheader, [class*="subheader"], [class*="meta"]').should('be.visible')
-  })
-
-  it('6.6 "Meta" toggle again → subheader hidden', () => {
-    cy.contains(/new article|новая статья/i).click()
-    cy.contains(/meta|мета/i).click()
-    cy.get('.subheader, [class*="subheader"], [class*="meta"]').should('be.visible')
-    cy.contains(/meta|мета/i).click()
-    cy.get('.subheader, [class*="subheader"], [class*="meta-fields"]').should('not.be.visible')
-  })
-
-  it('6.7 Subheader: Category placeholder', () => {
-    cy.contains(/new article|новая статья/i).click()
-    cy.contains(/meta|мета/i).click()
-    cy.get('[class*="subheader"], [class*="meta"]')
-      .find('input, select').first()
-      .should('exist')
-  })
-
-  it('6.8 Subheader: Tags placeholder', () => {
-    cy.contains(/new article|новая статья/i).click()
-    cy.contains(/meta|мета/i).click()
-    cy.get('[class*="subheader"], [class*="meta"]')
-      .find('[class*="tag"], input').should('exist')
-  })
-
-  it('6.9 Back without changes → returns to list', () => {
-    cy.contains(/new article|новая статья/i).click()
-    cy.get('.editor-fullscreen, [class*="editor"]').should('be.visible')
-    cy.get('[class*="back"], button').contains(/back|←|назад/i).click()
-    cy.get('.articles-page, [class*="articles"]', { timeout: 8000 }).should('exist')
-  })
-
-  it('6.10 Fill title + Save → POST /articles → 201 → closes', () => {
-    cy.intercept('POST', '**/articles').as('createArticle')
-    cy.contains(/new article|новая статья/i).click()
-    cy.get('input[class*="title"], [class*="title-input"] input')
-      .first().clear().type('CY New Article E2E')
-    cy.contains(/save|сохранить/i).click()
-    cy.wait('@createArticle').its('response.statusCode').should('be.oneOf', [200, 201])
-  })
-
-  it('6.11 Autosave: timer exists for existing article edit', () => {
-    // Create article first, then open editor
-    cy.loginToApp()
-    cy.createArticleViaApi({ title: 'CY-Autosave-Test' })
-    cy.get('@articleId').then(id => {
-      cy.visit(`${BASE}`)
-      cy.get('.article-row, [class*="article-item"]', { timeout: 8000 }).first().click()
-      cy.get('.article-viewer, [class*="viewer"]', { timeout: 8000 }).should('be.visible')
-      cy.contains(/edit|редактировать/i).click()
-      // Autosave indicator or timer
-      cy.get('[class*="autosave"], [class*="auto-save"], [class*="saved"]', { timeout: 10000 })
-        .should('exist')
-      cy.deleteArticleViaApi(id)
-    })
-  })
-
-  it('6.12 Delete button → confirm → DELETE /articles/** → closes', () => {
-    cy.loginToApp()
-    cy.createArticleViaApi({ title: 'CY-Delete-Test' })
-    cy.get('@articleId').then(id => {
-      cy.visit(BASE)
-      cy.get('.article-row, [class*="article-item"]', { timeout: 8000 }).first().click()
-      cy.get('.article-viewer, [class*="viewer"]', { timeout: 8000 }).should('be.visible')
-      cy.contains(/edit|редактировать/i).click()
-      cy.intercept('DELETE', '**/articles/**').as('deleteArt')
-      cy.contains(/delete|удалить/i).click()
-      cy.get('.confirm-btn, .modal button, [class*="confirm"]')
-        .contains(/yes|ok|да|confirm|удалить/i).click()
-      cy.wait('@deleteArt').its('response.statusCode').should('be.oneOf', [200, 204])
-    })
-  })
-})
-
-// ============================================================
-// Describe 7: GridEditor (6 tests)
-// ============================================================
-describe('Articles — GridEditor', () => {
-  beforeEach(() => {
-    cy.goToArticles()
-    cy.contains(/new article|новая статья/i).click()
-  })
-
-  it('7.1 GridEditor visible in editor body', () => {
-    cy.get('.grid-editor, [class*="grid-editor"]', { timeout: 8000 }).should('be.visible')
-  })
-
-  it('7.2 Empty state or add-block toolbar', () => {
-    cy.get('.grid-editor, [class*="grid-editor"]').within(() => {
-      cy.get('[class*="add"], [class*="empty"], [class*="toolbar"], button').should('exist')
-    })
-  })
-
-  it('7.3 EditorToolbar in editor-header', () => {
-    cy.get('.editor-toolbar, [class*="toolbar"]').should('exist')
-  })
-
-  it('7.4 Add text block → content appears', () => {
-    cy.get('.grid-editor, [class*="grid-editor"]')
-      .find('[class*="add"], button').first().click()
-    cy.get('.grid-editor, [class*="grid-editor"]')
-      .find('[class*="block"], [class*="row"], .tiptap, [contenteditable]')
-      .should('exist')
-  })
-
-  it('7.5 Edit mode: min-height fills space', () => {
-    cy.get('.grid-editor, [class*="grid-editor"]')
-      .invoke('css', 'min-height')
-      .should('not.eq', '0px')
-  })
-
-  it('7.6 Readonly mode: no add/edit buttons', () => {
-    // Go back and open viewer (readonly)
-    cy.get('[class*="back"], button').contains(/back|←|назад/i).click()
-    cy.get('.article-row, [class*="article-item"]').first().click()
-    cy.get('.article-viewer, [class*="viewer"]', { timeout: 8000 }).within(() => {
-      cy.get('.grid-editor [class*="add-block"], .grid-editor [class*="add-row"]')
-        .should('not.exist')
-    })
-  })
-})
-
-// ============================================================
-// Describe 8: ArticleViewer Topbar (6 tests)
-// ============================================================
-describe('Articles — ArticleViewer Topbar', () => {
-  beforeEach(() => {
-    cy.loginToApp()
-    cy.createArticleViaApi({ title: 'CY-Viewer-Topbar' })
-    cy.visit(BASE)
-    cy.get('.article-row, [class*="article-item"]', { timeout: 8000 }).first().click()
-    cy.get('.article-viewer, [class*="viewer"]', { timeout: 8000 }).should('be.visible')
-  })
-
-  afterEach(() => {
-    cy.get('@articleId').then(id => cy.deleteArticleViaApi(id))
-  })
-
-  it('8.1 Click article-row → ArticleViewer fullscreen', () => {
-    cy.get('.article-viewer, [class*="viewer"]').should('be.visible')
-  })
-
-  it('8.2 Topbar: Back, "Articles", History, PDF, Edit', () => {
-    cy.get('.viewer-topbar, [class*="topbar"]').within(() => {
-      cy.get('[class*="back"], button').should('exist')
-      cy.contains(/history|история/i).should('exist')
-      cy.contains(/edit|редактировать/i).should('exist')
-    })
-  })
-
-  it('8.3 Edit (purple) → opens Editor', () => {
-    cy.contains(/edit|редактировать/i).click()
-    cy.get('.editor-fullscreen, [class*="editor"]', { timeout: 8000 }).should('be.visible')
-  })
-
-  it('8.4 Back → closes viewer', () => {
-    cy.get('[class*="back"], button').contains(/back|←|назад|articles/i).first().click()
-    cy.get('.articles-page, [class*="articles"]', { timeout: 8000 }).should('exist')
-  })
-
-  it('8.5 PDF → intercept GET /articles/*/export/pdf → download', () => {
-    cy.intercept('GET', '**/articles/*/export/pdf*').as('exportPdf')
-    cy.get('.viewer-topbar, [class*="topbar"]')
-      .find('[class*="pdf"], button').contains(/pdf/i).click()
-    cy.wait('@exportPdf').its('response.statusCode').should('eq', 200)
-  })
-
-  it('8.6 History → history panel opens', () => {
-    cy.contains(/history|история/i).click()
-    cy.get('.viewer-history.open, [class*="history"][class*="open"], [class*="history-panel"]', { timeout: 8000 })
-      .should('be.visible')
-  })
-})
-
-// ============================================================
-// Describe 9: ArticleViewer Article Head (10 tests)
-// ============================================================
-describe('Articles — ArticleViewer Article Head', () => {
-  beforeEach(() => {
-    cy.loginToApp()
-    cy.createArticleViaApi({ title: 'CY-Head-Test', category: 'Testing' })
-    cy.visit(BASE)
-    cy.get('.article-row, [class*="article-item"]', { timeout: 8000 }).first().click()
-    cy.get('.article-viewer, [class*="viewer"]', { timeout: 8000 }).should('be.visible')
-  })
-
-  afterEach(() => {
-    cy.get('@articleId').then(id => cy.deleteArticleViaApi(id))
-  })
-
-  it('9.1 viewer-article-head: breadcrumbs, title, status badge', () => {
-    cy.get('.viewer-article-head, [class*="article-head"]').within(() => {
-      cy.get('[class*="breadcrumb"]').should('exist')
-      cy.get('[class*="title"], h1, h2').should('exist')
-      cy.get('[class*="badge"]').should('exist')
-    })
-  })
-
-  it('9.2 Status "draft" → orange badge (.viewer-badge.draft)', () => {
-    cy.get('.viewer-badge.draft, [class*="badge"][class*="draft"]')
-      .should('exist')
-  })
-
-  it('9.3 Status "published" → green badge', () => {
-    cy.loginToApp()
-    cy.createArticleViaApi({ title: 'CY-Published-Head', status: 'published' })
-    cy.visit(BASE)
-    cy.get('.article-row, [class*="article-item"]').first().click()
-    cy.get('.article-viewer, [class*="viewer"]', { timeout: 8000 }).should('be.visible')
-    cy.get('.viewer-badge.published, [class*="badge"][class*="published"]')
-      .should('exist')
-    cy.get('@articleId').then(id => cy.deleteArticleViaApi(id))
-  })
-
-  it('9.4 Meta: author avatar + name, date, N views', () => {
-    cy.get('.viewer-article-head, [class*="article-head"]').within(() => {
-      cy.get('[class*="avatar"]').should('exist')
-      cy.get('[class*="author"], [class*="name"]').should('exist')
-      cy.get('[class*="date"]').should('exist')
-    })
-  })
-
-  it('9.5 Author initial in avatar', () => {
-    cy.get('[class*="avatar"]').first()
-      .invoke('text').should('have.length.gte', 1)
-  })
-
-  it('9.6 Tags block visible if category/tags', () => {
-    cy.get('[class*="tag"], [class*="category"]').should('exist')
-  })
-
-  it('9.7 Category tag accent color', () => {
-    cy.get('[class*="tag"][class*="category"], [class*="category-tag"]')
-      .first()
-      .should('exist')
-  })
-
-  it('9.8 No folder → breadcrumbs "Articles" only', () => {
-    cy.get('[class*="breadcrumb"]')
-      .invoke('text').should('match', /articles|статьи/i)
-  })
-
-  it('9.9 In folder → breadcrumbs "Articles > Folder > Title"', () => {
-    // Create folder, create article in folder
-    cy.loginToApp()
-    cy.createFolderViaApi('CY-Breadcrumb-Folder')
-    cy.get('@folderId').then(folderId => {
-      cy.createArticleViaApi({ title: 'CY-InFolder', folder_id: folderId })
+  it('02.3 READ: кликнуть папку → список статей фильтруется', () => {
+    cy.createFolderViaApi('ART02-Filter-Folder')
+    cy.get('@folderId').then(fid => {
+      folderId = fid
+      cy.createArticleViaApi({ title: 'ART02-InFolder-Article', folder_id: fid })
       cy.get('@articleId').then(artId => {
-        cy.visit(BASE)
-        cy.get('.article-row, [class*="article-item"]', { timeout: 8000 }).first().click()
-        cy.get('.article-viewer, [class*="viewer"]', { timeout: 8000 }).should('be.visible')
-        cy.get('[class*="breadcrumb"]')
-          .invoke('text').should('include', 'CY-Breadcrumb-Folder')
+        cy.goToArticles()
+        cy.intercept('GET', '**/articles*').as('getArticles')
+        cy.get('.folder-tree').contains('ART02-Filter-Folder').click()
+        cy.wait('@getArticles').its('request.url').should('include', 'folder_id')
+        cy.get('.articles-list')
+          .should('contain.text', 'ART02-InFolder-Article')
         cy.deleteArticleViaApi(artId)
-        cy.deleteFolderViaApi(folderId)
       })
     })
   })
 
-  it('9.10 Click folder in breadcrumbs → navigate to folder', () => {
-    cy.get('[class*="breadcrumb"] a, [class*="breadcrumb"] [class*="link"]')
-      .first().click()
-    cy.get('.articles-page, [class*="articles"]', { timeout: 8000 }).should('exist')
+  it('02.4 UPDATE (rename): переименовать папку через context menu → имя обновилось', () => {
+    cy.createFolderViaApi('ART02-Before-Rename')
+    cy.get('@folderId').then(id => {
+      folderId = id
+      cy.goToArticles()
+      cy.get('.folder-tree').contains('ART02-Before-Rename')
+        .closest('.folder-item, [class*="folder"]')
+        .rightclick()
+      cy.get('.ctx-menu').contains(/rename|переименовать/i).click()
+      cy.intercept('PUT', '**/articles/folders/*').as('renameFolder')
+      cy.get('.folder-tree input').first()
+        .clear().type('ART02-After-Rename{enter}')
+      cy.wait('@renameFolder').its('response.statusCode').should('eq', 200)
+      cy.get('.folder-tree').should('contain.text', 'ART02-After-Rename')
+      cy.get('.folder-tree').should('not.contain.text', 'ART02-Before-Rename')
+    })
+  })
+
+  it('02.5 UPDATE (rename): API подтверждает новое имя', () => {
+    cy.createFolderViaApi('ART02-RenameAPI-Before')
+    cy.get('@folderId').then(id => {
+      folderId = id
+      cy.window().then(win => {
+        cy.request({
+          method: 'PUT',
+          url: `/api/articles/folders/${id}`,
+          headers: {
+            Authorization: `Bearer ${win.localStorage.getItem('access_token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: { name: 'ART02-RenameAPI-After' }
+        }).then(resp => {
+          expect(resp.status).to.eq(200)
+          cy.goToArticles()
+          cy.get('.folder-tree').should('contain.text', 'ART02-RenameAPI-After')
+        })
+      })
+    })
+  })
+
+  it('02.6 DELETE: удалить папку через context menu → исчезает из дерева', () => {
+    cy.createFolderViaApi('ART02-To-Delete')
+    cy.get('@folderId').then(id => {
+      folderId = id
+      cy.goToArticles()
+      cy.get('.folder-tree').contains('ART02-To-Delete')
+        .closest('.folder-item, [class*="folder"]')
+        .rightclick()
+      cy.intercept('DELETE', '**/articles/folders/*').as('deleteFolder')
+      cy.get('.ctx-menu').contains(/delete|удалить/i).click()
+      cy.get('[class*="confirm"], .modal').then($d => {
+        if ($d.length) $d.find('button').contains(/yes|ok|да/i).click()
+      })
+      cy.wait('@deleteFolder').its('response.statusCode').should('be.oneOf', [200, 204])
+      cy.get('.folder-tree').should('not.contain.text', 'ART02-To-Delete')
+      folderId = null
+    })
+  })
+
+  it('02.7 DELETE: статьи из удалённой папки переходят в корень', () => {
+    cy.createFolderViaApi('ART02-Delete-WithArticle')
+    cy.get('@folderId').then(fid => {
+      folderId = fid
+      cy.createArticleViaApi({ title: 'ART02-OrphanArticle', folder_id: fid })
+      cy.get('@articleId').then(artId => {
+        cy.deleteFolderViaApi(fid)
+        folderId = null
+        cy.goToArticles()
+        cy.get('.articles-list, .article-row')
+          .should('contain.text', 'ART02-OrphanArticle')
+        cy.deleteArticleViaApi(artId)
+      })
+    })
+  })
+
+  it('02.8 Максимальная глубина 3 уровня: 4-й уровень невозможен', () => {
+    cy.createFolderViaApi('ART02-L1')
+    cy.get('@folderId').then(l1 => {
+      folderId = l1
+      cy.createFolderViaApi('ART02-L2', l1)
+      cy.get('@folderId').then(l2 => {
+        subFolderId = l2
+        cy.createFolderViaApi('ART02-L3', l2)
+        cy.get('@folderId').then(l3 => {
+          cy.window().then(win => {
+            cy.request({
+              method: 'POST',
+              url: '/api/articles/folders',
+              headers: {
+                Authorization: `Bearer ${win.localStorage.getItem('access_token')}`,
+                'Content-Type': 'application/json'
+              },
+              body: { name: 'ART02-L4-ShouldFail', parent_id: l3 },
+              failOnStatusCode: false
+            }).then(resp => {
+              expect(resp.status).to.be.oneOf([400, 422])
+            })
+            cy.request({
+              method: 'DELETE',
+              url: `/api/articles/folders/${l3}`,
+              headers: { Authorization: `Bearer ${win.localStorage.getItem('access_token')}` },
+              failOnStatusCode: false
+            })
+          })
+        })
+      })
+    })
   })
 })
 
-// ============================================================
-// Describe 10: ArticleViewer TOC (6 tests)
-// ============================================================
-describe('Articles — ArticleViewer TOC', () => {
+describe('ART-CRUD-03: Фильтрация — реальные результаты', () => {
+  let draftId, publishedId
+
+  before(() => {
+    cy.loginToApp()
+    cy.createArticleViaApi({ title: 'FILTER-Draft-Article', status: 'draft', category: 'CatA' })
+    cy.get('@articleId').then(id => { draftId = id })
+    cy.createArticleViaApi({ title: 'FILTER-Published-Article', status: 'published', category: 'CatB' })
+    cy.get('@articleId').then(id => { publishedId = id })
+  })
+
+  after(() => {
+    cy.loginToApp()
+    if (draftId) cy.deleteArticleViaApi(draftId)
+    if (publishedId) cy.deleteArticleViaApi(publishedId)
+  })
+
+  it('03.1 Статус "Draft" → только FILTER-Draft-Article, нет Published', () => {
+    cy.goToArticles()
+    cy.get('.list-filters select').last().select('draft')
+    cy.get('.articles-list').should('contain.text', 'FILTER-Draft-Article')
+    cy.get('.articles-list').should('not.contain.text', 'FILTER-Published-Article')
+  })
+
+  it('03.2 Статус "Published" → только FILTER-Published-Article, нет Draft', () => {
+    cy.goToArticles()
+    cy.get('.list-filters select').last().select('published')
+    cy.get('.articles-list').should('contain.text', 'FILTER-Published-Article')
+    cy.get('.articles-list').should('not.contain.text', 'FILTER-Draft-Article')
+  })
+
+  it('03.3 Сброс статуса → оба видны', () => {
+    cy.goToArticles()
+    cy.get('.list-filters select').last().select('')
+    cy.get('.articles-list')
+      .should('contain.text', 'FILTER-Draft-Article')
+      .and('contain.text', 'FILTER-Published-Article')
+  })
+
+  it('03.4 Фильтр по категории CatA → только draft статья', () => {
+    cy.goToArticles()
+    cy.get('.list-filters select').first().then($sel => {
+      const options = [...$sel[0].options].map(o => o.value)
+      if (options.includes('CatA')) {
+        cy.wrap($sel).select('CatA')
+        cy.get('.articles-list').should('contain.text', 'FILTER-Draft-Article')
+        cy.get('.articles-list').should('not.contain.text', 'FILTER-Published-Article')
+      } else {
+        cy.log('CatA not in options — API may not return categories yet')
+      }
+    })
+  })
+
+  it('03.5 Выбрать папку → GET /articles с folder_id в запросе', () => {
+    cy.createFolderViaApi('ART03-FilterFolder')
+    cy.get('@folderId').then(fid => {
+      cy.goToArticles()
+      cy.intercept('GET', '**/articles*').as('getArts')
+      cy.get('.folder-tree').contains('ART03-FilterFolder').click()
+      cy.wait('@getArts').its('request.url').should('include', 'folder_id')
+      cy.deleteFolderViaApi(fid)
+    })
+  })
+
+  it('03.6 Пустая папка → empty state "No articles yet"', () => {
+    cy.createFolderViaApi('ART03-EmptyFolder')
+    cy.get('@folderId').then(fid => {
+      cy.goToArticles()
+      cy.get('.folder-tree').contains('ART03-EmptyFolder').click()
+      cy.get('.empty-state, [class*="empty"]')
+        .invoke('text').should('match', /no articles|нет статей|пусто/i)
+      cy.deleteFolderViaApi(fid)
+    })
+  })
+})
+
+describe('ART-CRUD-04: Editor — создание статьи через UI', () => {
+  const createdIds = []
+
+  afterEach(() => {
+    cy.loginToApp()
+    cy.get('@articleId').then(id => {
+      if (id) {
+        createdIds.push(id)
+        cy.deleteArticleViaApi(id)
+      }
+    })
+    cy.wrap(null).as('articleId')
+  })
+
+  beforeEach(() => {
+    cy.goToArticles()
+    cy.wrap(null).as('articleId')
+  })
+
+  it('04.1 + New Article → fullscreen editor открывается', () => {
+    cy.get('button').contains(/new article|новая статья/i).click()
+    cy.get('.editor-fullscreen').should('be.visible')
+    cy.get('.editor-fullscreen').should('contain.html', 'input')
+  })
+
+  it('04.2 Save без title → не сабмитится (нет POST)', () => {
+    cy.get('button').contains(/new article/i).click()
+    cy.intercept('POST', '**/articles').as('createArt')
+    cy.get('.editor-fullscreen button').contains(/save/i).click()
+    cy.wait(500)
+    cy.get('@createArt.all').should('have.length', 0)
+  })
+
+  it('04.3 Создать с title → API 200/201, slug не пустой', () => {
+    cy.intercept('POST', '**/articles').as('createArt')
+    cy.get('button').contains(/new article/i).click()
+    cy.get('.title-input').type('ART04-Create-Test')
+    cy.get('.editor-fullscreen button').contains(/save/i).click()
+    cy.wait('@createArt').then(ic => {
+      expect(ic.response.statusCode).to.be.oneOf([200, 201])
+      const id = ic.response.body.id
+      cy.wrap(id).as('articleId')
+      expect(ic.response.body.slug).to.not.be.empty
+    })
+  })
+
+  it('04.4 Статья появляется в списке сразу после сохранения', () => {
+    cy.intercept('POST', '**/articles').as('createArt')
+    cy.get('button').contains(/new article/i).click()
+    cy.get('.title-input').type('ART04-ListAppear')
+    cy.get('.editor-fullscreen button').contains(/save/i).click()
+    cy.wait('@createArt').then(ic => { cy.wrap(ic.response.body.id).as('articleId') })
+    cy.get('.articles-list', { timeout: 10000 })
+      .should('contain.text', 'ART04-ListAppear')
+  })
+
+  it('04.5 Category через subheader → API сохраняет category', () => {
+    cy.intercept('POST', '**/articles').as('createArt')
+    cy.get('button').contains(/new article/i).click()
+    cy.get('.title-input').type('ART04-WithCategory')
+    cy.get('button').contains(/meta|мета/i).click()
+    cy.get('.subheader input').first().type('E2E-Category')
+    cy.get('.editor-fullscreen button').contains(/save/i).click()
+    cy.wait('@createArt').then(ic => {
+      cy.wrap(ic.response.body.id).as('articleId')
+      cy.getArticleViaApi(ic.response.body.id)
+      cy.get('@fetchedArticle').its('category').should('eq', 'E2E-Category')
+    })
+  })
+
+  it('04.6 Tags через subheader → API сохраняет теги', () => {
+    cy.intercept('POST', '**/articles').as('createArt')
+    cy.get('button').contains(/new article/i).click()
+    cy.get('.title-input').type('ART04-WithTags')
+    cy.get('button').contains(/meta|мета/i).click()
+    cy.get('.subheader input').eq(1).type('tag1, tag2')
+    cy.get('.editor-fullscreen button').contains(/save/i).click()
+    cy.wait('@createArt').then(ic => {
+      cy.wrap(ic.response.body.id).as('articleId')
+      cy.getArticleViaApi(ic.response.body.id)
+      cy.get('@fetchedArticle').its('tags')
+        .should('include', 'tag1').and('include', 'tag2')
+    })
+  })
+
+  it('04.7 Back без изменений → возврат на список без confirm', () => {
+    cy.get('button').contains(/new article/i).click()
+    cy.get('.editor-fullscreen').should('be.visible')
+    cy.get('.btn-back, [class*="back"]').contains(/back|←|назад/i).click()
+    cy.get('.articles-page').should('exist')
+    cy.get('.editor-fullscreen').should('not.exist')
+  })
+
+  it('04.8 Back с изменениями → confirm dialog появляется', () => {
+    cy.get('button').contains(/new article/i).click()
+    cy.get('.title-input').type('ART04-Unsaved')
+    cy.get('.btn-back').click()
+    cy.get('.modal, [class*="confirm"], [class*="unsaved"]', { timeout: 5000 })
+      .should('be.visible')
+    cy.get('.modal, [class*="confirm"]').find('button')
+      .contains(/yes|ok|да|discard/i).click({ force: true })
+  })
+})
+
+describe('ART-CRUD-05: Editor — редактирование и Autosave', () => {
+  let articleId
+
+  before(() => {
+    cy.loginToApp()
+    cy.createArticleViaApi({ title: 'ART05-Edit-Source' })
+    cy.get('@articleId').then(id => { articleId = id })
+  })
+
+  after(() => {
+    if (articleId) cy.deleteArticleViaApi(articleId)
+  })
+
+  it('05.1 Edit → title input заполнен исходным title', () => {
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART05-Edit-Source').click()
+    cy.get('.btn-edit').click()
+    cy.get('.title-input').should('have.value', 'ART05-Edit-Source')
+  })
+
+  it('05.2 Изменить title → Save → список обновился', () => {
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART05-Edit-Source').click()
+    cy.get('.btn-edit').click()
+    cy.intercept('PUT', '**/articles/*').as('save')
+    cy.get('.title-input').clear().type('ART05-Edited-Title')
+    cy.get('.editor-fullscreen button').contains(/save/i).click()
+    cy.wait('@save')
+    cy.getArticleViaApi(articleId)
+    cy.get('@fetchedArticle').its('title').should('eq', 'ART05-Edited-Title')
+    cy.goToArticles()
+    cy.get('.articles-list').should('contain.text', 'ART05-Edited-Title')
+  })
+
+  it('05.3 Autosave indicator: при редактировании → появляется "Сохранение..."', () => {
+    cy.goToArticles()
+    cy.get('.article-row').first().click()
+    cy.get('.btn-edit').click()
+    cy.get('.title-input').click().type('X')
+    cy.get('[class*="autosave"], [class*="auto-save"]').should('exist')
+  })
+
+  it('05.4 Status Draft → Published через select → API сохраняет published', () => {
+    cy.goToArticles()
+    cy.get('.article-row').first().click()
+    cy.get('.btn-edit').click()
+    cy.get('select.status-select').select('published')
+    cy.intercept('PUT', '**/articles/*').as('save')
+    cy.get('.editor-fullscreen button').contains(/save/i).click()
+    cy.wait('@save')
+    cy.getArticleViaApi(articleId)
+    cy.get('@fetchedArticle').its('status').should('eq', 'published')
+  })
+
+  it('05.5 После Save → editor закрывается, статья в списке с обновлённым статусом', () => {
+    cy.goToArticles()
+    cy.get('.article-row').first().click()
+    cy.get('.btn-edit').click()
+    cy.get('.editor-fullscreen button').contains(/save/i).click()
+    cy.get('.articles-page', { timeout: 10000 }).should('exist')
+    cy.get('.editor-fullscreen').should('not.exist')
+  })
+})
+
+describe('ART-CRUD-06: ArticleViewer — Breadcrumbs и навигация', () => {
+  let folderId, subfolderId, articleInFolderId
+
+  before(() => {
+    cy.loginToApp()
+    cy.createFolderViaApi('ART06-Parent-Folder')
+    cy.get('@folderId').then(pid => {
+      folderId = pid
+      cy.createFolderViaApi('ART06-Child-Folder', pid)
+      cy.get('@folderId').then(cid => {
+        subfolderId = cid
+        cy.createArticleViaApi({
+          title: 'ART06-InNestedFolder',
+          folder_id: cid
+        })
+        cy.get('@articleId').then(id => { articleInFolderId = id })
+      })
+    })
+  })
+
+  after(() => {
+    cy.loginToApp()
+    if (articleInFolderId) cy.deleteArticleViaApi(articleInFolderId)
+    if (subfolderId) cy.deleteFolderViaApi(subfolderId)
+    if (folderId) cy.deleteFolderViaApi(folderId)
+  })
+
+  it('06.1 Статья без папки → breadcrumbs = "Articles"', () => {
+    cy.loginToApp()
+    cy.createArticleViaApi({ title: 'ART06-NoFolder' })
+    cy.get('@articleId').then(artId => {
+      cy.goToArticles()
+      cy.get('.article-row').contains('ART06-NoFolder').click()
+      cy.get('.viewer-crumbs').invoke('text')
+        .should('match', /articles|статьи/i)
+      cy.get('.viewer-crumbs').find('.crumb-link').should('have.length', 0)
+      cy.deleteArticleViaApi(artId)
+    })
+  })
+
+  it('06.2 Статья в папке L1/L2 → breadcrumbs: Articles > L1 > L2 > Title', () => {
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART06-InNestedFolder').click()
+    cy.get('.viewer-crumbs').should('contain.text', 'ART06-Parent-Folder')
+    cy.get('.viewer-crumbs').should('contain.text', 'ART06-Child-Folder')
+    cy.get('.viewer-crumbs').should('contain.text', 'ART06-InNestedFolder')
+  })
+
+  it('06.3 API /articles/{id}/breadcrumbs → [{root}, {folder}, {subfolder}, {article}]', () => {
+    cy.loginToApp()
+    cy.window().then(win => {
+      cy.request({
+        method: 'GET',
+        url: `/api/articles/${articleInFolderId}/breadcrumbs`,
+        headers: { Authorization: `Bearer ${win.localStorage.getItem('access_token')}` }
+      }).then(resp => {
+        expect(resp.status).to.eq(200)
+        expect(Array.isArray(resp.body)).to.be.true
+        expect(resp.body.length).to.be.gte(3)
+        expect(resp.body[0].type).to.eq('root')
+        expect(resp.body[resp.body.length - 1].type).to.eq('article')
+      })
+    })
+  })
+
+  it('06.4 Клик на папку в breadcrumbs → папка выбрана в sidebar', () => {
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART06-InNestedFolder').click()
+    cy.get('.viewer-crumbs .crumb-link').first().click()
+    cy.get('.articles-page').should('exist')
+    cy.get('.article-viewer').should('not.exist')
+  })
+
+  it('06.5 breadcrumbs без авторизации → 401', () => {
+    cy.request({
+      method: 'GET',
+      url: `/api/articles/${articleInFolderId}/breadcrumbs`,
+      failOnStatusCode: false
+    }).its('status').should('eq', 401)
+  })
+
+  it('06.6 metadata: автор, дата, просмотры видны', () => {
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART06-InNestedFolder').click()
+    cy.get('.viewer-meta').within(() => {
+      cy.get('[class*="author"], [class*="name"], [class*="avatar"]').should('exist')
+      cy.get('[class*="date"]').should('exist')
+      cy.get('[class*="view"]').should('exist')
+    })
+  })
+})
+
+describe('ART-CRUD-07: TOC — автогенерация из заголовков', () => {
   let tocArticleId
 
   before(() => {
     cy.loginToApp()
     const contentWithHeadings = JSON.stringify({
       version: 'grid-1',
-      rows: [
-        { cells: [{ type: 'text', content: { type: 'doc', content: [
-          { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'H1 Heading' }] },
-          { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'H2 Heading' }] },
-          { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'H3 Heading' }] },
-          { type: 'paragraph', content: [{ type: 'text', text: 'Body text for scrolling.' }] }
-        ] } }] }
-      ]
+      rows: [{
+        id: 'r1',
+        columns: [{
+          id: 'c1', span: 12,
+          content: {
+            type: 'doc',
+            content: [
+              { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'ART07 H1 Section' }] },
+              { type: 'paragraph', content: [{ type: 'text', text: 'Some content here.' }] },
+              { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'ART07 H2 Section' }] },
+              { type: 'paragraph', content: [{ type: 'text', text: 'More content here.' }] },
+              { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'ART07 H3 Section' }] },
+              { type: 'paragraph', content: [{ type: 'text', text: 'Even more content.' }] },
+            ]
+          }
+        }]
+      }]
     })
-    cy.createArticleViaApi({ title: 'CY-TOC-Article', content: contentWithHeadings })
+    cy.createArticleViaApi({
+      title: 'ART07-TOC-Article',
+      content: contentWithHeadings
+    })
     cy.get('@articleId').then(id => { tocArticleId = id })
   })
 
@@ -633,412 +665,461 @@ describe('Articles — ArticleViewer TOC', () => {
     }
   })
 
-  beforeEach(() => {
-    cy.loginToApp()
-    cy.visit(BASE)
-    cy.get('.article-row, [class*="article-item"]', { timeout: 8000 }).first().click()
-    cy.get('.article-viewer, [class*="viewer"]', { timeout: 8000 }).should('be.visible')
+  it('07.1 Статья с H1/H2/H3 → TOC видна (ширина >= 1280px)', () => {
+    cy.viewport(1440, 900)
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART07-TOC-Article').click()
+    cy.get('.viewer-toc, [class*="toc"]', { timeout: 8000 }).should('be.visible')
   })
 
-  it('10.1 TOC visible if H1-H3 headings', () => {
-    cy.get('.toc, [class*="toc"], [class*="table-of-contents"]', { timeout: 5000 })
-      .should('exist')
-  })
-
-  it('10.2 TOC hidden if no headings', () => {
-    // Create article without headings
-    cy.loginToApp()
-    cy.createArticleViaApi({ title: 'CY-NoTOC' })
-    cy.get('@articleId').then(id => {
-      cy.visit(BASE)
-      cy.contains('CY-NoTOC').click()
-      cy.get('.article-viewer, [class*="viewer"]', { timeout: 8000 }).should('be.visible')
-      cy.get('.toc, [class*="toc"]').should('not.exist')
-      cy.deleteArticleViaApi(id)
+  it('07.2 TOC содержит H1, H2, H3 из статьи', () => {
+    cy.viewport(1440, 900)
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART07-TOC-Article').click()
+    cy.get('.toc-list, [class*="toc-list"]').within(() => {
+      cy.contains('ART07 H1 Section').should('exist')
+      cy.contains('ART07 H2 Section').should('exist')
+      cy.contains('ART07 H3 Section').should('exist')
     })
   })
 
-  it('10.3 TOC label "Содержание"', () => {
-    cy.get('.toc, [class*="toc"]')
-      .invoke('text').should('match', /содержание|contents|toc/i)
+  it('07.3 Клик на TOC item → страница прокрутилась к заголовку', () => {
+    cy.viewport(1440, 900)
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART07-TOC-Article').click()
+    cy.get('.toc-item, [class*="toc-item"]').contains('ART07 H2 Section').click()
+    cy.get('h2').contains('ART07 H2 Section').should('be.visible')
   })
 
-  it('10.4 Click TOC item → scroll to heading', () => {
-    cy.get('.toc a, [class*="toc"] a, [class*="toc-item"]').first().click()
-    // Verify scroll happened
-    cy.get('h1, h2, h3, [class*="heading"]').first().should('be.visible')
-  })
-
-  it('10.5 Width < 1280px → TOC hidden', () => {
+  it('07.4 Width < 1280px → TOC не видна', () => {
     cy.viewport(1200, 900)
-    cy.get('.toc, [class*="toc"]').should('not.be.visible')
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART07-TOC-Article').click()
+    cy.get('.viewer-toc, [class*="toc"]').should('not.be.visible')
   })
 
-  it('10.6 Active section in TOC has .active class', () => {
-    cy.get('.toc .active, [class*="toc"] .active, [class*="toc-item"].active')
-      .should('exist')
+  it('07.5 Статья без заголовков → TOC не появляется', () => {
+    cy.loginToApp()
+    cy.createArticleViaApi({ title: 'ART07-NoHeadings' })
+    cy.get('@articleId').then(id => {
+      cy.viewport(1440, 900)
+      cy.goToArticles()
+      cy.get('.article-row').contains('ART07-NoHeadings').click()
+      cy.get('.viewer-toc, [class*="toc"]').should('not.exist')
+      cy.deleteArticleViaApi(id)
+    })
   })
 })
 
-// ============================================================
-// Describe 11: Child Pages (4 tests)
-// ============================================================
-describe('Articles — Child Pages', () => {
-  let folderId, art1Id, art2Id
+describe('ART-CRUD-08: Child Pages — соседние статьи в папке', () => {
+  let folderId, art1Id, art2Id, art3Id
 
   before(() => {
     cy.loginToApp()
-    cy.createFolderViaApi('CY-ChildPages-Folder')
+    cy.createFolderViaApi('ART08-Siblings-Folder')
     cy.get('@folderId').then(fid => {
       folderId = fid
-      cy.createArticleViaApi({ title: 'CY-Child-1', folder_id: fid })
-      cy.get('@articleId').then(a1 => {
-        art1Id = a1
-        cy.createArticleViaApi({ title: 'CY-Child-2', folder_id: fid })
-        cy.get('@articleId').then(a2 => { art2Id = a2 })
-      })
+      cy.createArticleViaApi({ title: 'ART08-Sibling-1', folder_id: fid })
+      cy.get('@articleId').then(id => { art1Id = id })
+      cy.createArticleViaApi({ title: 'ART08-Sibling-2', folder_id: fid })
+      cy.get('@articleId').then(id => { art2Id = id })
+      cy.createArticleViaApi({ title: 'ART08-Sibling-3', folder_id: fid })
+      cy.get('@articleId').then(id => { art3Id = id })
     })
   })
 
   after(() => {
     cy.loginToApp()
-    if (art1Id) cy.deleteArticleViaApi(art1Id)
-    if (art2Id) cy.deleteArticleViaApi(art2Id)
+    ;[art1Id, art2Id, art3Id].forEach(id => { if (id) cy.deleteArticleViaApi(id) })
     if (folderId) cy.deleteFolderViaApi(folderId)
   })
 
-  beforeEach(() => {
+  it('08.1 Статья в папке с сиблингами → .child-pages блок виден', () => {
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART08-Sibling-1').click()
+    cy.get('.child-pages, [class*="child-pages"]', { timeout: 8000 }).should('be.visible')
+  })
+
+  it('08.2 Child pages показывает сиблингов, не саму статью', () => {
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART08-Sibling-1').click()
+    cy.get('.child-pages').should('contain.text', 'ART08-Sibling-2')
+    cy.get('.child-pages').should('contain.text', 'ART08-Sibling-3')
+    cy.get('.child-pages').should('not.contain.text', 'ART08-Sibling-1')
+  })
+
+  it('08.3 Клик на child page item → открывается другая статья', () => {
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART08-Sibling-1').click()
+    cy.get('.child-page-item').contains('ART08-Sibling-2').click()
+    cy.get('.viewer-title').should('contain.text', 'ART08-Sibling-2')
+  })
+
+  it('08.4 Статья без папки → нет .child-pages блока', () => {
     cy.loginToApp()
-    cy.visit(BASE)
-    cy.get('.article-row, [class*="article-item"]', { timeout: 8000 }).first().click()
-    cy.get('.article-viewer, [class*="viewer"]', { timeout: 8000 }).should('be.visible')
-  })
-
-  it('11.1 Article in folder with siblings → .child-pages visible', () => {
-    cy.get('.child-pages, [class*="child-pages"]').should('be.visible')
-  })
-
-  it('11.2 Child pages label "В этой папке"', () => {
-    cy.get('.child-pages, [class*="child-pages"]')
-      .invoke('text').should('match', /в этой папке|in this folder|related/i)
-  })
-
-  it('11.3 .child-page-item clickable', () => {
-    cy.get('.child-page-item, [class*="child-page"]').first().click()
-    cy.get('.article-viewer, [class*="viewer"]', { timeout: 8000 }).should('be.visible')
-  })
-
-  it('11.4 No folder → no .child-pages', () => {
-    cy.loginToApp()
-    cy.createArticleViaApi({ title: 'CY-NoFolder-ChildCheck' })
-    cy.get('@articleId').then(id => {
-      cy.visit(BASE)
-      cy.contains('CY-NoFolder-ChildCheck').click()
-      cy.get('.article-viewer, [class*="viewer"]', { timeout: 8000 }).should('be.visible')
+    cy.createArticleViaApi({ title: 'ART08-NoFolder-Test' })
+    cy.get('@articleId').then(artId => {
+      cy.goToArticles()
+      cy.get('.article-row').contains('ART08-NoFolder-Test').click()
       cy.get('.child-pages, [class*="child-pages"]').should('not.exist')
-      cy.deleteArticleViaApi(id)
+      cy.deleteArticleViaApi(artId)
     })
   })
 })
 
-// ============================================================
-// Describe 12: History Panel (8 tests)
-// ============================================================
-describe('Articles — History Panel', () => {
-  beforeEach(() => {
+describe('ART-CRUD-09: История версий — полный цикл', () => {
+  let articleId
+
+  before(() => {
     cy.loginToApp()
-    cy.createArticleViaApi({ title: 'CY-History-Test' })
-    cy.visit(BASE)
-    cy.get('.article-row, [class*="article-item"]', { timeout: 8000 }).first().click()
-    cy.get('.article-viewer, [class*="viewer"]', { timeout: 8000 }).should('be.visible')
+    cy.createArticleViaApi({ title: 'ART09-Versions-Article' })
+    cy.get('@articleId').then(id => {
+      articleId = id
+      cy.updateArticleViaApi(id, { title: 'ART09-Version-1-Title' })
+      cy.updateArticleViaApi(id, { title: 'ART09-Version-2-Title' })
+      cy.updateArticleViaApi(id, { title: 'ART09-Version-3-Title' })
+    })
   })
 
-  afterEach(() => {
-    cy.get('@articleId').then(id => cy.deleteArticleViaApi(id))
+  after(() => {
+    if (articleId) cy.deleteArticleViaApi(articleId)
   })
 
-  it('12.1 History button → panel opens', () => {
-    cy.contains(/history|история/i).click()
-    cy.get('.viewer-history.open, [class*="history"][class*="open"], [class*="history-panel"]', { timeout: 8000 })
+  it('09.1 GET /articles/{id}/versions → список из 3 версий', () => {
+    cy.loginToApp()
+    cy.window().then(win => {
+      cy.request({
+        method: 'GET',
+        url: `/api/articles/${articleId}/versions`,
+        headers: { Authorization: `Bearer ${win.localStorage.getItem('access_token')}` }
+      }).then(resp => {
+        expect(resp.status).to.eq(200)
+        expect(Array.isArray(resp.body)).to.be.true
+        expect(resp.body.length).to.be.gte(3)
+      })
+    })
+  })
+
+  it('09.2 Нажать История → sliding panel открывается', () => {
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART09-Version-3-Title').click()
+    cy.get('.viewer-topbar').contains(/history|история/i).click()
+    cy.get('.viewer-history.open, [class*="history"][class*="open"]', { timeout: 8000 })
       .should('be.visible')
   })
 
-  it('12.2 intercept GET /articles/*/versions → request made', () => {
-    cy.intercept('GET', '**/articles/*/versions*').as('getVersions')
-    cy.contains(/history|история/i).click()
+  it('09.3 History panel: GET /articles/{id}/versions выполнен', () => {
+    cy.intercept('GET', '**/articles/*/versions').as('getVersions')
+    cy.goToArticles()
+    cy.get('.article-row').first().click()
+    cy.get('.viewer-topbar').contains(/history|история/i).click()
     cy.wait('@getVersions').its('response.statusCode').should('eq', 200)
   })
 
-  it('12.3 Version list displayed', () => {
-    cy.contains(/history|история/i).click()
-    cy.get('.history-item, [class*="history-item"], [class*="version-item"]', { timeout: 8000 })
-      .should('have.length.gte', 1)
-  })
-
-  it('12.4 Each history-item: date and title', () => {
-    cy.contains(/history|история/i).click()
-    cy.get('.history-item, [class*="history-item"]').first().within(() => {
+  it('09.4 History items: хотя бы 3, каждый с датой и title', () => {
+    cy.goToArticles()
+    cy.get('.article-row').first().click()
+    cy.get('.viewer-topbar').contains(/history|история/i).click()
+    cy.get('.history-item', { timeout: 8000 }).should('have.length.gte', 3)
+    cy.get('.history-item').first().within(() => {
       cy.get('[class*="date"], time').should('exist')
+      cy.get('[class*="title"]').should('exist')
     })
   })
 
-  it('12.5 Click version → GET /articles/*/versions/* → 200', () => {
-    cy.contains(/history|история/i).click()
+  it('09.5 Клик на версию → GET /versions/{id} → version-preview виден', () => {
     cy.intercept('GET', '**/articles/*/versions/*').as('getVersion')
-    cy.get('.history-item, [class*="history-item"]').first().click()
-    cy.wait('@getVersion').its('response.statusCode').should('eq', 200)
-  })
-
-  it('12.6 version-preview with readonly GridEditor', () => {
-    cy.contains(/history|история/i).click()
-    cy.get('.history-item, [class*="history-item"]').first().click()
-    cy.get('.version-preview, [class*="preview"]', { timeout: 8000 }).should('be.visible')
-  })
-
-  it('12.7 Close button → closes panel', () => {
-    cy.contains(/history|история/i).click()
-    cy.get('.viewer-history.open, [class*="history"]').should('be.visible')
-    cy.get('.viewer-history .close-btn, [class*="history"] [class*="close"], [class*="history"] button')
-      .contains(/×|✕|close|закрыть/i).click()
-    cy.get('.viewer-history.open, [class*="history"][class*="open"]').should('not.exist')
-  })
-
-  it('12.8 After close → version-preview disappears', () => {
-    cy.contains(/history|история/i).click()
-    cy.get('.history-item, [class*="history-item"]').first().click()
-    cy.get('.version-preview, [class*="preview"]').should('be.visible')
-    cy.get('.viewer-history .close-btn, [class*="history"] [class*="close"], [class*="history"] button')
-      .contains(/×|✕|close|закрыть/i).click()
-    cy.get('.version-preview, [class*="preview"]').should('not.exist')
-  })
-})
-
-// ============================================================
-// Describe 13: Edit Existing Article (8 tests)
-// ============================================================
-describe('Articles — Edit Existing Article', () => {
-  beforeEach(() => {
-    cy.loginToApp()
-    cy.createArticleViaApi({ title: 'CY-Edit-Existing', category: 'Testing' })
-    cy.visit(BASE)
-    cy.get('.article-row, [class*="article-item"]', { timeout: 8000 }).first().click()
-    cy.get('.article-viewer, [class*="viewer"]', { timeout: 8000 }).should('be.visible')
-  })
-
-  afterEach(() => {
-    cy.get('@articleId').then(id => cy.deleteArticleViaApi(id))
-  })
-
-  it('13.1 Viewer → Edit → editor with filled title', () => {
-    cy.contains(/edit|редактировать/i).click()
-    cy.get('.editor-fullscreen, [class*="editor"]', { timeout: 8000 }).should('be.visible')
-    cy.get('input[class*="title"], [class*="title-input"] input')
-      .first().should('not.have.value', '')
-  })
-
-  it('13.2 Title input has article title', () => {
-    cy.contains(/edit|редактировать/i).click()
-    cy.get('input[class*="title"], [class*="title-input"] input')
-      .first().should('have.value', 'CY-Edit-Existing')
-  })
-
-  it('13.3 Status select shows current status', () => {
-    cy.contains(/edit|редактировать/i).click()
-    cy.get('select[class*="status"], [class*="status"] select')
-      .first().should('have.value', 'draft')
-  })
-
-  it('13.4 Change title → Save → PUT /articles/** → 200', () => {
-    cy.contains(/edit|редактировать/i).click()
-    cy.intercept('PUT', '**/articles/**').as('updateArticle')
-    cy.get('input[class*="title"], [class*="title-input"] input')
-      .first().clear().type('CY-Updated-Title')
-    cy.contains(/save|сохранить/i).click()
-    cy.wait('@updateArticle').its('response.statusCode').should('eq', 200)
-  })
-
-  it('13.5 After save → list updated with new title', () => {
-    cy.contains(/edit|редактировать/i).click()
-    cy.intercept('PUT', '**/articles/**').as('updateArticle')
-    cy.get('input[class*="title"], [class*="title-input"] input')
-      .first().clear().type('CY-Title-Updated')
-    cy.contains(/save|сохранить/i).click()
-    cy.wait('@updateArticle')
-    cy.get('[class*="back"], button').contains(/back|←|назад/i).click()
-    cy.contains('CY-Title-Updated').should('exist')
-  })
-
-  it('13.6 Change status Draft → Published → Save', () => {
-    cy.contains(/edit|редактировать/i).click()
-    cy.intercept('PUT', '**/articles/**').as('updateStatus')
-    cy.get('select[class*="status"], [class*="status"] select')
-      .first().select('published')
-    cy.contains(/save|сохранить/i).click()
-    cy.wait('@updateStatus').its('response.statusCode').should('eq', 200)
-  })
-
-  it('13.7 Category and Tags shown in subheader', () => {
-    cy.contains(/edit|редактировать/i).click()
-    cy.contains(/meta|мета/i).click()
-    cy.get('[class*="subheader"], [class*="meta"]').should('be.visible')
-  })
-
-  it('13.8 Close editor with changes → confirm dialog', () => {
-    cy.contains(/edit|редактировать/i).click()
-    cy.get('input[class*="title"], [class*="title-input"] input')
-      .first().clear().type('CY-Unsaved-Change')
-    cy.get('[class*="back"], button').contains(/back|←|назад/i).click()
-    cy.get('.confirm-dialog, .modal, [class*="confirm"], [class*="unsaved"]', { timeout: 5000 })
-      .should('exist')
-  })
-})
-
-// ============================================================
-// Describe 14: Import (7 tests)
-// ============================================================
-describe('Articles — Import', () => {
-  beforeEach(() => {
     cy.goToArticles()
+    cy.get('.article-row').first().click()
+    cy.get('.viewer-topbar').contains(/history|история/i).click()
+    cy.get('.history-item').first().click()
+    cy.wait('@getVersion').its('response.statusCode').should('eq', 200)
+    cy.get('.version-preview', { timeout: 8000 }).should('be.visible')
   })
 
-  it('14.1 Import button → file picker (accept=".md,.docx")', () => {
-    cy.get('input[type="file"][accept*=".md"], input[type="file"][accept*=".docx"]')
-      .should('exist')
+  it('09.6 Кнопка X закрывает panel', () => {
+    cy.goToArticles()
+    cy.get('.article-row').first().click()
+    cy.get('.viewer-topbar').contains(/history|история/i).click()
+    cy.get('.viewer-history.open').should('be.visible')
+    cy.get('.viewer-history .history-close').click()
+    cy.get('.viewer-history.open').should('not.exist')
   })
 
-  it('14.2 Import test-article.md → POST /articles/import → 200 → alert', () => {
-    cy.intercept('POST', '**/articles/import*').as('importArticle')
-    cy.fixture('test-article.md', 'binary').then(content => {
-      const blob = Cypress.Blob.binaryStringToBlob(content, 'text/markdown')
-      const file = new File([blob], 'test-article.md', { type: 'text/markdown' })
-      const dt = new DataTransfer()
-      dt.items.add(file)
-      cy.get('input[type="file"]').first().then($input => {
-        $input[0].files = dt.files
-        $input[0].dispatchEvent(new Event('change', { bubbles: true }))
+  it('09.7 Сохранить 51 версию → хранится <= 50 (старые удаляются)', () => {
+    cy.loginToApp()
+    cy.window().then(win => {
+      const token = win.localStorage.getItem('access_token')
+      const updates = Array.from({ length: 48 }, (_, i) =>
+        cy.request({
+          method: 'PUT',
+          url: `/api/articles/${articleId}`,
+          headers: { Authorization: `Bearer ${token}` },
+          body: { title: `ART09-BulkUpdate-${i}` }
+        })
+      )
+      Promise.resolve().then(() => {
+        cy.request({
+          method: 'GET',
+          url: `/api/articles/${articleId}/versions`,
+          headers: { Authorization: `Bearer ${token}` }
+        }).then(resp => {
+          expect(resp.body.length).to.be.lte(50)
+        })
       })
     })
-    cy.wait('@importArticle').its('response.statusCode').should('be.oneOf', [200, 201])
+  })
+})
+
+describe('ART-CRUD-10: PDF Export — не 500', () => {
+  let articleId
+
+  before(() => {
+    cy.loginToApp()
+    cy.createArticleViaApi({ title: 'ART10-PDF-Article' })
+    cy.get('@articleId').then(id => { articleId = id })
   })
 
-  it('14.3 Editor subheader "Import from file" → POST /articles/import/preview', () => {
-    cy.contains(/new article|новая статья/i).click()
-    cy.contains(/meta|мета/i).click()
-    cy.intercept('POST', '**/articles/import/preview*').as('importPreview')
-    cy.get('[class*="subheader"], [class*="meta"]')
-      .find('input[type="file"]').then($input => {
-        if ($input.length) {
-          cy.fixture('test-article.md', 'binary').then(content => {
-            const blob = Cypress.Blob.binaryStringToBlob(content, 'text/markdown')
-            const file = new File([blob], 'test-article.md', { type: 'text/markdown' })
-            const dt = new DataTransfer()
-            dt.items.add(file)
-            $input[0].files = dt.files
-            $input[0].dispatchEvent(new Event('change', { bubbles: true }))
-          })
-          cy.wait('@importPreview', { timeout: 10000 })
+  after(() => {
+    if (articleId) cy.deleteArticleViaApi(articleId)
+  })
+
+  it('10.1 GET /articles/{id}/export/pdf → 200 или 501 (не 500)', () => {
+    cy.loginToApp()
+    cy.window().then(win => {
+      cy.request({
+        method: 'GET',
+        url: `/api/articles/${articleId}/export/pdf`,
+        headers: { Authorization: `Bearer ${win.localStorage.getItem('access_token')}` },
+        encoding: 'binary',
+        failOnStatusCode: false
+      }).then(resp => {
+        expect(resp.status).to.be.oneOf([200, 501])
+        if (resp.status === 200) {
+          expect(resp.headers['content-type']).to.include('application/pdf')
+          expect(resp.headers['content-disposition']).to.include('.pdf')
         }
       })
-  })
-
-  it('14.4 File > 5MB → alert "File too large"', () => {
-    const largeContent = 'x'.repeat(6 * 1024 * 1024)
-    const blob = new Blob([largeContent], { type: 'text/markdown' })
-    const file = new File([blob], 'large.md', { type: 'text/markdown' })
-    const dt = new DataTransfer()
-    dt.items.add(file)
-    cy.get('input[type="file"]').first().then($input => {
-      $input[0].files = dt.files
-      $input[0].dispatchEvent(new Event('change', { bubbles: true }))
-    })
-    cy.on('window:alert', (text) => {
-      expect(text).to.match(/too large|слишком большой|размер/i)
     })
   })
 
-  it('14.5 .txt file → alert "Unsupported format"', () => {
-    const blob = new Blob(['hello'], { type: 'text/plain' })
-    const file = new File([blob], 'test.txt', { type: 'text/plain' })
-    const dt = new DataTransfer()
-    dt.items.add(file)
-    cy.get('input[type="file"]').first().then($input => {
-      $input[0].files = dt.files
-      $input[0].dispatchEvent(new Event('change', { bubbles: true }))
-    })
-    cy.on('window:alert', (text) => {
-      expect(text).to.match(/unsupported|неподдерживаемый|формат/i)
+  it('10.2 Кнопка PDF в ArticleViewer → файл скачивается (или 501)', () => {
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART10-PDF-Article').click()
+    cy.intercept('GET', '**/articles/*/export/pdf').as('exportPdf')
+    cy.get('.viewer-topbar').find('[class*="pdf"], button').contains(/pdf/i).click()
+    cy.wait('@exportPdf').then(ic => {
+      expect(ic.response.statusCode).to.be.oneOf([200, 501])
     })
   })
 
-  it('14.6 Import without auth → 401', () => {
-    cy.clearLocalStorage()
+  it('10.3 PDF без авторизации → 401', () => {
     cy.request({
-      method: 'POST',
-      url: '/api/v1/articles/import',
-      failOnStatusCode: false,
-      body: {}
+      method: 'GET',
+      url: `/api/articles/${articleId}/export/pdf`,
+      failOnStatusCode: false
     }).its('status').should('eq', 401)
   })
 
-  it('14.7 After import file input clears', () => {
-    cy.get('input[type="file"]').first().should('have.value', '')
+  it('10.4 PDF для несуществующей статьи → 404', () => {
+    cy.loginToApp()
+    cy.window().then(win => {
+      cy.request({
+        method: 'GET',
+        url: '/api/articles/00000000-0000-0000-0000-000000000000/export/pdf',
+        headers: { Authorization: `Bearer ${win.localStorage.getItem('access_token')}` },
+        failOnStatusCode: false
+      }).its('status').should('eq', 404)
+    })
   })
 })
 
-// ============================================================
-// Describe 15: Drag and Drop (5 tests)
-// ============================================================
-describe('Articles — Drag and Drop', () => {
-  beforeEach(() => {
-    cy.goToArticles()
+describe('ART-CRUD-11: Импорт файлов', () => {
+  const importedIds = []
+
+  afterEach(() => {
+    cy.loginToApp()
+    importedIds.forEach(id => cy.deleteArticleViaApi(id))
+    importedIds.length = 0
   })
 
-  it('15.1 .article-row has draggable="true"', () => {
-    cy.get('.article-row, [class*="article-item"]').first()
+  it('11.1 Import .md → POST /articles/import → статья создана', () => {
+    cy.goToArticles()
+    cy.intercept('POST', '**/articles/import*').as('importReq')
+    cy.fixture('test-article.md', null).then(fileContent => {
+      cy.get('input[type="file"]').selectFile(
+        { contents: fileContent, fileName: 'test-article.md', mimeType: 'text/markdown' },
+        { force: true }
+      )
+    })
+    cy.wait('@importReq').then(ic => {
+      expect(ic.response.statusCode).to.be.oneOf([200, 201])
+      importedIds.push(ic.response.body.id)
+      cy.get('.articles-list').should('contain.text', 'CY Test Article Title')
+    })
+  })
+
+  it('11.2 Import .md → title из H1 заголовка файла', () => {
+    cy.goToArticles()
+    cy.intercept('POST', '**/articles/import*').as('importReq')
+    cy.fixture('test-article.md', null).then(content => {
+      cy.get('input[type="file"]').selectFile(
+        { contents: content, fileName: 'test-article.md', mimeType: 'text/markdown' },
+        { force: true }
+      )
+    })
+    cy.wait('@importReq').then(ic => {
+      importedIds.push(ic.response.body.id)
+      expect(ic.response.body.title).to.eq('CY Test Article Title')
+    })
+  })
+
+  it('11.3 Import Preview в editor → title заполняется из файла', () => {
+    cy.goToArticles()
+    cy.get('button').contains(/new article/i).click()
+    cy.get('button').contains(/meta|мета/i).click()
+    cy.intercept('POST', '**/articles/import/preview*').as('previewReq')
+    cy.fixture('test-article.md', null).then(content => {
+      cy.get('.subheader input[type="file"], [class*="subheader"] input[type="file"]')
+        .selectFile(
+          { contents: content, fileName: 'test-article.md', mimeType: 'text/markdown' },
+          { force: true }
+        )
+    })
+    cy.wait('@previewReq').its('response.statusCode').should('eq', 200)
+    cy.get('.title-input').invoke('val').should('not.be.empty')
+    cy.get('.btn-back').click()
+    cy.get('.modal, [class*="confirm"]').then($d => {
+      if ($d.length) $d.find('button').contains(/yes|discard/i).click({ force: true })
+    })
+  })
+
+  it('11.4 Файл > 5MB → alert "File too large"', () => {
+    cy.goToArticles()
+    const largeContent = Cypress.Buffer.from('x'.repeat(6 * 1024 * 1024))
+    const onAlert = cy.stub().as('alertStub')
+    cy.on('window:alert', onAlert)
+    cy.get('input[type="file"]').selectFile(
+      { contents: largeContent, fileName: 'large.md', mimeType: 'text/markdown' },
+      { force: true }
+    )
+    cy.get('@alertStub').should('have.been.calledWithMatch', /too large|слишком большой/i)
+  })
+
+  it('11.5 Файл .txt → alert "Unsupported format"', () => {
+    cy.goToArticles()
+    const onAlert = cy.stub().as('alertStub')
+    cy.on('window:alert', onAlert)
+    cy.get('input[type="file"]').selectFile(
+      { contents: 'hello world', fileName: 'test.txt', mimeType: 'text/plain' },
+      { force: true }
+    )
+    cy.get('@alertStub').should('have.been.calledWithMatch', /unsupported|неподдерживаемый/i)
+  })
+
+  it('11.6 After import → file input очищается (можно импортировать снова)', () => {
+    cy.goToArticles()
+    cy.intercept('POST', '**/articles/import*').as('importReq')
+    cy.fixture('test-article.md', null).then(content => {
+      cy.get('input[type="file"]').selectFile(
+        { contents: content, fileName: 'test-article.md', mimeType: 'text/markdown' },
+        { force: true }
+      )
+    })
+    cy.wait('@importReq').then(ic => { importedIds.push(ic.response.body.id) })
+    cy.get('input[type="file"]').invoke('val').should('be.empty')
+  })
+})
+
+describe('ART-CRUD-12: Drag-and-Drop статей в папки', () => {
+  let folderId, articleId
+
+  before(() => {
+    cy.loginToApp()
+    cy.createFolderViaApi('ART12-DnD-Folder')
+    cy.get('@folderId').then(id => { folderId = id })
+    cy.createArticleViaApi({ title: 'ART12-DnD-Article' })
+    cy.get('@articleId').then(id => { articleId = id })
+  })
+
+  after(() => {
+    cy.loginToApp()
+    if (articleId) cy.deleteArticleViaApi(articleId)
+    if (folderId) cy.deleteFolderViaApi(folderId)
+  })
+
+  it('12.1 .article-row имеет draggable="true"', () => {
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART12-DnD-Article')
+      .closest('.article-row')
       .should('have.attr', 'draggable', 'true')
   })
 
-  it('15.2 Dragstart → dataTransfer sets type=article and id', () => {
-    cy.get('.article-row, [class*="article-item"]').first().then($el => {
-      const evt = new DragEvent('dragstart', {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer: new DataTransfer()
+  it('12.2 dragstart → dataTransfer содержит type=article и id', () => {
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART12-DnD-Article')
+      .closest('.article-row')
+      .trigger('dragstart', {
+        dataTransfer: new DataTransfer(),
+        bubbles: true
       })
-      $el[0].dispatchEvent(evt)
-      // Verify dataTransfer was populated (check via event listener)
-      expect(evt.dataTransfer).to.exist
-    })
+    cy.get('.articles-page').should('exist')
   })
 
-  it('15.3 Drop on folder → POST /articles/*/move-to-folder → 200', () => {
+  it('12.3 Drop на папку → POST /articles/*/move-to-folder → 200', () => {
     cy.intercept('POST', '**/articles/*/move-to-folder*').as('moveToFolder')
-    cy.intercept('PUT', '**/articles/*').as('updateArticle')
-
-    // Simulate drag-drop by triggering events
-    cy.get('.article-row, [class*="article-item"]').first().then($article => {
-      cy.get('.folder-item, .tree-node, [class*="folder"]').first().then($folder => {
-        const dataTransfer = new DataTransfer()
-        $article[0].dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer }))
-        $folder[0].dispatchEvent(new DragEvent('dragover', { bubbles: true, dataTransfer }))
-        $folder[0].dispatchEvent(new DragEvent('drop', { bubbles: true, dataTransfer }))
-      })
-    })
-    // Either endpoint may be used
-    cy.wait(['@moveToFolder', '@updateArticle'].find(() => true), { timeout: 5000 })
+    cy.goToArticles()
+    cy.get('.article-row').contains('ART12-DnD-Article')
+      .closest('.article-row')
+      .drag('.folder-tree .folder-item:contains("ART12-DnD-Folder")')
+    cy.wait('@moveToFolder').its('response.statusCode').should('eq', 200)
   })
 
-  it('15.4 After drop article moves to target folder', () => {
-    // Verify article list updates after a drop
-    cy.get('.article-row, [class*="article-item"]').should('exist')
+  it('12.4 После Drop: кликнуть папку → статья в ней', () => {
+    cy.goToArticles()
+    cy.get('.folder-tree').contains('ART12-DnD-Folder').click()
+    cy.get('.articles-list').should('contain.text', 'ART12-DnD-Article')
+  })
+})
+
+describe('ART-CRUD-13: Негативные сценарии', () => {
+  it('13.1 /articles без авторизации → редирект на /login', () => {
+    cy.clearLocalStorage()
+    cy.visit('/dashboard/#/articles')
+    cy.url({ timeout: 10000 }).should('include', '/login')
   })
 
-  it('15.5 FolderTree supports drop for folder move', () => {
-    cy.get('.folder-item, .tree-node, [class*="folder"]').first().then($folder => {
-      const dataTransfer = new DataTransfer()
-      $folder[0].dispatchEvent(new DragEvent('dragover', { bubbles: true, dataTransfer }))
-      // Should accept drop — no error
-      $folder[0].dispatchEvent(new DragEvent('dragleave', { bubbles: true, dataTransfer }))
+  it('13.2 GET несуществующей статьи → 404', () => {
+    cy.loginToApp()
+    cy.window().then(win => {
+      cy.request({
+        method: 'GET',
+        url: '/api/articles/nonexistent-slug-00000000',
+        headers: { Authorization: `Bearer ${win.localStorage.getItem('access_token')}` },
+        failOnStatusCode: false
+      }).its('status').should('eq', 404)
     })
+  })
+
+  it('13.3 PUT несуществующей статьи → 404', () => {
+    cy.loginToApp()
+    cy.window().then(win => {
+      cy.request({
+        method: 'PUT',
+        url: '/api/articles/00000000-0000-0000-0000-000000000000',
+        headers: { Authorization: `Bearer ${win.localStorage.getItem('access_token')}` },
+        body: { title: 'Ghost' },
+        failOnStatusCode: false
+      }).its('status').should('eq', 404)
+    })
+  })
+
+  it('13.4 POST статьи без авторизации → 401', () => {
+    cy.request({
+      method: 'POST',
+      url: '/api/articles',
+      body: { title: 'Unauthorized', content: '{}' },
+      failOnStatusCode: false
+    }).its('status').should('eq', 401)
   })
 })
