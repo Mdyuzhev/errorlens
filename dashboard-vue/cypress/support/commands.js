@@ -186,3 +186,65 @@ Cypress.Commands.add('deleteTestCollection', () => {
     })
   })
 })
+
+// --- Articles Commands ---
+
+Cypress.Commands.add('goToArticles', () => {
+  cy.loginToApp()
+  cy.visit('/dashboard/#/articles')
+  cy.get('.articles-page, [class*="articles"]', { timeout: 10000 }).should('exist')
+})
+
+Cypress.Commands.add('createArticleViaApi', (overrides = {}) => {
+  cy.window().then(win => {
+    const token = win.localStorage.getItem('access_token')
+    cy.request({
+      method: 'POST', url: '/api/v1/articles',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: {
+        title: 'CY Test Article',
+        content: JSON.stringify({ version: 'grid-1', rows: [] }),
+        status: 'draft',
+        ...overrides
+      }
+    }).then(r => cy.wrap(r.body.id).as('articleId'))
+  })
+})
+
+Cypress.Commands.add('deleteArticleViaApi', (id) => {
+  cy.window().then(win => {
+    const token = win.localStorage.getItem('access_token')
+    cy.request({
+      method: 'DELETE', url: `/api/v1/articles/${id}`,
+      headers: { Authorization: `Bearer ${token}` },
+      failOnStatusCode: false
+    })
+  })
+})
+
+Cypress.Commands.add('createFolderViaApi', (name = 'CY-Test-Folder') => {
+  cy.window().then(win => {
+    const token = win.localStorage.getItem('access_token')
+    cy.request({
+      method: 'POST', url: '/api/v1/articles/folders',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: { name }
+    }).then(r => cy.wrap(r.body.id).as('folderId'))
+  })
+})
+
+Cypress.Commands.add('deleteFolderViaApi', (id) => {
+  cy.window().then(win => {
+    const token = win.localStorage.getItem('access_token')
+    cy.request({
+      method: 'DELETE', url: `/api/v1/articles/folders/${id}`,
+      headers: { Authorization: `Bearer ${token}` },
+      failOnStatusCode: false
+    })
+  })
+})
+
+Cypress.Commands.add('openFirstArticle', () => {
+  cy.get('.article-row, [class*="article-item"]', { timeout: 8000 }).first().click()
+  cy.get('.article-viewer, [class*="viewer"]', { timeout: 8000 }).should('be.visible')
+})

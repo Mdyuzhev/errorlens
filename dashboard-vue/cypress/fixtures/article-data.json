@@ -1,0 +1,13 @@
+{
+  "draft": {
+    "title": "CY Draft Article",
+    "content": "{\"version\":\"grid-1\",\"rows\":[]}",
+    "status": "draft",
+    "category": "Testing"
+  },
+  "published": {
+    "title": "CY Published Article",
+    "content": "{\"version\":\"grid-1\",\"rows\":[]}",
+    "status": "published"
+  }
+}
