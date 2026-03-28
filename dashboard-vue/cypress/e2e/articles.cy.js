@@ -114,14 +114,14 @@ describe('Articles — FolderTree CRUD', () => {
 
   it('3.5 Rename via context menu → rename option visible', () => {
     cy.get('.folder-item, .tree-node, [class*="folder"]').first().rightclick()
-    cy.get('.context-menu, [class*="context"], [class*="menu"]')
+    cy.get('.ctx-menu, [class*="ctx-menu"], [class*="menu"]')
       .contains(/rename|переименовать/i).should('be.visible')
   })
 
   it('3.6 Rename → PUT /articles/folders/** → name updated', () => {
     cy.intercept('PUT', '**/articles/folders/**').as('renameFolder')
     cy.get('.folder-item, .tree-node, [class*="folder"]').first().rightclick()
-    cy.get('.context-menu, [class*="context"]').contains(/rename|переименовать/i).click()
+    cy.get('.ctx-menu, [class*="ctx-menu"]').contains(/rename|переименовать/i).click()
     cy.get('.folder-tree input, [class*="folder"] input').first()
       .clear().type('CY-Renamed{enter}')
     cy.wait('@renameFolder').its('response.statusCode').should('eq', 200)
@@ -130,7 +130,7 @@ describe('Articles — FolderTree CRUD', () => {
   it('3.7 Delete via context menu → confirm → DELETE /articles/folders/**', () => {
     cy.intercept('DELETE', '**/articles/folders/**').as('deleteFolder')
     cy.get('.folder-item, .tree-node, [class*="folder"]').first().rightclick()
-    cy.get('.context-menu, [class*="context"]').contains(/delete|удалить/i).click()
+    cy.get('.ctx-menu, [class*="ctx-menu"]').contains(/delete|удалить/i).click()
     cy.get('.confirm-btn, .modal button, [class*="confirm"]').contains(/yes|ok|да|confirm|удалить/i).click()
     cy.wait('@deleteFolder').its('response.statusCode').should('be.oneOf', [200, 204])
   })
@@ -142,7 +142,7 @@ describe('Articles — FolderTree CRUD', () => {
 
   it('3.9 Nested folder: create subfolder → appears as child', () => {
     cy.get('.folder-item, .tree-node, [class*="folder"]').first().rightclick()
-    cy.get('.context-menu, [class*="context"]')
+    cy.get('.ctx-menu, [class*="ctx-menu"]')
       .contains(/subfolder|подпапк|new folder|создать/i).click()
     cy.get('.folder-tree input, [class*="folder"] input').first()
       .clear().type('CY-SubFolder{enter}')

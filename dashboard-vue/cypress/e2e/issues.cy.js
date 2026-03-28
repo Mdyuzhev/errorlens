@@ -69,8 +69,9 @@ describe('Issues — Page Header', () => {
   it('2.6 Tab "Board" active by default', () => {
     cy.contains(/board/i)
       .closest('button, a, [role="tab"], [class*="tab"]')
-      .should('have.class', 'active')
-      .or('have.attr', 'aria-selected', 'true')
+      .should('satisfy', ($el) => {
+        return $el.hasClass('active') || $el.attr('aria-selected') === 'true'
+      })
   })
 })
 
