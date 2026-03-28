@@ -337,33 +337,47 @@ async def export_article_pdf(
     if article.project_id:
         await check_project_access(article.project_id, user, db)
 
-    breadcrumbs = await service.get_breadcrumbs(article_id)
-    crumb_path = " / ".join(b["name"] for b in breadcrumbs)
-    body_html = _render_article_content(article.content)
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    try:
+        import weasyprint
+    except ImportError:
+        raise HTTPException(
+            status_code=501,
+            detail="PDF export not available: weasyprint is not installed",
+        )
 
-    html_content = (
-        "<html><head><meta charset='utf-8'>"
-        "<style>body{font-family:sans-serif;margin:40px;}"
-        "pre{background:#f4f4f4;padding:12px;border-radius:4px;}"
-        ".callout{border-left:4px solid #888;padding:8px 12px;margin:8px 0;}"
-        "h1,h2,h3{margin-top:16px;}</style></head><body>"
-        f"<p style='color:#888;font-size:12px'>{crumb_path}</p>"
-        f"<h1>{article.title}</h1>"
-        f"<p style='color:#888;font-size:11px'>Generated: {now}</p><hr>"
-        f"{body_html}"
-        "</body></html>"
-    )
+    try:
+        breadcrumbs = await service.get_breadcrumbs(article_id)
+        crumb_path = " / ".join(b["name"] for b in breadcrumbs)
+        body_html = _render_article_content(article.content)
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
-    import weasyprint  # noqa: E402
+        html_content = (
+            "<html><head><meta charset='utf-8'>"
+            "<style>body{font-family:sans-serif;margin:40px;}"
+            "pre{background:#f4f4f4;padding:12px;border-radius:4px;}"
+            ".callout{border-left:4px solid #888;padding:8px 12px;margin:8px 0;}"
+            "h1,h2,h3{margin-top:16px;}</style></head><body>"
+            f"<p style='color:#888;font-size:12px'>{crumb_path}</p>"
+            f"<h1>{article.title}</h1>"
+            f"<p style='color:#888;font-size:11px'>Generated: {now}</p><hr>"
+            f"{body_html}"
+            "</body></html>"
+        )
 
-    pdf_bytes = weasyprint.HTML(string=html_content).write_pdf()
+        pdf_bytes = weasyprint.HTML(string=html_content).write_pdf()
 
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{article.slug}.pdf"'},
-    )
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{article.slug}.pdf"'},
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("PDF generation failed for article %s: %s", article_id, e)
+        raise HTTPException(
+            status_code=500,
+            detail=f"PDF generation failed: {str(e)}",
+        )
 
 
 @router.get("/{article_id}/versions")

@@ -103,6 +103,16 @@ async def list_tasks(
                 "message": str(e),
                 "jql": jql,
             })
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                "JQL execution error for query '%s': %s", jql, e
+            )
+            raise HTTPException(status_code=400, detail={
+                "error": "jql_execution_error",
+                "message": f"Failed to execute JQL: {str(e)}",
+                "jql": jql,
+            })
 
     if q:
         return await service.search_tasks(q, limit=20)
@@ -311,6 +321,16 @@ async def create_task(
     user: User = Depends(require_auth),
 ):
     """Create new task."""
+    resolved_project_id = data.project_id
+    if not resolved_project_id:
+        try:
+            from app.middleware.jwt_auth import get_default_project
+            default_project = await get_default_project(user, db)
+            if default_project:
+                resolved_project_id = default_project.id
+        except Exception:
+            pass
+
     service = TaskService(db)
     try:
         task = await service.create_task(
@@ -325,7 +345,7 @@ async def create_task(
             due_date=data.due_date,
             session_id=data.session_id,
             testcase_id=data.testcase_id,
-            project_id=data.project_id,
+            project_id=resolved_project_id,
             type_id=data.type_id,
             severity=data.severity,
             environment=data.environment,

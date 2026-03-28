@@ -225,6 +225,90 @@ async def get_sprint_issues(
     ]
 
 
+@router.post("/{sprint_id}/start")
+async def start_sprint(
+    sprint_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """Start a sprint. Returns 409 if another sprint is already active."""
+    sprint = await db.get(Sprint, sprint_id)
+    if not sprint:
+        raise HTTPException(status_code=404, detail="Sprint not found")
+    if sprint.status == "active":
+        raise HTTPException(status_code=409, detail="Sprint is already active")
+
+    q = select(Sprint).where(
+        Sprint.project_id == sprint.project_id,
+        Sprint.status == "active",
+        Sprint.id != sprint_id,
+    )
+    result = await db.execute(q)
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=409,
+            detail="Another sprint is already active in this project",
+        )
+
+    sprint.status = "active"
+    from datetime import datetime
+    if not sprint.start_date:
+        sprint.start_date = datetime.utcnow()
+    await db.commit()
+    return {"message": "Sprint started", "sprint_id": sprint_id}
+
+
+class CompleteSprintRequest(BaseModel):
+    next_sprint_id: str | None = None
+
+
+@router.post("/{sprint_id}/complete")
+async def complete_sprint(
+    sprint_id: str,
+    data: CompleteSprintRequest | None = None,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """Complete a sprint. Unclosed issues go to backlog or next sprint."""
+    from sqlalchemy import delete as sql_delete
+    from app.models.task import Task
+
+    sprint = await db.get(Sprint, sprint_id)
+    if not sprint:
+        raise HTTPException(status_code=404, detail="Sprint not found")
+
+    sprint.status = "completed"
+    from datetime import datetime
+    if not sprint.end_date:
+        sprint.end_date = datetime.utcnow()
+
+    si_q = select(SprintIssue).where(SprintIssue.sprint_id == sprint_id)
+    si_result = await db.execute(si_q)
+    sprint_issues = si_result.scalars().all()
+
+    unclosed_issue_ids = []
+    for si in sprint_issues:
+        task = await db.get(Task, si.issue_id)
+        if task and task.status not in ("done", "closed"):
+            unclosed_issue_ids.append(si.issue_id)
+
+    next_sprint_id = data.next_sprint_id if data else None
+
+    await db.execute(sql_delete(SprintIssue).where(SprintIssue.sprint_id == sprint_id))
+
+    if next_sprint_id and unclosed_issue_ids:
+        for issue_id in unclosed_issue_ids:
+            db.add(SprintIssue(sprint_id=next_sprint_id, issue_id=issue_id, rank=0))
+
+    await db.commit()
+    return {
+        "message": "Sprint completed",
+        "sprint_id": sprint_id,
+        "unclosed_moved": len(unclosed_issue_ids),
+        "moved_to": next_sprint_id or "backlog",
+    }
+
+
 @router.get("/{sprint_id}")
 async def get_sprint(
     sprint_id: str,

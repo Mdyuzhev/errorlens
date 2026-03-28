@@ -123,7 +123,13 @@ class ArticleImportService:
         self, content: bytes, warnings: list[str]
     ) -> tuple[str, str]:
         """Parse DOCX file bytes into (title, markdown)."""
-        result = mammoth.convert_to_html(BytesIO(content))
+        try:
+            result = mammoth.convert_to_html(BytesIO(content))
+        except Exception as e:
+            logger.error("Failed to parse DOCX: %s", e)
+            warnings.append(f"Failed to parse DOCX: {str(e)}")
+            return "Imported Document", ""
+
         html = result.value
 
         for msg in result.messages:
@@ -133,12 +139,17 @@ class ArticleImportService:
             else:
                 logger.warning("mammoth: %s", msg)
 
-        markdown = markdownify.markdownify(
-            html,
-            heading_style="ATX",
-            bullets="-",
-            strip=["img"],
-        )
+        try:
+            markdown = markdownify.markdownify(
+                html,
+                heading_style="ATX",
+                bullets="-",
+                strip=["img"],
+            )
+        except Exception as e:
+            logger.error("Failed to convert DOCX HTML to markdown: %s", e)
+            warnings.append(f"Failed to convert to markdown: {str(e)}")
+            return "Imported Document", html
 
         title = self._extract_title(markdown)
         return title, markdown
