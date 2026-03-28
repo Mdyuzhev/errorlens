@@ -30,6 +30,22 @@ class TaskRepository(BaseRepository[Task]):
         result = await self.session.execute(stmt)
         return result.unique().scalars().first()
 
+    async def get_by_human_id(self, human_id: str) -> Task | None:
+        """Get task by human_id (e.g. EL-82) with all relationships."""
+        stmt = (
+            select(Task)
+            .options(
+                joinedload(Task.task_type),
+                joinedload(Task.task_status),
+                joinedload(Task.assignee_user),
+                joinedload(Task.reporter),
+                selectinload(Task.children),
+            )
+            .where(Task.human_id == human_id)
+        )
+        result = await self.session.execute(stmt)
+        return result.unique().scalars().first()
+
     async def list_with_filters(
         self,
         status: str | None = None,

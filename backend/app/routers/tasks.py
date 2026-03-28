@@ -278,9 +278,14 @@ async def get_task(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
-    """Get task by ID."""
+    """Get task by ID or human_id (e.g. EL-82)."""
     service = TaskService(db)
     task = await service.get_task(task_id)
+
+    # Fallback: try human_id if not a UUID
+    if not task and "-" in task_id and len(task_id) < 36:
+        task = await service.get_task_by_human_id(task_id)
+
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     detail = service.to_detail_dict(task)

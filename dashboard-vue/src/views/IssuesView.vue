@@ -202,7 +202,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, inject, defineAsyncComponent } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useIssuesStore } from '@/stores/issues'
 import { useJqlStore } from '@/stores/jql'
 import { taskSettingsApi, projectsApi } from '@/services/api'
@@ -222,6 +222,7 @@ const IssueTree = defineAsyncComponent(() => import('@/components/issues/IssueTr
 const GanttChart = defineAsyncComponent(() => import('@/components/issues/GanttChart.vue'))
 
 const route = useRoute()
+const router = useRouter()
 const store = useIssuesStore()
 const jqlStore = useJqlStore()
 const toast = inject('toast', null)
@@ -268,29 +269,49 @@ async function onDrop(event, status) {
 async function openTask(task) {
   try {
     const full = await store.fetchTask(task.id)
-    if (full) viewerTask.value = full
-    else showError('Task not found')
+    if (full) {
+      viewerTask.value = full
+      const urlId = full.human_id || full.id
+      if (route.params.id !== urlId) {
+        router.push({ name: 'issue', params: { id: urlId } })
+      }
+    } else {
+      showError('Task not found')
+    }
   } catch { showError('Failed to load task') }
 }
 
 async function openTaskById(id) {
   try {
     const full = await store.fetchTask(id)
-    if (full) viewerTask.value = full
-    else showError('Task not found')
+    if (full) {
+      viewerTask.value = full
+      const urlId = full.human_id || full.id
+      if (route.params.id !== urlId) {
+        router.push({ name: 'issue', params: { id: urlId } })
+      }
+    } else {
+      showError('Task not found')
+    }
   } catch { showError('Failed to load task') }
 }
 
-function closeViewer() { viewerTask.value = null }
+function closeViewer() {
+  viewerTask.value = null
+  if (route.params.id) router.push({ name: 'issues' })
+}
 function openEditor() { editorTask.value = viewerTask.value; viewerTask.value = null }
-function closeEditor() { editorTask.value = null }
+function closeEditor() {
+  editorTask.value = null
+  if (route.params.id) router.push({ name: 'issues' })
+}
 
 async function refreshTask() {
   if (editorTask.value) {
     const updated = await store.fetchTask(editorTask.value.id)
     if (updated) editorTask.value = updated
   }
-  await store.fetchBoard(activeTypeFilter.value !== 'all' ? { type_slug: activeTypeFilter.value } : {})
+  await store.fetchBoard(activeTypeFilter.value !== 'all' ? { project_id: currentProjectId.value, type_slug: activeTypeFilter.value } : { project_id: currentProjectId.value })
 }
 
 function showError(msg) {
@@ -341,7 +362,20 @@ watch(viewMode, async (mode) => {
 
 async function filterByType(slug) {
   activeTypeFilter.value = slug
-  await store.fetchBoard(slug !== 'all' ? { type_slug: slug } : {})
+
+  const boardParams = { project_id: currentProjectId.value }
+  const taskParams = { project_id: currentProjectId.value }
+
+  if (slug !== 'all') {
+    boardParams.type_slug = slug
+    const typeObj = taskTypes.value.find(t => t.slug === slug)
+    if (typeObj) taskParams.type_id = typeObj.id
+  }
+
+  await Promise.all([
+    store.fetchBoard(boardParams),
+    store.fetchTasks(taskParams),
+  ])
 }
 
 function formatDate(date) { return date ? new Date(date).toLocaleDateString() : '' }
@@ -384,7 +418,22 @@ async function loadTaskTypes() {
 
 async function openFromRoute() {
   const id = route.params.id
-  if (id) await openTaskById(id)
+  if (!id) return
+
+  try {
+    let task = await store.fetchTask(id)
+
+    if (!task && id.includes('-') && id.length < 36) {
+      const allTasks = [...(store.tasks || []),
+                        ...Object.values(store.board || {}).flat()]
+      const found = allTasks.find(t => t.human_id === id)
+      if (found) task = await store.fetchTask(found.id)
+    }
+
+    if (task) viewerTask.value = task
+  } catch (e) {
+    console.warn('Task not found for route param:', id)
+  }
 }
 
 watch(() => route.params.id, openFromRoute)
@@ -410,10 +459,10 @@ watch(activeTab, async (tab) => {
 })
 
 onMounted(async () => {
+  await loadTaskTypes()
   await Promise.all([
-    store.fetchBoard(),
-    store.fetchTasks({ project_id: null }),
-    loadTaskTypes(),
+    store.fetchBoard({ project_id: currentProjectId.value }),
+    store.fetchTasks({ project_id: currentProjectId.value }),
   ])
   await openFromRoute()
 })

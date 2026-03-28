@@ -129,6 +129,10 @@ class TaskService:
         """Get task by ID with all relationships."""
         return await self.repo.get_by_id_full(task_id)
 
+    async def get_task_by_human_id(self, human_id: str) -> Task | None:
+        """Get task by human_id (e.g. EL-82)."""
+        return await self.repo.get_by_human_id(human_id)
+
     async def list_tasks(
         self,
         status: str | None = None,
