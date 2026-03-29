@@ -32,6 +32,22 @@ Cypress.Commands.add('getProjectId', () => {
 })
 
 // ═══════════════════════════════════════════════════════
+// AUTH TOKEN HELPER
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Получить access_token из localStorage текущего окна.
+ * Используется в тестах вместо ручного cy.window().then().
+ */
+Cypress.Commands.add('getAuthToken', () => {
+  return cy.window().then(win => {
+    const token = win.localStorage.getItem('access_token')
+    if (!token) throw new Error('No auth token in localStorage')
+    return token
+  })
+})
+
+// ═══════════════════════════════════════════════════════
 // AUTH
 // ═══════════════════════════════════════════════════════
 

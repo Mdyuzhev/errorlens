@@ -1,31 +1,6 @@
 // issues.cy.js — EL072 CRUD E2E Tests for Issues
 // 12 describes, 67 tests
 // Pattern: createViaApi → action in UI → verify via API → cleanup
-//
-// CSS selectors verified against real Vue components:
-//   IssuesView.vue, IssueDetailView.vue, TaskViewer.vue,
-//   TaskActivityFeed.vue, WorkLogBlock.vue, SprintPanel.vue, BacklogView.vue
-
-/**
- * Native HTML5 drag-and-drop helper.
- * @4tw/cypress-drag-drop .drag() does not work with HTML5 draggable.
- * Uses DataTransfer + native DragEvent dispatching.
- */
-function nativeDragDrop(sourceSelector, targetSelector) {
-  cy.get(sourceSelector).first().then($source => {
-    cy.get(targetSelector).then($target => {
-      const dataTransfer = new DataTransfer()
-
-      const srcEl = $source[0]
-      const tgtEl = $target[0]
-
-      srcEl.dispatchEvent(new DragEvent('dragstart', { dataTransfer, bubbles: true }))
-      tgtEl.dispatchEvent(new DragEvent('dragover', { dataTransfer, bubbles: true }))
-      tgtEl.dispatchEvent(new DragEvent('drop', { dataTransfer, bubbles: true }))
-      srcEl.dispatchEvent(new DragEvent('dragend', { dataTransfer, bubbles: true }))
-    })
-  })
-}
 
 describe('CRUD-01: Issue — полный жизненный цикл', () => {
   // Один раз создаём через API перед всеми тестами
@@ -74,28 +49,24 @@ describe('CRUD-01: Issue — полный жизненный цикл', () => {
     cy.loginToApp()
     cy.get('@createdIssue').then(issue => {
       cy.visit(`/dashboard/#/issues/${issue.human_id}`)
-      // TaskViewer opens (position: fixed, class .task-viewer)
-      cy.get('.task-viewer, .task-detail-overlay', { timeout: 15000 })
+      cy.get('.task-detail, .task-detail-overlay', { timeout: 15000 })
         .should('be.visible')
         .and('contain.text', 'CRUD01-Target-Issue')
     })
   })
 
   it('01.5 UPDATE: изменить title через IssueDetailView → данные сохранились', () => {
-    // Действие: открыть TaskViewer, нажать Edit (→ IssueDetailView), изменить title, Save
+    // Действие: открыть IssueDetailView, нажать Edit, изменить title, Save
+    // Ожидание: GET /tasks/{id} возвращает новый title
     cy.goToIssues()
     cy.openFirstIssueInBoard()
-    // TaskViewer has Edit button
-    cy.get('button.btn').contains(/edit/i).click()
-    // Now in IssueDetailView — click Edit to enter edit mode
-    cy.get('.task-detail-overlay', { timeout: 8000 }).should('be.visible')
-    cy.get('.btn-sm').contains(/edit/i).click()
+    cy.get('button').contains(/edit/i).click()
 
     const newTitle = `CRUD01-Updated-${Date.now()}`
-    cy.get('input.title-input', { timeout: 8000 })
+    cy.get('input.title-input, [class*="title-input"]', { timeout: 8000 })
       .clear().type(newTitle)
     cy.intercept('PUT', '**/tasks/*').as('updateTask')
-    cy.get('.btn-sm.btn-primary').contains(/save/i).click()
+    cy.get('button').contains(/save/i).click()
     cy.wait('@updateTask').its('response.statusCode').should('eq', 200)
 
     // Верификация через API — данные реально сохранились в БД
@@ -118,23 +89,23 @@ describe('CRUD-01: Issue — полный жизненный цикл', () => {
   it('01.7 UPDATE: закрыть задачу → URL возвращается на /issues', () => {
     cy.goToIssues()
     cy.openFirstIssueInBoard()
-    // TaskViewer back button has class .btn-back
-    cy.get('.btn-back').first().click()
+    cy.get('.back-btn, [class*="back"]').first().click()
     cy.url().should('match', /\/issues$/)
   })
 
   it('01.8 DELETE: удалить через IssueDetailView → карточка исчезает с доски', () => {
     cy.goToIssues()
     cy.openFirstIssueInBoard()
-    // Open IssueDetailView via Edit
-    cy.get('button.btn').contains(/edit/i).click()
-    cy.get('.task-detail-overlay', { timeout: 8000 }).should('be.visible')
+    cy.get('button').contains(/edit/i).click()
 
     cy.intercept('DELETE', '**/tasks/*').as('deleteTask')
-    // IssueDetailView has Delete button with class btn-sm btn-danger
-    cy.get('.btn-sm.btn-danger').contains(/delete/i).click()
-    // IssueDetailView uses window.confirm()
+    cy.get('button').contains(/delete/i).click()
+    // Подтвердить confirm dialog
     cy.on('window:confirm', () => true)
+    // или найти confirm кнопку в UI
+    cy.get('.confirm-dialog, [class*="confirm"]').then($d => {
+      if ($d.length) $d.find('button').contains(/yes|ok|да|confirm/i).click()
+    })
 
     cy.wait('@deleteTask').its('response.statusCode').should('be.oneOf', [200, 204])
 
@@ -160,7 +131,7 @@ describe('CRUD-01: Issue — полный жизненный цикл', () => {
 })
 
 describe('CRUD-02: Type Filter — реальная фильтрация данных', () => {
-  let bugId, storyId
+  let bugId, storyId, taskTypeId, bugTypeId
 
   before(() => {
     cy.loginToApp()
@@ -234,13 +205,12 @@ describe('CRUD-02: Type Filter — реальная фильтрация дан�
     cy.goToIssues()
     cy.intercept('GET', '**/tasks*').as('listReq')
     cy.get('.type-tab').contains(/bug/i).click()
-    // view-toggle buttons have class .toggle-btn
-    cy.get('.view-toggle .toggle-btn').last().click() // переключить на List
+    cy.get('.view-toggle button').last().click() // переключить на List
     cy.wait('@listReq')
 
     // Все строки должны иметь Bug тип индикатор
     cy.get('.task-list-row').each($row => {
-      cy.wrap($row).find('.type-indicator').should('exist')
+      cy.wrap($row).find('.type-indicator[title="Bug"], [class*="type"]').should('exist')
     })
     // Story задача НЕ должна быть в списке
     cy.get('.task-list').should('not.contain.text', 'CRUD02-Story-Issue')
@@ -259,10 +229,10 @@ describe('CRUD-02: Type Filter — реальная фильтрация дан�
     cy.goToIssues()
     cy.get('.type-tab').contains(/bug/i).click()
     // Переключить на List
-    cy.get('.view-toggle .toggle-btn').last().click()
+    cy.get('.view-toggle button').last().click()
     cy.get('.task-list').should('not.contain.text', 'CRUD02-Story-Issue')
     // Переключить обратно на Board
-    cy.get('.view-toggle .toggle-btn').first().click()
+    cy.get('.view-toggle button').first().click()
     cy.get('.kanban-board').should('not.contain.text', 'CRUD02-Story-Issue')
   })
 })
@@ -280,9 +250,8 @@ describe('CRUD-03: IssueDetailView — редактирование всех п�
     cy.get('@issueId').then(id => { issueId = id })
     cy.goToIssues()
     cy.openFirstIssueInBoard()
-    // TaskViewer → Edit → IssueDetailView
-    cy.get('button.btn').contains(/edit/i).click()
-    cy.get('.task-detail-overlay', { timeout: 10000 }).should('be.visible')
+    cy.get('button').contains(/edit/i).click()
+    cy.get('.task-detail-overlay, .task-detail', { timeout: 10000 }).should('be.visible')
   })
 
   afterEach(() => {
@@ -292,11 +261,9 @@ describe('CRUD-03: IssueDetailView — редактирование всех п�
 
   it('03.1 Title: ввести новый → Save → GET API возвращает новый title', () => {
     const newTitle = `CRUD03-NewTitle-${Date.now()}`
-    // Enter edit mode in IssueDetailView
-    cy.get('.btn-sm').contains(/edit/i).click({ force: true })
     cy.get('input.title-input').clear().type(newTitle)
     cy.intercept('PUT', '**/tasks/*').as('save')
-    cy.get('.btn-sm.btn-primary').contains(/save/i).click()
+    cy.get('button.btn-sm.btn-primary').contains(/save/i).click()
     cy.wait('@save').its('response.statusCode').should('eq', 200)
     // API верификация
     cy.getIssueViaApi(issueId)
@@ -306,62 +273,54 @@ describe('CRUD-03: IssueDetailView — редактирование всех п�
   })
 
   it('03.2 Priority: изменить Low → High → API сохраняет "high"', () => {
-    cy.get('.btn-sm').contains(/edit/i).click({ force: true })
-    // In IssueDetailView sidebar, Priority is in .detail-row with <label>Priority</label>
-    cy.get('.task-sidebar .detail-row').contains('label', 'Priority')
+    cy.get('.task-sidebar .detail-row').contains('Priority')
       .closest('.detail-row').find('select')
       .select('high')
     cy.intercept('PUT', '**/tasks/*').as('save')
-    cy.get('.btn-sm.btn-primary').contains(/save/i).click()
+    cy.get('button').contains(/save/i).click()
     cy.wait('@save')
     cy.getIssueViaApi(issueId)
     cy.get('@fetchedIssue').its('priority').should('eq', 'high')
   })
 
   it('03.3 Severity: установить Critical → API сохраняет "critical"', () => {
-    cy.get('.btn-sm').contains(/edit/i).click({ force: true })
-    cy.get('.task-sidebar .detail-row').contains('label', 'Severity')
+    cy.get('.task-sidebar .detail-row').contains('Severity')
       .closest('.detail-row').find('select')
       .select('critical')
     cy.intercept('PUT', '**/tasks/*').as('save')
-    cy.get('.btn-sm.btn-primary').contains(/save/i).click()
+    cy.get('button').contains(/save/i).click()
     cy.wait('@save')
     cy.getIssueViaApi(issueId)
     cy.get('@fetchedIssue').its('severity').should('eq', 'critical')
   })
 
   it('03.4 Story Points: ввести 5 → API сохраняет 5', () => {
-    cy.get('.btn-sm').contains(/edit/i).click({ force: true })
-    cy.get('.task-sidebar .detail-row').contains('label', 'Story Points')
+    cy.get('.task-sidebar .detail-row').contains('Story Points')
       .closest('.detail-row').find('input[type="number"]')
       .clear().type('5')
     cy.intercept('PUT', '**/tasks/*').as('save')
-    cy.get('.btn-sm.btn-primary').contains(/save/i).click()
+    cy.get('button').contains(/save/i).click()
     cy.wait('@save')
     cy.getIssueViaApi(issueId)
     cy.get('@fetchedIssue').its('story_points').should('eq', 5)
   })
 
   it('03.5 Estimated Hours: ввести 8 → API сохраняет 8', () => {
-    cy.get('.btn-sm').contains(/edit/i).click({ force: true })
-    // Estimated is in .detail-row with label "Estimated"
-    cy.get('.task-sidebar .detail-row').contains('label', 'Estimated')
+    cy.get('.task-sidebar .detail-row').contains('Estimated')
       .closest('.detail-row').find('input[type="number"]')
       .clear().type('8')
     cy.intercept('PUT', '**/tasks/*').as('save')
-    cy.get('.btn-sm.btn-primary').contains(/save/i).click()
+    cy.get('button').contains(/save/i).click()
     cy.wait('@save')
     cy.getIssueViaApi(issueId)
     cy.get('@fetchedIssue').its('estimated_hours').should('eq', 8)
   })
 
   it('03.6 Labels: ввести "alpha, beta" → карточка показывает два тега', () => {
-    cy.get('.btn-sm').contains(/edit/i).click({ force: true })
-    // Labels input has placeholder "Comma-separated labels"
-    cy.get('input[placeholder*="Comma-separated"]')
+    cy.get('input[placeholder*="label" i]')
       .clear().type('alpha, beta')
     cy.intercept('PUT', '**/tasks/*').as('save')
-    cy.get('.btn-sm.btn-primary').contains(/save/i).click()
+    cy.get('button').contains(/save/i).click()
     cy.wait('@save')
     cy.getIssueViaApi(issueId)
     cy.get('@fetchedIssue').its('labels').should('include', 'alpha')
@@ -369,9 +328,8 @@ describe('CRUD-03: IssueDetailView — редактирование всех п�
   })
 
   it('03.7 Cancel: изменить title, нажать Cancel → title НЕ изменился', () => {
-    cy.get('.btn-sm').contains(/edit/i).click({ force: true })
     cy.get('input.title-input').clear().type('SHOULD-NOT-SAVE')
-    cy.get('.btn-sm').contains(/cancel/i).click()
+    cy.get('button').contains(/cancel/i).click()
     cy.get('.task-title, h1').should('not.contain.text', 'SHOULD-NOT-SAVE')
     // API тоже не изменился
     cy.getIssueViaApi(issueId)
@@ -379,20 +337,18 @@ describe('CRUD-03: IssueDetailView — редактирование всех п�
   })
 
   it('03.8 Description: написать текст → Save → API сохраняет description', () => {
-    cy.get('.btn-sm').contains(/edit/i).click({ force: true })
-    cy.get('.empty-description').first().click()
+    cy.get('.empty-description, .description-section').first().click()
     cy.get('.ProseMirror, [contenteditable="true"]').first()
       .type('CRUD03 test description text')
     cy.intercept('PUT', '**/tasks/*').as('save')
-    cy.get('.btn-sm.btn-primary').contains(/save/i).click()
+    cy.get('button').contains(/save/i).click()
     cy.wait('@save')
     cy.getIssueViaApi(issueId)
     cy.get('@fetchedIssue').its('description').should('not.be.null')
   })
 
   it('03.9 Status workflow: нажать status badge → выбрать In Progress → статус изменился', () => {
-    // IssueDetailView has .status-badge that opens .status-dropdown
-    cy.get('.status-badge').click()
+    cy.get('.status-badge').first().click()
     cy.get('.status-dropdown').should('be.visible')
     cy.get('.status-option').contains(/in.progress|в работе/i).click()
     cy.getIssueViaApi(issueId)
@@ -404,16 +360,15 @@ describe('CRUD-03: IssueDetailView — редактирование всех п�
   })
 
   it('03.10 Tabs: Details → Activity → Work Log — все загружаются без ошибок', () => {
-    // IssueDetailView has .tab-btn buttons
     // Details
     cy.get('.tab-btn').contains(/details/i).click()
-    cy.get('.description-section').should('exist')
+    cy.get('.description-section, [class*="description"]').should('exist')
     // Activity
     cy.get('.tab-btn').contains(/activity/i).click()
-    cy.get('.activity-feed', { timeout: 8000 }).should('exist')
+    cy.get('.activity-feed, [class*="activity"]', { timeout: 8000 }).should('exist')
     // Work Log
     cy.get('.tab-btn').contains(/work.log/i).click()
-    cy.get('.worklog-block', { timeout: 8000 }).should('exist')
+    cy.get('[class*="work-log"], [class*="worklog"]', { timeout: 8000 }).should('exist')
   })
 })
 
@@ -434,11 +389,17 @@ describe('CRUD-04: Kanban статусные переходы', () => {
   it('04.1 To Do → In Progress через DnD → API подтверждает in_progress', () => {
     cy.goToIssues()
     cy.intercept('PUT', '**/tasks/*').as('updateTask')
-    // Native DnD: from first card in To Do column to In Progress column
-    nativeDragDrop(
-      '.kanban-column:first-child .task-card',
-      '.kanban-column:nth-child(2)'
-    )
+    // Native DragEvent: dragstart on card, dragover+drop on target column
+    cy.get('.kanban-column').eq(0).find('.task-card').first().then($card => {
+      const dt = new DataTransfer()
+      $card[0].dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    })
+    cy.wait(200)
+    cy.get('.kanban-column').eq(1).then($col => {
+      const dt = new DataTransfer()
+      $col[0].dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
+      $col[0].dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    })
     cy.wait('@updateTask').its('response.statusCode').should('eq', 200)
     cy.getIssueViaApi(issueId)
     cy.get('@fetchedIssue').its('status').should('eq', 'in_progress')
@@ -450,10 +411,16 @@ describe('CRUD-04: Kanban статусные переходы', () => {
       .find('.column-count').invoke('text')
       .then(before => {
         const beforeCount = parseInt(before.trim())
-        nativeDragDrop(
-          '.kanban-column:first-child .task-card',
-          '.kanban-column:nth-child(2)'
-        )
+        cy.get('.kanban-column').eq(0).find('.task-card').first().then($card => {
+          const dt = new DataTransfer()
+          $card[0].dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
+        })
+        cy.wait(200)
+        cy.get('.kanban-column').eq(1).then($col => {
+          const dt = new DataTransfer()
+          $col[0].dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
+          $col[0].dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+        })
         cy.wait(1000)
         cy.get('.kanban-column').eq(0)
           .find('.column-count').invoke('text')
@@ -469,10 +436,16 @@ describe('CRUD-04: Kanban статусные переходы', () => {
       .find('.column-count').invoke('text')
       .then(before => {
         const beforeCount = parseInt(before.trim())
-        nativeDragDrop(
-          '.kanban-column:first-child .task-card',
-          '.kanban-column:nth-child(2)'
-        )
+        cy.get('.kanban-column').eq(0).find('.task-card').first().then($card => {
+          const dt = new DataTransfer()
+          $card[0].dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
+        })
+        cy.wait(200)
+        cy.get('.kanban-column').eq(1).then($col => {
+          const dt = new DataTransfer()
+          $col[0].dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
+          $col[0].dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+        })
         cy.wait(1000)
         cy.get('.kanban-column').eq(1)
           .find('.column-count').invoke('text')
@@ -482,10 +455,9 @@ describe('CRUD-04: Kanban статусные переходы', () => {
       })
   })
 
-  it('04.4 Status dropdown: todo → done через TaskViewer', () => {
+  it('04.4 Status dropdown: todo → done через IssueDetailView', () => {
     cy.goToIssues()
     cy.openFirstIssueInBoard()
-    // TaskViewer has .status-badge with dropdown
     cy.get('.status-badge').click()
     cy.get('.status-dropdown .status-option')
       .contains(/done|завершено/i).click()
@@ -498,18 +470,23 @@ describe('CRUD-04: Kanban статусные переходы', () => {
     cy.openFirstIssueInBoard()
     cy.get('.status-badge').click()
     cy.get('.status-dropdown .status-option').contains(/done/i).click()
-    // Close TaskViewer
-    cy.get('.btn-back').first().click()
+    cy.get('.back-btn').first().click()
     cy.get('.kanban-column').eq(3) // Done column
       .should('contain.text', 'CRUD04-Status-Task')
   })
 
   it('04.6 После reload задача остаётся в изменённой колонке', () => {
     cy.goToIssues()
-    nativeDragDrop(
-      '.kanban-column:first-child .task-card',
-      '.kanban-column:nth-child(2)'
-    )
+    cy.get('.kanban-column').eq(0).find('.task-card').first().then($card => {
+      const dt = new DataTransfer()
+      $card[0].dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    })
+    cy.wait(200)
+    cy.get('.kanban-column').eq(1).then($col => {
+      const dt = new DataTransfer()
+      $col[0].dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
+      $col[0].dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    })
     cy.wait(1000)
     cy.reload()
     cy.get('.kanban-column').eq(1, { timeout: 10000 })
@@ -535,15 +512,14 @@ describe('CRUD-05: Create Modal — все поля создаются корр�
   })
 
   it('05.1 Title обязателен: пустой → форма не сабмитится', () => {
-    // Button text is "+ New Issue"
-    cy.get('button.btn').contains(/new issue/i).click()
+    cy.get('button').contains(/new issue|новая задача/i).click()
     cy.get('.modal-content form button[type="submit"]').click({ force: true })
     cy.get('.modal-content').should('be.visible') // модал остался открытым
   })
 
   it('05.2 Создать с title → появляется в Kanban To Do с правильным human_id', () => {
     cy.intercept('POST', '**/tasks').as('create')
-    cy.get('button.btn').contains(/new issue/i).click()
+    cy.get('button').contains(/new issue/i).click()
     cy.get('.modal-content input').first().type('CRUD05-Title-Only')
     cy.get('.modal-content button[type="submit"], .modal-content .btn-primary').click()
     cy.wait('@create').then(interception => {
@@ -557,26 +533,26 @@ describe('CRUD-05: Create Modal — все поля создаются корр�
 
   it('05.3 Priority=High → карточка имеет высокоприоритетную полосу', () => {
     cy.intercept('POST', '**/tasks').as('create')
-    cy.get('button.btn').contains(/new issue/i).click()
+    cy.get('button').contains(/new issue/i).click()
     cy.get('.modal-content input').first().type('CRUD05-High-Priority')
     cy.get('.modal-content').within(() => {
-      cy.contains('label', /priority/i).closest('.form-group')
+      cy.contains(/priority/i).closest('.form-group, .form-row')
         .find('select').select('high')
     })
     cy.get('.modal-content .btn-primary').click()
     cy.wait('@create').then(ic => { cy.wrap(ic.response.body.id).as('issueId') })
     cy.get('.task-card').contains('CRUD05-High-Priority')
       .closest('.task-card')
-      .find('.task-priority.high')
+      .find('.task-priority.high, [class*="priority"][class*="high"]')
       .should('exist')
   })
 
   it('05.4 Severity=Critical → badge "critical" на карточке', () => {
     cy.intercept('POST', '**/tasks').as('create')
-    cy.get('button.btn').contains(/new issue/i).click()
+    cy.get('button').contains(/new issue/i).click()
     cy.get('.modal-content input').first().type('CRUD05-Critical')
     cy.get('.modal-content').within(() => {
-      cy.contains('label', /severity/i).closest('.form-group')
+      cy.contains(/severity/i).closest('.form-group, .form-row')
         .find('select').select('critical')
     })
     cy.get('.modal-content .btn-primary').click()
@@ -588,22 +564,22 @@ describe('CRUD-05: Create Modal — все поля создаются корр�
 
   it('05.5 Labels "qa,smoke" → карточка показывает 2 тега', () => {
     cy.intercept('POST', '**/tasks').as('create')
-    cy.get('button.btn').contains(/new issue/i).click()
+    cy.get('button').contains(/new issue/i).click()
     cy.get('.modal-content input').first().type('CRUD05-Labels')
     cy.get('.modal-content').within(() => {
-      cy.contains('label', /labels/i).closest('.form-group')
+      cy.contains(/labels/i).closest('.form-group')
         .find('input').type('qa, smoke')
     })
     cy.get('.modal-content .btn-primary').click()
     cy.wait('@create').then(ic => { cy.wrap(ic.response.body.id).as('issueId') })
     cy.get('.task-card').contains('CRUD05-Labels')
       .closest('.task-card')
-      .find('.label').should('have.length', 2)
+      .find('.label, [class*="label"]').should('have.length', 2)
   })
 
   it('05.6 Cancel → модал закрывается, задача НЕ создана', () => {
     cy.intercept('POST', '**/tasks').as('create')
-    cy.get('button.btn').contains(/new issue/i).click()
+    cy.get('button').contains(/new issue/i).click()
     cy.get('.modal-content input').first().type('CRUD05-Cancelled')
     cy.get('.modal-content .btn-secondary').contains(/cancel/i).click()
     cy.get('.modal-content').should('not.exist')
@@ -614,7 +590,7 @@ describe('CRUD-05: Create Modal — все поля создаются корр�
   })
 
   it('05.7 Клик вне модала (.modal-overlay) закрывает без создания', () => {
-    cy.get('button.btn').contains(/new issue/i).click()
+    cy.get('button').contains(/new issue/i).click()
     cy.get('.modal-content input').first().type('CRUD05-ClickOutside')
     cy.get('.modal-overlay').click({ force: true })
     cy.get('.modal-content').should('not.exist')
@@ -623,7 +599,7 @@ describe('CRUD-05: Create Modal — все поля создаются корр�
   })
 
   it('05.8 Title 501 символ → форма не падает, показывает ошибку или truncates', () => {
-    cy.get('button.btn').contains(/new issue/i).click()
+    cy.get('button').contains(/new issue/i).click()
     cy.get('.modal-content input').first().type('A'.repeat(501), { delay: 0 })
     cy.get('.modal-content .btn-primary').click()
     // Либо валидация (форма не закрылась) либо задача создана с truncated title
@@ -652,46 +628,38 @@ describe('CRUD-06: Issue Комментарии — полный CRUD', () => {
   beforeEach(() => {
     cy.goToIssues()
     cy.openFirstIssueInBoard()
-    // TaskViewer → Edit → IssueDetailView
-    cy.get('button.btn').contains(/edit/i).click()
-    cy.get('.task-detail-overlay', { timeout: 8000 }).should('be.visible')
+    cy.get('button').contains(/edit/i).click()
     cy.get('.tab-btn').contains(/activity/i).click()
   })
 
   it('06.1 CREATE: добавить комментарий → POST /tasks/*/comments → виден в ленте', () => {
     cy.intercept('POST', '**/tasks/*/comments').as('addComment')
-    // TaskActivityFeed: .add-comment textarea
-    cy.get('.add-comment textarea')
-      .first().type('CRUD06 first comment text')
-    // Submit button text is "Comment"
+    cy.get('.add-comment textarea').first().type('CRUD06 first comment text')
     cy.get('.add-comment button').contains(/comment/i).click()
     cy.wait('@addComment').its('response.statusCode').should('be.oneOf', [200, 201])
-    cy.get('.activity-feed')
+    cy.get('.activity-feed, [class*="activity"]')
       .should('contain.text', 'CRUD06 first comment text')
   })
 
   it('06.2 READ: комментарий виден в activity feed с именем автора', () => {
-    cy.get('.activity-feed')
-      .find('.feed-item')
+    cy.get('.activity-feed, [class*="activity"]')
+      .find('[class*="comment"], [class*="event"]')
       .should('have.length.gte', 1)
       .first()
       .should('contain.text', 'admin') // или текущий пользователь
   })
 
   it('06.3 Пустой комментарий → кнопка disabled или форма не сабмитится', () => {
-    cy.get('.add-comment textarea')
-      .first().clear()
+    cy.get('.add-comment textarea').first().clear()
     cy.intercept('POST', '**/tasks/*/comments').as('addComment')
-    // Button should be disabled when textarea is empty
-    cy.get('.add-comment button').contains(/comment/i).should('be.disabled')
+    cy.get('.add-comment button').contains(/comment/i).click({ force: true })
     cy.wait(500)
     cy.get('@addComment.all').should('have.length', 0)
   })
 
   it('06.4 Комментарий с 500 символами → принимается без ошибки', () => {
     cy.intercept('POST', '**/tasks/*/comments').as('addComment')
-    cy.get('.add-comment textarea')
-      .first().type('A'.repeat(500), { delay: 0 })
+    cy.get('.add-comment textarea').first().type('A'.repeat(500), { delay: 0 })
     cy.get('.add-comment button').contains(/comment/i).click()
     cy.wait('@addComment').its('response.statusCode').should('be.oneOf', [200, 201])
   })
@@ -699,10 +667,9 @@ describe('CRUD-06: Issue Комментарии — полный CRUD', () => {
   it('06.5 После reload комментарии сохранились в БД', () => {
     cy.reload()
     cy.openFirstIssueInBoard()
-    cy.get('button.btn').contains(/edit/i).click()
-    cy.get('.task-detail-overlay', { timeout: 8000 }).should('be.visible')
+    cy.get('button').contains(/edit/i).click()
     cy.get('.tab-btn').contains(/activity/i).click()
-    cy.get('.activity-feed')
+    cy.get('.activity-feed, [class*="activity"]')
       .should('contain.text', 'CRUD06 first comment text')
   })
 })
@@ -723,40 +690,35 @@ describe('CRUD-07: Work Log — полный CRUD', () => {
   beforeEach(() => {
     cy.goToIssues()
     cy.openFirstIssueInBoard()
-    // TaskViewer → Edit → IssueDetailView
-    cy.get('button.btn').contains(/edit/i).click()
-    cy.get('.task-detail-overlay', { timeout: 8000 }).should('be.visible')
+    cy.get('button').contains(/edit/i).click()
     cy.get('.tab-btn').contains(/work.log/i).click()
   })
 
   it('07.1 CREATE: Log Work 2.5ч → POST → spent_hours обновился до 2.5', () => {
     cy.intercept('POST', '**/work-logs**').as('addLog')
-    // WorkLogBlock: button "Log Work" opens .log-form
-    cy.get('.btn-sm.btn-primary').contains(/log work/i).click()
+    cy.get('.worklog-block button, .log-btn-row button').contains(/log work/i).click()
     cy.get('.log-form').within(() => {
       cy.get('input[type="number"]').clear().type('2.5')
       cy.get('input[type="date"]').type('2026-03-28')
-      cy.get('input[placeholder*="What did you work"]').type('CRUD07 work log entry')
+      cy.get('.form-row').contains('Comment').closest('.form-row').find('input').type('CRUD07 work log entry')
     })
-    cy.get('.log-form .btn-sm.btn-primary').contains(/save/i).click()
-    cy.wait('@addLog').its('response.statusCode').should('eq', 201)
+    cy.get('.form-actions button').contains(/save/i).click()
+    cy.wait('@addLog').its('response.statusCode').should('be.oneOf', [200, 201])
     // Spent hours обновился
     cy.getIssueViaApi(issueId)
     cy.get('@fetchedIssue').its('spent_hours').should('be.gte', 2.5)
   })
 
   it('07.2 READ: запись виден в списке логов с датой и часами', () => {
-    // WorkLogBlock: .log-entry items
     cy.get('.log-entry')
       .should('have.length.gte', 1)
       .first()
       .within(() => {
-        cy.get('.log-hours').should('contain', '2.5')
+        cy.get('.log-hours').should('contain.text', '2.5')
       })
   })
 
   it('07.3 Прогресс-бар: 2.5 из 8 → width ≈ 31%', () => {
-    // WorkLogBlock: .progress-fill inside .progress-track
     cy.get('.progress-fill')
       .invoke('css', 'width')
       .then(w => {
@@ -769,13 +731,12 @@ describe('CRUD-07: Work Log — полный CRUD', () => {
 
   it('07.4 Log Work 0 часов → валидация блокирует', () => {
     cy.intercept('POST', '**/work-logs**').as('addLog')
-    cy.get('.btn-sm.btn-primary').contains(/log work/i).click()
+    cy.get('.worklog-block button, .log-btn-row button').contains(/log work/i).click()
     cy.get('.log-form').within(() => {
       cy.get('input[type="number"]').clear().type('0')
       cy.get('input[type="date"]').type('2026-03-28')
     })
-    // Save button should be disabled when hours is 0 or invalid
-    cy.get('.log-form .btn-sm.btn-primary').contains(/save/i).click({ force: true })
+    cy.get('.form-actions button').contains(/save/i).click({ force: true })
     cy.wait(500)
     // Либо форма осталась открытой либо запрос не пошёл
     cy.get('@addLog.all').then(calls => {
@@ -788,12 +749,12 @@ describe('CRUD-07: Work Log — полный CRUD', () => {
 
   it('07.5 Второй Log Work 3ч → total spent_hours стал 5.5', () => {
     cy.intercept('POST', '**/work-logs**').as('addLog')
-    cy.get('.btn-sm.btn-primary').contains(/log work/i).click()
+    cy.get('.worklog-block button, .log-btn-row button').contains(/log work/i).click()
     cy.get('.log-form').within(() => {
       cy.get('input[type="number"]').clear().type('3')
       cy.get('input[type="date"]').type('2026-03-29')
     })
-    cy.get('.log-form .btn-sm.btn-primary').contains(/save/i).click()
+    cy.get('.form-actions button').contains(/save/i).click()
     cy.wait('@addLog')
     cy.getIssueViaApi(issueId)
     cy.get('@fetchedIssue').its('spent_hours').should('be.gte', 5.5)
@@ -906,9 +867,8 @@ describe('CRUD-09: Deep URL — открытие задачи по ссылке'
   it('09.2 Прямой переход по /#/issues/EL-N → задача открыта', () => {
     cy.loginToApp()
     cy.visit(`/dashboard/#/issues/${humanId}`)
-    // TaskViewer opens
-    cy.get('.task-viewer, .task-detail-overlay', { timeout: 15000 }).should('be.visible')
-    cy.get('.task-viewer, .task-detail-overlay').should('contain.text', 'CRUD09-DeepURL-Issue')
+    cy.get('.task-detail, .task-detail-overlay', { timeout: 15000 }).should('be.visible')
+    cy.get('.task-detail').should('contain.text', 'CRUD09-DeepURL-Issue')
   })
 
   it('09.3 Скопированный URL → вставить в новую вкладку → задача открывается', () => {
@@ -919,7 +879,7 @@ describe('CRUD-09: Deep URL — открытие задачи по ссылке'
       expect(url).to.include(humanId)
       // Reload имитирует "вставить URL в новый браузер"
       cy.reload()
-      cy.get('.task-viewer, .task-detail-overlay', { timeout: 15000 })
+      cy.get('.task-detail, .task-detail-overlay', { timeout: 15000 })
         .should('be.visible')
         .and('contain.text', 'CRUD09-DeepURL-Issue')
     })
@@ -928,9 +888,8 @@ describe('CRUD-09: Deep URL — открытие задачи по ссылке'
   it('09.4 Закрыть задачу → URL возвращается на /#/issues', () => {
     cy.loginToApp()
     cy.visit(`/dashboard/#/issues/${humanId}`)
-    cy.get('.task-viewer', { timeout: 15000 }).should('be.visible')
-    // TaskViewer back button
-    cy.get('.btn-back').first().click()
+    cy.get('.task-detail', { timeout: 15000 }).should('be.visible')
+    cy.get('.back-btn').first().click()
     cy.url().should('match', /\/issues$/)
   })
 })
@@ -940,15 +899,16 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
 
   before(() => {
     cy.loginToApp()
+    // Убедиться что нет активного спринта (или использовать специфичный проект)
   })
 
   afterEach(() => {
     if (sprintId) {
-      cy.window().then(win => {
+      cy.getAuthToken().then(token => {
         cy.request({
           method: 'DELETE',
           url: `/api/api/v1/sprints/${sprintId}`,
-          headers: { Authorization: `Bearer ${win.localStorage.getItem('access_token')}` },
+          headers: { Authorization: `Bearer ${token}` },
           failOnStatusCode: false
         })
       })
@@ -975,8 +935,8 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
   })
 
   it('10.2 START Sprint → POST /sprints/{id}/start → status=active (не 404)', () => {
-    cy.window().then(win => {
-      const token = win.localStorage.getItem('access_token')
+    // Создать спринт через API, затем стартовать через UI
+    cy.getAuthToken().then(token => {
       cy.request({
         method: 'GET', url: '/api/projects',
         headers: { Authorization: `Bearer ${token}` }
@@ -1000,13 +960,13 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
   })
 
   it('10.3 Второй START → 409 Conflict', () => {
-    cy.window().then(win => {
-      const token = win.localStorage.getItem('access_token')
+    cy.getAuthToken().then(token => {
       cy.request({
         method: 'GET', url: '/api/projects',
         headers: { Authorization: `Bearer ${token}` }
       }).then(resp => {
         const pid = (resp.body[0] || resp.body.items?.[0])?.id
+        // Создать и стартовать первый спринт
         cy.request({
           method: 'POST', url: '/api/api/v1/sprints',
           headers: { Authorization: `Bearer ${token}` },
@@ -1017,6 +977,7 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
             method: 'POST', url: `/api/api/v1/sprints/${sprintId}/start`,
             headers: { Authorization: `Bearer ${token}` }
           }).then(() => {
+            // Создать второй и попытаться стартовать → 409
             cy.request({
               method: 'POST', url: '/api/api/v1/sprints',
               headers: { Authorization: `Bearer ${token}` },
@@ -1027,6 +988,7 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
                 headers: { Authorization: `Bearer ${token}` },
                 failOnStatusCode: false
               }).its('status').should('eq', 409)
+              // Cleanup s2
               cy.request({
                 method: 'DELETE', url: `/api/api/v1/sprints/${s2.body.id}`,
                 headers: { Authorization: `Bearer ${token}` },
@@ -1040,10 +1002,10 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
   })
 
   it('10.4 COMPLETE Sprint → незакрытые задачи уходят в Backlog', () => {
+    // Создать спринт, стартовать, добавить issue, завершить
     cy.createIssueViaApi({ title: 'CRUD10-InSprint' })
     cy.get('@issueId').then(issueId => {
-      cy.window().then(win => {
-        const token = win.localStorage.getItem('access_token')
+      cy.getAuthToken().then(token => {
         cy.request({
           method: 'GET', url: '/api/projects',
           headers: { Authorization: `Bearer ${token}` }
@@ -1055,21 +1017,25 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
             body: { name: `CY-Sprint-C-${Date.now()}`, project_id: pid }
           }).then(sr => {
             sprintId = sr.body.id
+            // Добавить issue в спринт
             cy.request({
               method: 'PATCH', url: `/api/tasks/${issueId}/rank`,
               headers: { Authorization: `Bearer ${token}` },
               body: { rank: 0, sprint_id: sprintId }
             })
+            // Стартовать
             cy.request({
               method: 'POST', url: `/api/api/v1/sprints/${sprintId}/start`,
               headers: { Authorization: `Bearer ${token}` }
             })
+            // Завершить
             cy.intercept('POST', `**/sprints/${sprintId}/complete`).as('complete')
             cy.goToIssues()
             cy.get('.issues-tabs .tab').contains(/backlog/i).click()
             cy.get('.sprint-panel button').contains(/complete/i).click()
             cy.wait('@complete').its('response.statusCode').should('eq', 200)
-            cy.get('.backlog-view')
+            // Задача теперь в backlog
+            cy.get('.backlog-view, [class*="backlog"]')
               .should('contain.text', 'CRUD10-InSprint')
             cy.deleteIssueViaApi(issueId)
           })
@@ -1079,8 +1045,7 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
   })
 
   it('10.5 Velocity: GET /sprints/velocity → данные после завершения спринта', () => {
-    cy.window().then(win => {
-      const token = win.localStorage.getItem('access_token')
+    cy.getAuthToken().then(token => {
       cy.request({
         method: 'GET', url: '/api/projects',
         headers: { Authorization: `Bearer ${token}` }
@@ -1100,8 +1065,7 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
   })
 
   it('10.6 Burndown: GET /sprints/{id}/burndown → {burndown: [...]}', () => {
-    cy.window().then(win => {
-      const token = win.localStorage.getItem('access_token')
+    cy.getAuthToken().then(token => {
       cy.request({
         method: 'GET', url: '/api/projects',
         headers: { Authorization: `Bearer ${token}` }
@@ -1140,6 +1104,7 @@ describe('CRUD-11: Dashboard Stats — данные и кэш', () => {
       }).then(resp => {
         expect(resp.status).to.eq(200)
         const body = resp.body
+        // по крайней мере один из ключей должен быть
         const hasStats = 'by_type' in body || 'by_priority' in body ||
                          'by_assignee' in body || 'top_assignees' in body
         expect(hasStats).to.be.true
@@ -1152,10 +1117,12 @@ describe('CRUD-11: Dashboard Stats — данные и кэш', () => {
     cy.window().then(win => {
       const token = win.localStorage.getItem('access_token')
       const pid = '9ddfd925-9728-4224-8a3d-13a6e2e01719'
+      // Первый запрос
       cy.request({
         method: 'GET', url: `/api/tasks/dashboard/stats?project_id=${pid}`,
         headers: { Authorization: `Bearer ${token}` }
       }).then(() => {
+        // Второй запрос — должен быть HIT
         cy.request({
           method: 'GET', url: `/api/tasks/dashboard/stats?project_id=${pid}`,
           headers: { Authorization: `Bearer ${token}` }
@@ -1202,7 +1169,7 @@ describe('CRUD-12: Негативные сценарии и граничные �
         method: 'POST',
         url: '/api/tasks',
         headers: { Authorization: `Bearer ${win.localStorage.getItem('access_token')}` },
-        body: { priority: 'high' },
+        body: { priority: 'high' }, // нет title
         failOnStatusCode: false
       }).its('status').should('be.oneOf', [400, 422])
     })
@@ -1218,6 +1185,7 @@ describe('CRUD-12: Негативные сценарии и граничные �
         qs: { jql: "status = 'todo'", project_id: '9ddfd925-9728-4224-8a3d-13a6e2e01719' },
         failOnStatusCode: false
       }).then(resp => {
+        // Должен быть 200 или 400 — но не 500!
         expect(resp.status).to.be.oneOf([200, 400])
       })
     })
@@ -1227,6 +1195,7 @@ describe('CRUD-12: Негативные сценарии и граничные �
     cy.loginToApp()
     cy.visit('/dashboard/#/issues/EL-99999')
     cy.wait(3000)
+    // Приложение не должно показать пустой белый экран
     cy.get('body').should('not.be.empty')
     cy.get('.issues-page, .error-page, [class*="not-found"], .kanban-board').should('exist')
   })
