@@ -844,15 +844,22 @@ describe('ART-CRUD-09: История версий — полный цикл', (
     cy.loginToApp()
     cy.window().then(win => {
       const token = win.localStorage.getItem('access_token')
-      const updates = Array.from({ length: 48 }, (_, i) =>
-        cy.request({
-          method: 'PUT',
-          url: `/api/articles/${articleId}`,
-          headers: { Authorization: `Bearer ${token}` },
-          body: { title: `ART09-BulkUpdate-${i}` }
+      // Sequential cy.request — each waits for the previous one
+      let chain = cy.wrap(null)
+      for (let i = 0; i < 48; i++) {
+        chain = chain.then(() => {
+          return cy.request({
+            method: 'PUT',
+            url: `/api/articles/${articleId}`,
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: { title: `ART09-BulkUpdate-${i}` }
+          })
         })
-      )
-      Promise.resolve().then(() => {
+      }
+      chain.then(() => {
         cy.request({
           method: 'GET',
           url: `/api/articles/${articleId}/versions`,
@@ -990,9 +997,13 @@ describe('ART-CRUD-11: Импорт файлов', () => {
   it('11.4 Файл > 5MB → alert "File too large"', () => {
     cy.goToArticles()
     const largeContent = Cypress.Buffer.from('x'.repeat(6 * 1024 * 1024))
-    const onAlert = cy.stub().as('alertStub')
-    cy.on('window:alert', onAlert)
-    cy.get('input[type="file"]').first().selectFile(
+
+    // Stub window.alert BEFORE triggering selectFile
+    cy.window().then(win => {
+      cy.stub(win, 'alert').as('alertStub')
+    })
+
+    cy.get('input[type="file"][accept*=".md"]').first().selectFile(
       { contents: largeContent, fileName: 'large.md', mimeType: 'text/markdown' },
       { force: true }
     )
@@ -1001,12 +1012,17 @@ describe('ART-CRUD-11: Импорт файлов', () => {
 
   it('11.5 Файл .txt → alert "Unsupported format"', () => {
     cy.goToArticles()
-    const onAlert = cy.stub().as('alertStub')
-    cy.on('window:alert', onAlert)
-    cy.get('input[type="file"]').first().selectFile(
+
+    // Stub window.alert BEFORE triggering selectFile
+    cy.window().then(win => {
+      cy.stub(win, 'alert').as('alertStub')
+    })
+
+    cy.get('input[type="file"][accept*=".md"]').first().selectFile(
       { contents: 'hello world', fileName: 'test.txt', mimeType: 'text/plain' },
       { force: true }
     )
+
     cy.get('@alertStub').should('have.been.calledWithMatch', /unsupported|неподдерживаемый/i)
   })
 
