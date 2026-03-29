@@ -180,7 +180,7 @@ async function createBug(failure, token, bugTypeId) {
     severity,
     status: 'todo',
     project_id: EL_PROJECT,
-    labels: ['el072', 'e2e-failure', 'cypress'],
+    labels: ['el073', 'e2e-failure', 'cypress'],
     environment: 'staging',
   }
 
