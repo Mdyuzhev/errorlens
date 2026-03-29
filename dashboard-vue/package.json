@@ -11,6 +11,9 @@
     "test:e2e": "cypress run --config baseUrl=http://192.168.1.74:3000",
     "test:issues": "cypress run --spec cypress/e2e/issues.cy.js --config baseUrl=http://192.168.1.74:3000",
     "test:articles": "cypress run --spec cypress/e2e/articles.cy.js --config baseUrl=http://192.168.1.74:3000",
+    "test:e2e:chrome": "cypress run --browser chrome --config baseUrl=http://192.168.1.74:3000",
+    "test:issues:chrome": "cypress run --browser chrome --spec cypress/e2e/issues.cy.js --config baseUrl=http://192.168.1.74:3000",
+    "test:articles:chrome": "cypress run --browser chrome --spec cypress/e2e/articles.cy.js --config baseUrl=http://192.168.1.74:3000",
     "test:merge-reports": "mochawesome-merge cypress/reports/*.json > cypress/reports/merged.json",
     "test:report": "npm run test:e2e && npm run test:merge-reports"
   },

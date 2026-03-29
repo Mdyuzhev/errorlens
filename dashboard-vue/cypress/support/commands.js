@@ -3,11 +3,17 @@
 // ═══════════════════════════════════════════════════════
 
 /**
- * Получить токен из localStorage.
- * Вызывается внутри cy.window().then() контекста.
+ * Получить токен из Cypress.env — не зависит от cy.window() контекста.
+ * Токен сохраняется в loginToApp() и живёт весь run.
  */
-function getToken(win) {
-  return win.localStorage.getItem('access_token')
+function getToken() {
+  const token = Cypress.env('access_token')
+  if (!token) {
+    throw new Error(
+      'No access_token in Cypress.env. Call cy.loginToApp() before API commands.'
+    )
+  }
+  return token
 }
 
 /**
@@ -15,19 +21,17 @@ function getToken(win) {
  * Сохраняет результат в @projectId alias.
  */
 Cypress.Commands.add('getProjectId', () => {
-  cy.window().then(win => {
-    const token = getToken(win)
-    cy.request({
-      method: 'GET',
-      url: '/api/projects',
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(resp => {
-      const projects = Array.isArray(resp.body)
-        ? resp.body
-        : (resp.body?.items || [])
-      expect(projects.length, 'At least one project must exist').to.be.gt(0)
-      cy.wrap(projects[0].id).as('projectId')
-    })
+  const token = getToken()
+  cy.request({
+    method: 'GET',
+    url: '/api/projects',
+    headers: { Authorization: `Bearer ${token}` }
+  }).then(resp => {
+    const projects = Array.isArray(resp.body)
+      ? resp.body
+      : (resp.body?.items || [])
+    expect(projects.length, 'At least one project must exist').to.be.gt(0)
+    cy.wrap(projects[0].id).as('projectId')
   })
 })
 
@@ -40,6 +44,8 @@ Cypress.Commands.add('getProjectId', () => {
  * Используется в тестах вместо ручного cy.window().then().
  */
 Cypress.Commands.add('getAuthToken', () => {
+  const envToken = Cypress.env('access_token')
+  if (envToken) return cy.wrap(envToken)
   return cy.window()
     .its('localStorage')
     .invoke('getItem', 'access_token')
@@ -70,7 +76,9 @@ Cypress.Commands.add('loginToApp', (
       cy.get('button[type="submit"]').click()
       cy.url({ timeout: 10000 }).should('not.include', '/login')
       cy.window().then(win => {
-        expect(win.localStorage.getItem('access_token')).to.exist
+        const token = win.localStorage.getItem('access_token')
+        expect(token).to.exist
+        Cypress.env('access_token', token)
       })
     },
     {
@@ -78,6 +86,7 @@ Cypress.Commands.add('loginToApp', (
         cy.window().then(win => {
           const token = win.localStorage.getItem('access_token')
           if (!token) throw new Error('No access token — re-login required')
+          Cypress.env('access_token', token)
         })
       }
     }
@@ -113,39 +122,37 @@ Cypress.Commands.add('goToArticles', () => {
  * Возвращает полный объект задачи.
  */
 Cypress.Commands.add('createIssueViaApi', (overrides = {}) => {
-  cy.window().then(win => {
-    const token = getToken(win)
-    cy.request({
-      method: 'GET',
-      url: '/api/projects',
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(projResp => {
-      const projects = Array.isArray(projResp.body)
-        ? projResp.body
-        : (projResp.body?.items || [])
-      const projectId = projects[0]?.id
+  const token = getToken()
+  cy.request({
+    method: 'GET',
+    url: '/api/projects',
+    headers: { Authorization: `Bearer ${token}` }
+  }).then(projResp => {
+    const projects = Array.isArray(projResp.body)
+      ? projResp.body
+      : (projResp.body?.items || [])
+    const projectId = projects[0]?.id
 
-      cy.request({
-        method: 'POST',
-        url: '/api/tasks',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: {
-          title: `CY-Issue-${Date.now()}`,
-          priority: 'medium',
-          status: 'todo',
-          project_id: projectId,
-          ...overrides
-        }
-      }).then(resp => {
-        // Backend возвращает 200 для create (не 201)
-        expect(resp.status).to.be.oneOf([200, 201])
-        const id = resp.body.id
-        cy.wrap(id).as('issueId')
-        cy.wrap(resp.body).as('createdIssue')
-      })
+    cy.request({
+      method: 'POST',
+      url: '/api/tasks',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: {
+        title: `CY-Issue-${Date.now()}`,
+        priority: 'medium',
+        status: 'todo',
+        project_id: projectId,
+        ...overrides
+      }
+    }).then(resp => {
+      // Backend возвращает 200 для create (не 201)
+      expect(resp.status).to.be.oneOf([200, 201])
+      const id = resp.body.id
+      cy.wrap(id).as('issueId')
+      cy.wrap(resp.body).as('createdIssue')
     })
   })
 })
@@ -155,14 +162,12 @@ Cypress.Commands.add('createIssueViaApi', (overrides = {}) => {
  */
 Cypress.Commands.add('deleteIssueViaApi', (id) => {
   if (!id) return
-  cy.window().then(win => {
-    const token = getToken(win)
-    cy.request({
-      method: 'DELETE',
-      url: `/api/tasks/${id}`,
-      headers: { Authorization: `Bearer ${token}` },
-      failOnStatusCode: false
-    })
+  const token = getToken()
+  cy.request({
+    method: 'DELETE',
+    url: `/api/tasks/${id}`,
+    headers: { Authorization: `Bearer ${token}` },
+    failOnStatusCode: false
   })
 })
 
@@ -171,16 +176,14 @@ Cypress.Commands.add('deleteIssueViaApi', (id) => {
  * Возвращает полный объект (со всеми полями).
  */
 Cypress.Commands.add('getIssueViaApi', (id) => {
-  cy.window().then(win => {
-    const token = getToken(win)
-    cy.request({
-      method: 'GET',
-      url: `/api/tasks/${id}`,
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(resp => {
-      expect(resp.status).to.eq(200)
-      cy.wrap(resp.body).as('fetchedIssue')
-    })
+  const token = getToken()
+  cy.request({
+    method: 'GET',
+    url: `/api/tasks/${id}`,
+    headers: { Authorization: `Bearer ${token}` }
+  }).then(resp => {
+    expect(resp.status).to.eq(200)
+    cy.wrap(resp.body).as('fetchedIssue')
   })
 })
 
@@ -188,19 +191,17 @@ Cypress.Commands.add('getIssueViaApi', (id) => {
  * Обновить задачу через API.
  */
 Cypress.Commands.add('updateIssueViaApi', (id, data) => {
-  cy.window().then(win => {
-    const token = getToken(win)
-    cy.request({
-      method: 'PUT',
-      url: `/api/tasks/${id}`,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: data
-    }).then(resp => {
-      expect(resp.status).to.be.oneOf([200, 204])
-    })
+  const token = getToken()
+  cy.request({
+    method: 'PUT',
+    url: `/api/tasks/${id}`,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: data
+  }).then(resp => {
+    expect(resp.status).to.be.oneOf([200, 204])
   })
 })
 
@@ -238,26 +239,24 @@ Cypress.Commands.add('openIssueByHumanId', (humanId) => {
  * Сохраняет id в @articleId, полный объект в @createdArticle.
  */
 Cypress.Commands.add('createArticleViaApi', (overrides = {}) => {
-  cy.window().then(win => {
-    const token = getToken(win)
-    cy.request({
-      method: 'POST',
-      url: '/api/articles',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: {
-        title: `CY-Article-${Date.now()}`,
-        content: JSON.stringify({ version: 'grid-1', rows: [] }),
-        status: 'draft',
-        ...overrides
-      }
-    }).then(resp => {
-      expect(resp.status).to.be.oneOf([200, 201])
-      cy.wrap(resp.body.id).as('articleId')
-      cy.wrap(resp.body).as('createdArticle')
-    })
+  const token = getToken()
+  cy.request({
+    method: 'POST',
+    url: '/api/articles',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: {
+      title: `CY-Article-${Date.now()}`,
+      content: JSON.stringify({ version: 'grid-1', rows: [] }),
+      status: 'draft',
+      ...overrides
+    }
+  }).then(resp => {
+    expect(resp.status).to.be.oneOf([200, 201])
+    cy.wrap(resp.body.id).as('articleId')
+    cy.wrap(resp.body).as('createdArticle')
   })
 })
 
@@ -266,14 +265,12 @@ Cypress.Commands.add('createArticleViaApi', (overrides = {}) => {
  */
 Cypress.Commands.add('deleteArticleViaApi', (id) => {
   if (!id) return
-  cy.window().then(win => {
-    const token = getToken(win)
-    cy.request({
-      method: 'DELETE',
-      url: `/api/articles/${id}`,
-      headers: { Authorization: `Bearer ${token}` },
-      failOnStatusCode: false
-    })
+  const token = getToken()
+  cy.request({
+    method: 'DELETE',
+    url: `/api/articles/${id}`,
+    headers: { Authorization: `Bearer ${token}` },
+    failOnStatusCode: false
   })
 })
 
@@ -281,16 +278,14 @@ Cypress.Commands.add('deleteArticleViaApi', (id) => {
  * Получить статью через API по id.
  */
 Cypress.Commands.add('getArticleViaApi', (id) => {
-  cy.window().then(win => {
-    const token = getToken(win)
-    cy.request({
-      method: 'GET',
-      url: `/api/articles/${id}`,
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(resp => {
-      expect(resp.status).to.eq(200)
-      cy.wrap(resp.body).as('fetchedArticle')
-    })
+  const token = getToken()
+  cy.request({
+    method: 'GET',
+    url: `/api/articles/${id}`,
+    headers: { Authorization: `Bearer ${token}` }
+  }).then(resp => {
+    expect(resp.status).to.eq(200)
+    cy.wrap(resp.body).as('fetchedArticle')
   })
 })
 
@@ -298,19 +293,17 @@ Cypress.Commands.add('getArticleViaApi', (id) => {
  * Обновить статью через API.
  */
 Cypress.Commands.add('updateArticleViaApi', (id, data) => {
-  cy.window().then(win => {
-    const token = getToken(win)
-    cy.request({
-      method: 'PUT',
-      url: `/api/articles/${id}`,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: data
-    }).then(resp => {
-      expect(resp.status).to.be.oneOf([200, 204])
-    })
+  const token = getToken()
+  cy.request({
+    method: 'PUT',
+    url: `/api/articles/${id}`,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: data
+  }).then(resp => {
+    expect(resp.status).to.be.oneOf([200, 204])
   })
 })
 
@@ -319,28 +312,23 @@ Cypress.Commands.add('updateArticleViaApi', (id, data) => {
  * Сохраняет id в @folderId.
  */
 Cypress.Commands.add('createFolderViaApi', (name = `CY-Folder-${Date.now()}`, parentId = null) => {
-  cy.window()
-    .its('localStorage')
-    .invoke('getItem', 'access_token')
-    .should('not.be.null')
-    .then(token => {
-      cy.request({
-        method: 'POST',
-        url: '/api/articles/folders',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: {
-          name,
-          ...(parentId ? { parent_id: parentId } : {})
-        }
-      }).then(resp => {
-        expect(resp.status).to.be.oneOf([200, 201])
-        cy.wrap(resp.body.id).as('folderId')
-        cy.wrap(resp.body).as('createdFolder')
-      })
-    })
+  const token = getToken()
+  cy.request({
+    method: 'POST',
+    url: '/api/articles/folders',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: {
+      name,
+      ...(parentId ? { parent_id: parentId } : {})
+    }
+  }).then(resp => {
+    expect(resp.status).to.be.oneOf([200, 201])
+    cy.wrap(resp.body.id).as('folderId')
+    cy.wrap(resp.body).as('createdFolder')
+  })
 })
 
 /**
@@ -348,18 +336,13 @@ Cypress.Commands.add('createFolderViaApi', (name = `CY-Folder-${Date.now()}`, pa
  */
 Cypress.Commands.add('deleteFolderViaApi', (id) => {
   if (!id) return
-  cy.window()
-    .its('localStorage')
-    .invoke('getItem', 'access_token')
-    .should('not.be.null')
-    .then(token => {
-      cy.request({
-        method: 'DELETE',
-        url: `/api/articles/folders/${id}`,
-        headers: { Authorization: `Bearer ${token}` },
-        failOnStatusCode: false
-      })
-    })
+  const token = getToken()
+  cy.request({
+    method: 'DELETE',
+    url: `/api/articles/folders/${id}`,
+    headers: { Authorization: `Bearer ${token}` },
+    failOnStatusCode: false
+  })
 })
 
 /**
