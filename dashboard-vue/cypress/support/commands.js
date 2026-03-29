@@ -196,7 +196,8 @@ Cypress.Commands.add('openFirstIssueInBoard', () => {
   cy.get('.task-card', { timeout: 15000 })
     .should('have.length.gte', 1)
     .first().click()
-  cy.get('.task-detail, .task-detail-overlay', { timeout: 10000 })
+  // Click opens TaskViewer (.task-viewer), not IssueDetailView (.task-detail-overlay)
+  cy.get('.task-viewer, .task-detail-overlay', { timeout: 10000 })
     .should('be.visible')
 })
 
@@ -206,7 +207,8 @@ Cypress.Commands.add('openFirstIssueInBoard', () => {
  */
 Cypress.Commands.add('openIssueByHumanId', (humanId) => {
   cy.visit(`/dashboard/#/issues/${humanId}`)
-  cy.get('.task-detail, .task-detail-overlay', { timeout: 15000 })
+  // Deep URL opens TaskViewer (.task-viewer)
+  cy.get('.task-viewer, .task-detail-overlay', { timeout: 15000 })
     .should('be.visible')
   cy.contains(humanId, { timeout: 5000 }).should('exist')
 })
