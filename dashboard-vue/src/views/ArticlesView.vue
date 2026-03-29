@@ -93,6 +93,8 @@
       :article="viewingArticle"
       @close="showViewer = false; viewingArticle = null"
       @edit="editFromViewer"
+      @open-article="openArticleById"
+      @navigate-to-folder="handleNavigateToFolder"
     />
 
     <!-- Fullscreen Editor -->
@@ -252,6 +254,20 @@ async function openArticle(article) {
   const a = full || article
   viewingArticle.value = a
   showViewer.value = true
+}
+
+async function openArticleById(articleId) {
+  const full = await store.fetchArticle(articleId)
+  if (full) {
+    viewingArticle.value = full
+    showViewer.value = true
+  }
+}
+
+function handleNavigateToFolder(folderId) {
+  showViewer.value = false
+  viewingArticle.value = null
+  store.selectFolder(folderId)
 }
 
 function editFromViewer() {
