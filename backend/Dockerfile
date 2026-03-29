@@ -4,7 +4,17 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install curl for healthcheck
-RUN apt-get update && apt-get install -y curl procps && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    curl \
+    procps \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf-2.0-0 \
+    libffi-dev \
+    shared-mime-info \
+    fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY requirements.txt .
