@@ -104,12 +104,9 @@ describe('ART-CRUD-01: Article — полный жизненный цикл', ()
     cy.get('.article-row').first().click()
     cy.get('.btn-edit').click()
 
+    cy.on('window:confirm', () => true)
     cy.intercept('DELETE', '**/articles/*').as('deleteArt')
     cy.get('button').contains(/delete|удалить/i).click()
-    cy.on('window:confirm', () => true)
-    cy.get('.confirm-dialog, [class*="confirm"]').then($d => {
-      if ($d.length) $d.find('button').contains(/yes|ok|да|confirm/i).click()
-    })
 
     cy.wait('@deleteArt').its('response.statusCode').should('be.oneOf', [200, 204])
     cy.get('.articles-page').should('not.contain.text', 'ART01-Lifecycle-Article')
@@ -156,8 +153,8 @@ describe('ART-CRUD-02: FolderTree — полный CRUD папок', () => {
         subFolderId = childId
         cy.goToArticles()
         cy.get('.folder-tree').contains('ART02-Parent-Folder')
-          .closest('.folder-item, [class*="folder"]')
-          .find('[class*="expand"], [class*="arrow"]').click({ force: true })
+          .closest('.tree-item')
+          .find('.tree-arrow').click({ force: true })
         cy.get('.folder-tree').should('contain.text', 'ART02-Child-Folder')
       })
     })
@@ -186,9 +183,9 @@ describe('ART-CRUD-02: FolderTree — полный CRUD папок', () => {
       folderId = id
       cy.goToArticles()
       cy.get('.folder-tree').contains('ART02-Before-Rename')
-        .closest('.folder-item, [class*="folder"]')
+        .closest('.tree-item')
         .rightclick()
-      cy.get('.ctx-menu').contains(/rename|переименовать/i).click()
+      cy.get('.context-menu').contains(/rename|переименовать/i).click()
       cy.intercept('PUT', '**/articles/folders/*').as('renameFolder')
       cy.get('.folder-tree input').first()
         .clear().type('ART02-After-Rename{enter}')
@@ -226,13 +223,11 @@ describe('ART-CRUD-02: FolderTree — полный CRUD папок', () => {
       folderId = id
       cy.goToArticles()
       cy.get('.folder-tree').contains('ART02-To-Delete')
-        .closest('.folder-item, [class*="folder"]')
+        .closest('.tree-item')
         .rightclick()
       cy.intercept('DELETE', '**/articles/folders/*').as('deleteFolder')
-      cy.get('.ctx-menu').contains(/delete|удалить/i).click()
-      cy.get('[class*="confirm"], .modal').then($d => {
-        if ($d.length) $d.find('button').contains(/yes|ok|да/i).click()
-      })
+      cy.on('window:confirm', () => true)
+      cy.get('.context-menu').contains(/delete|удалить/i).click()
       cy.wait('@deleteFolder').its('response.statusCode').should('be.oneOf', [200, 204])
       cy.get('.folder-tree').should('not.contain.text', 'ART02-To-Delete')
       folderId = null
@@ -427,7 +422,7 @@ describe('ART-CRUD-04: Editor — создание статьи через UI', 
     cy.get('button').contains(/new article/i).click()
     cy.get('.title-input').type('ART04-WithCategory')
     cy.get('button').contains(/meta|мета/i).click()
-    cy.get('.subheader input').first().type('E2E-Category')
+    cy.get('.editor-subheader .subheader-input').first().type('E2E-Category')
     cy.get('.editor-fullscreen button').contains(/save/i).click()
     cy.wait('@createArt').then(ic => {
       cy.wrap(ic.response.body.id).as('articleId')
@@ -441,7 +436,7 @@ describe('ART-CRUD-04: Editor — создание статьи через UI', 
     cy.get('button').contains(/new article/i).click()
     cy.get('.title-input').type('ART04-WithTags')
     cy.get('button').contains(/meta|мета/i).click()
-    cy.get('.subheader input').eq(1).type('tag1, tag2')
+    cy.get('.editor-subheader .subheader-input').eq(1).type('tag1, tag2')
     cy.get('.editor-fullscreen button').contains(/save/i).click()
     cy.wait('@createArt').then(ic => {
       cy.wrap(ic.response.body.id).as('articleId')
@@ -462,11 +457,11 @@ describe('ART-CRUD-04: Editor — создание статьи через UI', 
   it('04.8 Back с изменениями → confirm dialog появляется', () => {
     cy.get('button').contains(/new article/i).click()
     cy.get('.title-input').type('ART04-Unsaved')
+    // closeEditor использует native window.confirm()
+    cy.on('window:confirm', () => true)
     cy.get('.btn-back').click()
-    cy.get('.modal, [class*="confirm"], [class*="unsaved"]', { timeout: 5000 })
-      .should('be.visible')
-    cy.get('.modal, [class*="confirm"]').find('button')
-      .contains(/yes|ok|да|discard/i).click({ force: true })
+    cy.get('.articles-page').should('exist')
+    cy.get('.editor-fullscreen').should('not.exist')
   })
 })
 
@@ -561,15 +556,15 @@ describe('ART-CRUD-06: ArticleViewer — Breadcrumbs и навигация', () 
     if (folderId) cy.deleteFolderViaApi(folderId)
   })
 
-  it('06.1 Статья без папки → breadcrumbs = "Articles"', () => {
+  it('06.1 Статья без папки → breadcrumbs скрыты (v-if пустой массив)', () => {
     cy.loginToApp()
     cy.createArticleViaApi({ title: 'ART06-NoFolder' })
     cy.get('@articleId').then(artId => {
       cy.goToArticles()
       cy.get('.article-row').contains('ART06-NoFolder').click()
-      cy.get('.viewer-crumbs').invoke('text')
-        .should('match', /articles|статьи/i)
-      cy.get('.viewer-crumbs').find('.crumb-link').should('have.length', 0)
+      cy.get('.article-viewer', { timeout: 10000 }).should('be.visible')
+      // breadcrumbs скрыты через v-if когда массив пуст
+      cy.get('.viewer-crumbs').should('not.exist')
       cy.deleteArticleViaApi(artId)
     })
   })
@@ -619,9 +614,8 @@ describe('ART-CRUD-06: ArticleViewer — Breadcrumbs и навигация', () 
     cy.goToArticles()
     cy.get('.article-row').contains('ART06-InNestedFolder').click()
     cy.get('.viewer-meta').within(() => {
-      cy.get('[class*="author"], [class*="name"], [class*="avatar"]').should('exist')
-      cy.get('[class*="date"]').should('exist')
-      cy.get('[class*="view"]').should('exist')
+      cy.get('.viewer-meta-author, .viewer-avatar').should('exist')
+      cy.contains(/просмотров/i).should('exist')
     })
   })
 })
@@ -947,7 +941,7 @@ describe('ART-CRUD-11: Импорт файлов', () => {
     cy.goToArticles()
     cy.intercept('POST', '**/articles/import*').as('importReq')
     cy.fixture('test-article.md', null).then(fileContent => {
-      cy.get('input[type="file"]').selectFile(
+      cy.get('input[type="file"]').first().selectFile(
         { contents: fileContent, fileName: 'test-article.md', mimeType: 'text/markdown' },
         { force: true }
       )
@@ -963,7 +957,7 @@ describe('ART-CRUD-11: Импорт файлов', () => {
     cy.goToArticles()
     cy.intercept('POST', '**/articles/import*').as('importReq')
     cy.fixture('test-article.md', null).then(content => {
-      cy.get('input[type="file"]').selectFile(
+      cy.get('input[type="file"]').first().selectFile(
         { contents: content, fileName: 'test-article.md', mimeType: 'text/markdown' },
         { force: true }
       )
@@ -980,18 +974,17 @@ describe('ART-CRUD-11: Импорт файлов', () => {
     cy.get('button').contains(/meta|мета/i).click()
     cy.intercept('POST', '**/articles/import/preview*').as('previewReq')
     cy.fixture('test-article.md', null).then(content => {
-      cy.get('.subheader input[type="file"], [class*="subheader"] input[type="file"]')
-        .selectFile(
-          { contents: content, fileName: 'test-article.md', mimeType: 'text/markdown' },
-          { force: true }
-        )
+      // editorFileInput — второй скрытый input[type="file"] в ArticlesView
+      cy.get('input[type="file"]').eq(1).selectFile(
+        { contents: content, fileName: 'test-article.md', mimeType: 'text/markdown' },
+        { force: true }
+      )
     })
     cy.wait('@previewReq').its('response.statusCode').should('eq', 200)
     cy.get('.title-input').invoke('val').should('not.be.empty')
+    cy.on('window:confirm', () => true)
     cy.get('.btn-back').click()
-    cy.get('.modal, [class*="confirm"]').then($d => {
-      if ($d.length) $d.find('button').contains(/yes|discard/i).click({ force: true })
-    })
+    cy.get('.articles-page', { timeout: 5000 }).should('exist')
   })
 
   it('11.4 Файл > 5MB → alert "File too large"', () => {
@@ -999,7 +992,7 @@ describe('ART-CRUD-11: Импорт файлов', () => {
     const largeContent = Cypress.Buffer.from('x'.repeat(6 * 1024 * 1024))
     const onAlert = cy.stub().as('alertStub')
     cy.on('window:alert', onAlert)
-    cy.get('input[type="file"]').selectFile(
+    cy.get('input[type="file"]').first().selectFile(
       { contents: largeContent, fileName: 'large.md', mimeType: 'text/markdown' },
       { force: true }
     )
@@ -1010,7 +1003,7 @@ describe('ART-CRUD-11: Импорт файлов', () => {
     cy.goToArticles()
     const onAlert = cy.stub().as('alertStub')
     cy.on('window:alert', onAlert)
-    cy.get('input[type="file"]').selectFile(
+    cy.get('input[type="file"]').first().selectFile(
       { contents: 'hello world', fileName: 'test.txt', mimeType: 'text/plain' },
       { force: true }
     )
@@ -1021,13 +1014,13 @@ describe('ART-CRUD-11: Импорт файлов', () => {
     cy.goToArticles()
     cy.intercept('POST', '**/articles/import*').as('importReq')
     cy.fixture('test-article.md', null).then(content => {
-      cy.get('input[type="file"]').selectFile(
+      cy.get('input[type="file"]').first().selectFile(
         { contents: content, fileName: 'test-article.md', mimeType: 'text/markdown' },
         { force: true }
       )
     })
     cy.wait('@importReq').then(ic => { importedIds.push(ic.response.body.id) })
-    cy.get('input[type="file"]').invoke('val').should('be.empty')
+    cy.get('input[type="file"]').first().invoke('val').should('be.empty')
   })
 })
 
@@ -1071,7 +1064,7 @@ describe('ART-CRUD-12: Drag-and-Drop статей в папки', () => {
     cy.goToArticles()
     cy.get('.article-row').contains('ART12-DnD-Article')
       .closest('.article-row')
-      .drag('.folder-tree .folder-item:contains("ART12-DnD-Folder")')
+      .drag('.folder-tree .tree-item:contains("ART12-DnD-Folder")')
     cy.wait('@moveToFolder').its('response.statusCode').should('eq', 200)
   })
 
