@@ -64,11 +64,12 @@
     <div
       v-if="contextMenu"
       class="context-menu"
+      data-testid="folder-context-menu"
       :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
     >
-      <div class="context-item" @click="handleRename">Rename</div>
-      <div v-if="depth < 2" class="context-item" @click="handleNewSubfolder">New Subfolder</div>
-      <div class="context-item danger" @click="handleDelete">Delete</div>
+      <div class="context-item" data-testid="ctx-rename" @click="handleRename">Rename</div>
+      <div v-if="depth < 2" class="context-item" data-testid="ctx-subfolder" @click="handleNewSubfolder">New Subfolder</div>
+      <div class="context-item danger" data-testid="ctx-delete" @click="handleDelete">Delete</div>
     </div>
     <div v-if="contextMenu" class="context-backdrop" @click="contextMenu = null"></div>
   </div>
@@ -97,7 +98,11 @@ const hasChildren = computed(() =>
 )
 
 function showContextMenu(e) {
-  contextMenu.value = { x: e.clientX, y: e.clientY }
+  const menuWidth = 180
+  const menuHeight = 120
+  const x = Math.min(e.clientX, window.innerWidth - menuWidth)
+  const y = Math.min(e.clientY, window.innerHeight - menuHeight)
+  contextMenu.value = { x, y }
 }
 
 function handleRename() {
@@ -258,7 +263,7 @@ onUnmounted(() => {
   padding: 4px;
   z-index: 1000;
   box-shadow: var(--shadow-dropdown);
-  min-width: 140px;
+  min-width: 160px;
 }
 
 .context-item {
@@ -274,11 +279,11 @@ onUnmounted(() => {
 }
 
 .context-item.danger {
-  color: #ef4444;
+  color: var(--error);
 }
 
 .context-item.danger:hover {
-  background: rgba(239, 68, 68, 0.15);
+  background: var(--accent-muted);
 }
 
 .context-backdrop {

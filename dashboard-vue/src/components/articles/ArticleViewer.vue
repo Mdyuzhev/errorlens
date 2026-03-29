@@ -1,19 +1,19 @@
 <template>
   <div class="article-viewer">
     <!-- TOPBAR -->
-    <div class="viewer-topbar">
-      <button class="btn-back" @click="emit('close')">← Назад</button>
+    <div class="viewer-topbar" data-testid="viewer-topbar">
+      <button class="btn-back" data-testid="viewer-back" @click="emit('close')">← Назад</button>
       <div class="topbar-sep"></div>
       <span class="topbar-path">Articles</span>
       <div class="topbar-gap"></div>
-      <button class="btn-action" @click="openHistory">История</button>
-      <button class="btn-action" @click="handleExportPdf">PDF</button>
-      <button class="btn-action btn-edit" @click="emit('edit')">Edit</button>
+      <button class="btn-action" data-testid="viewer-history" @click="openHistory">История</button>
+      <button class="btn-action" data-testid="viewer-pdf" @click="handleExportPdf">PDF</button>
+      <button class="btn-action btn-edit" data-testid="viewer-edit" @click="emit('edit')">Edit</button>
     </div>
 
     <!-- ARTICLE HEAD -->
     <div class="viewer-article-head">
-      <div class="viewer-crumbs" v-if="breadcrumbs.length">
+      <div class="viewer-crumbs" data-testid="viewer-crumbs" v-if="breadcrumbs.length">
         <template v-for="(crumb, idx) in breadcrumbs" :key="crumb.id">
           <span v-if="idx > 0" class="crumb-sep">›</span>
           <span
@@ -50,12 +50,13 @@
         <div class="viewer-document">
           <GridEditor :modelValue="gridContent" :readonly="true" />
         </div>
-        <div class="child-pages" v-if="folderArticles.length">
+        <div class="child-pages" data-testid="child-pages" v-if="folderArticles.length">
           <div class="child-pages-label">В этой папке</div>
           <div
             v-for="a in folderArticles"
             :key="a.id"
             class="child-page-item"
+            data-testid="child-page-item"
             @click="emit('open-article', a.id)"
           >📄 {{ a.title }}</div>
         </div>
@@ -75,10 +76,10 @@
     </div>
 
     <!-- HISTORY PANEL -->
-    <div class="viewer-history" :class="{ open: showHistory }">
+    <div class="viewer-history" data-testid="viewer-history-panel" :class="{ open: showHistory }">
       <div class="history-header">
         <span>История версий</span>
-        <button class="history-close" @click="showHistory = false; selectedVersion = null">✕</button>
+        <button class="history-close" data-testid="history-close" @click="showHistory = false; selectedVersion = null">✕</button>
       </div>
       <div v-if="historyLoading" class="history-loading">Загрузка...</div>
       <template v-else>

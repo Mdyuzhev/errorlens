@@ -207,6 +207,7 @@ function onDrop(e, targetFolderId) {
 .btn-new-folder:hover {
   border-color: var(--accent);
   color: var(--accent);
+  background: var(--accent-muted);
 }
 
 .folder-input-wrap {
