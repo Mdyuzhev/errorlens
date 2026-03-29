@@ -3,6 +3,8 @@
 // Pattern: createViaApi → action in UI → verify via API → cleanup
 
 describe('CRUD-01: Issue — полный жизненный цикл', () => {
+  let createdIssue = null
+
   // Один раз создаём через API перед всеми тестами
   before(() => {
     cy.loginToApp()
@@ -12,6 +14,7 @@ describe('CRUD-01: Issue — полный жизненный цикл', () => {
       severity: 'critical',
       labels: ['crud01', 'lifecycle']
     })
+    cy.get('@createdIssue').then(issue => { createdIssue = issue })
   })
 
   after(() => {
@@ -37,7 +40,7 @@ describe('CRUD-01: Issue — полный жизненный цикл', () => {
 
   it('01.3 READ: human_id отображается на карточке', () => {
     cy.goToIssues()
-    cy.get('@createdIssue').then(issue => {
+    cy.wrap(createdIssue).then(issue => {
       cy.get('.task-card')
         .contains('.human-id-badge', issue.human_id)
         .should('be.visible')
@@ -47,7 +50,7 @@ describe('CRUD-01: Issue — полный жизненный цикл', () => {
   it('01.4 READ: прямой URL /#/issues/EL-N открывает задачу', () => {
     // После EL071 deep URL должен работать
     cy.loginToApp()
-    cy.get('@createdIssue').then(issue => {
+    cy.wrap(createdIssue).then(issue => {
       cy.visit(`/dashboard/#/issues/${issue.human_id}`)
       cy.get('.task-detail, .task-detail-overlay', { timeout: 15000 })
         .should('be.visible')
@@ -78,7 +81,7 @@ describe('CRUD-01: Issue — полный жизненный цикл', () => {
 
   it('01.6 UPDATE: URL меняется при открытии задачи (EL071)', () => {
     cy.goToIssues()
-    cy.get('@createdIssue').then(issue => {
+    cy.wrap(createdIssue).then(issue => {
       // Кликнуть карточку
       cy.get('.task-card').contains(issue.human_id).first().click()
       // URL должен содержать human_id
@@ -390,17 +393,20 @@ describe('CRUD-04: Kanban статусные переходы', () => {
     cy.goToIssues()
     cy.intercept('PUT', '**/tasks/*').as('updateTask')
     // Native DragEvent: dragstart on card, dragover+drop on target column
-    cy.get('.kanban-column').eq(0).find('.task-card').first().then($card => {
+    cy.get('.kanban-column').eq(0).find('.task-card').first().should('exist').then($card => {
       const dt = new DataTransfer()
       $card[0].dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
     })
-    cy.wait(200)
-    cy.get('.kanban-column').eq(1).then($col => {
+    cy.wait(500)
+    cy.get('.kanban-column').eq(1).should('exist').then($col => {
       const dt = new DataTransfer()
       $col[0].dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
-      $col[0].dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+      cy.wait(100).then(() => {
+        $col[0].dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+        $col[0].dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: dt }))
+      })
     })
-    cy.wait('@updateTask').its('response.statusCode').should('eq', 200)
+    cy.wait('@updateTask', { timeout: 15000 }).its('response.statusCode').should('eq', 200)
     cy.getIssueViaApi(issueId)
     cy.get('@fetchedIssue').its('status').should('eq', 'in_progress')
   })
@@ -411,15 +417,18 @@ describe('CRUD-04: Kanban статусные переходы', () => {
       .find('.column-count').invoke('text')
       .then(before => {
         const beforeCount = parseInt(before.trim())
-        cy.get('.kanban-column').eq(0).find('.task-card').first().then($card => {
+        cy.get('.kanban-column').eq(0).find('.task-card').first().should('exist').then($card => {
           const dt = new DataTransfer()
           $card[0].dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
         })
-        cy.wait(200)
-        cy.get('.kanban-column').eq(1).then($col => {
+        cy.wait(500)
+        cy.get('.kanban-column').eq(1).should('exist').then($col => {
           const dt = new DataTransfer()
           $col[0].dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
-          $col[0].dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+          cy.wait(100).then(() => {
+            $col[0].dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+            $col[0].dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: dt }))
+          })
         })
         cy.wait(1000)
         cy.get('.kanban-column').eq(0)
@@ -436,15 +445,18 @@ describe('CRUD-04: Kanban статусные переходы', () => {
       .find('.column-count').invoke('text')
       .then(before => {
         const beforeCount = parseInt(before.trim())
-        cy.get('.kanban-column').eq(0).find('.task-card').first().then($card => {
+        cy.get('.kanban-column').eq(0).find('.task-card').first().should('exist').then($card => {
           const dt = new DataTransfer()
           $card[0].dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
         })
-        cy.wait(200)
-        cy.get('.kanban-column').eq(1).then($col => {
+        cy.wait(500)
+        cy.get('.kanban-column').eq(1).should('exist').then($col => {
           const dt = new DataTransfer()
           $col[0].dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
-          $col[0].dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+          cy.wait(100).then(() => {
+            $col[0].dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+            $col[0].dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: dt }))
+          })
         })
         cy.wait(1000)
         cy.get('.kanban-column').eq(1)
@@ -477,15 +489,18 @@ describe('CRUD-04: Kanban статусные переходы', () => {
 
   it('04.6 После reload задача остаётся в изменённой колонке', () => {
     cy.goToIssues()
-    cy.get('.kanban-column').eq(0).find('.task-card').first().then($card => {
+    cy.get('.kanban-column').eq(0).find('.task-card').first().should('exist').then($card => {
       const dt = new DataTransfer()
       $card[0].dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
     })
-    cy.wait(200)
-    cy.get('.kanban-column').eq(1).then($col => {
+    cy.wait(500)
+    cy.get('.kanban-column').eq(1).should('exist').then($col => {
       const dt = new DataTransfer()
       $col[0].dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
-      $col[0].dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+      cy.wait(100).then(() => {
+        $col[0].dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+        $col[0].dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: dt }))
+      })
     })
     cy.wait(1000)
     cy.reload()
@@ -907,7 +922,7 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
       cy.getAuthToken().then(token => {
         cy.request({
           method: 'DELETE',
-          url: `/api/api/v1/sprints/${sprintId}`,
+          url: `/api/v1/sprints/${sprintId}`,
           headers: { Authorization: `Bearer ${token}` },
           failOnStatusCode: false
         })
@@ -943,7 +958,7 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
       }).then(resp => {
         const pid = (resp.body[0] || resp.body.items?.[0])?.id
         cy.request({
-          method: 'POST', url: '/api/api/v1/sprints',
+          method: 'POST', url: '/api/v1/sprints',
           headers: { Authorization: `Bearer ${token}` },
           body: { name: `CY-Sprint-${Date.now()}`, project_id: pid,
                   start_date: '2026-04-01', end_date: '2026-04-14' }
@@ -968,29 +983,29 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
         const pid = (resp.body[0] || resp.body.items?.[0])?.id
         // Создать и стартовать первый спринт
         cy.request({
-          method: 'POST', url: '/api/api/v1/sprints',
+          method: 'POST', url: '/api/v1/sprints',
           headers: { Authorization: `Bearer ${token}` },
           body: { name: `CY-Sprint-A-${Date.now()}`, project_id: pid }
         }).then(s1 => {
           sprintId = s1.body.id
           cy.request({
-            method: 'POST', url: `/api/api/v1/sprints/${sprintId}/start`,
+            method: 'POST', url: `/api/v1/sprints/${sprintId}/start`,
             headers: { Authorization: `Bearer ${token}` }
           }).then(() => {
             // Создать второй и попытаться стартовать → 409
             cy.request({
-              method: 'POST', url: '/api/api/v1/sprints',
+              method: 'POST', url: '/api/v1/sprints',
               headers: { Authorization: `Bearer ${token}` },
               body: { name: `CY-Sprint-B-${Date.now()}`, project_id: pid }
             }).then(s2 => {
               cy.request({
-                method: 'POST', url: `/api/api/v1/sprints/${s2.body.id}/start`,
+                method: 'POST', url: `/api/v1/sprints/${s2.body.id}/start`,
                 headers: { Authorization: `Bearer ${token}` },
                 failOnStatusCode: false
               }).its('status').should('eq', 409)
               // Cleanup s2
               cy.request({
-                method: 'DELETE', url: `/api/api/v1/sprints/${s2.body.id}`,
+                method: 'DELETE', url: `/api/v1/sprints/${s2.body.id}`,
                 headers: { Authorization: `Bearer ${token}` },
                 failOnStatusCode: false
               })
@@ -1012,7 +1027,7 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
         }).then(resp => {
           const pid = (resp.body[0])?.id
           cy.request({
-            method: 'POST', url: '/api/api/v1/sprints',
+            method: 'POST', url: '/api/v1/sprints',
             headers: { Authorization: `Bearer ${token}` },
             body: { name: `CY-Sprint-C-${Date.now()}`, project_id: pid }
           }).then(sr => {
@@ -1025,7 +1040,7 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
             })
             // Стартовать
             cy.request({
-              method: 'POST', url: `/api/api/v1/sprints/${sprintId}/start`,
+              method: 'POST', url: `/api/v1/sprints/${sprintId}/start`,
               headers: { Authorization: `Bearer ${token}` }
             })
             // Завершить
@@ -1053,7 +1068,7 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
         const pid = resp.body[0]?.id
         cy.request({
           method: 'GET',
-          url: '/api/api/v1/sprints/velocity',
+          url: '/api/v1/sprints/velocity',
           headers: { Authorization: `Bearer ${token}` },
           qs: { project_id: pid, limit: 5 }
         }).then(vr => {
@@ -1072,7 +1087,7 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
       }).then(resp => {
         const pid = resp.body[0]?.id
         cy.request({
-          method: 'POST', url: '/api/api/v1/sprints',
+          method: 'POST', url: '/api/v1/sprints',
           headers: { Authorization: `Bearer ${token}` },
           body: { name: `CY-Burndown-${Date.now()}`, project_id: pid,
                   start_date: '2026-03-01', end_date: '2026-03-14' }
@@ -1080,7 +1095,7 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
           sprintId = sr.body.id
           cy.request({
             method: 'GET',
-            url: `/api/api/v1/sprints/${sprintId}/burndown`,
+            url: `/api/v1/sprints/${sprintId}/burndown`,
             headers: { Authorization: `Bearer ${token}` }
           }).then(br => {
             expect(br.status).to.eq(200)

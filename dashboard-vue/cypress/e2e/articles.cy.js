@@ -5,6 +5,7 @@
 
 describe('ART-CRUD-01: Article — полный жизненный цикл', () => {
   let articleId
+  let createdArticle = null
 
   before(() => {
     cy.loginToApp()
@@ -14,6 +15,7 @@ describe('ART-CRUD-01: Article — полный жизненный цикл', ()
       category: 'Testing',
     })
     cy.get('@articleId').then(id => { articleId = id })
+    cy.get('@createdArticle').then(art => { createdArticle = art })
   })
 
   after(() => {
@@ -55,7 +57,7 @@ describe('ART-CRUD-01: Article — полный жизненный цикл', ()
 
   it('01.4 READ: human_id виден в строке списка', () => {
     cy.goToArticles()
-    cy.get('@createdArticle').then(art => {
+    cy.wrap(createdArticle).then(art => {
       cy.get('.article-row').contains('ART01-Lifecycle-Article')
         .closest('.article-row')
         .find('.human-id-badge').should('exist')
@@ -731,21 +733,21 @@ describe('ART-CRUD-08: Child Pages — соседние статьи в папк
   it('08.1 Статья в папке с сиблингами → .child-pages блок виден', () => {
     cy.goToArticles()
     cy.get('.article-row').contains('ART08-Sibling-1').click()
-    cy.get('.child-pages, [class*="child-pages"]', { timeout: 8000 }).should('be.visible')
+    cy.get('[data-testid="child-pages-block"]', { timeout: 8000 }).should('be.visible')
   })
 
   it('08.2 Child pages показывает сиблингов, не саму статью', () => {
     cy.goToArticles()
     cy.get('.article-row').contains('ART08-Sibling-1').click()
-    cy.get('.child-pages').should('contain.text', 'ART08-Sibling-2')
-    cy.get('.child-pages').should('contain.text', 'ART08-Sibling-3')
-    cy.get('.child-pages').should('not.contain.text', 'ART08-Sibling-1')
+    cy.get('[data-testid="child-pages-block"]').should('contain.text', 'ART08-Sibling-2')
+    cy.get('[data-testid="child-pages-block"]').should('contain.text', 'ART08-Sibling-3')
+    cy.get('[data-testid="child-pages-block"]').should('not.contain.text', 'ART08-Sibling-1')
   })
 
   it('08.3 Клик на child page item → открывается другая статья', () => {
     cy.goToArticles()
     cy.get('.article-row').contains('ART08-Sibling-1').click()
-    cy.get('.child-page-item').contains('ART08-Sibling-2').click()
+    cy.get('[data-testid="child-page-item"]').contains('ART08-Sibling-2').click()
     cy.get('.viewer-title').should('contain.text', 'ART08-Sibling-2')
   })
 
@@ -755,7 +757,7 @@ describe('ART-CRUD-08: Child Pages — соседние статьи в папк
     cy.get('@articleId').then(artId => {
       cy.goToArticles()
       cy.get('.article-row').contains('ART08-NoFolder-Test').click()
-      cy.get('.child-pages, [class*="child-pages"]').should('not.exist')
+      cy.get('[data-testid="child-pages-block"]').should('not.exist')
       cy.deleteArticleViaApi(artId)
     })
   })

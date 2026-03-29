@@ -40,11 +40,11 @@ Cypress.Commands.add('getProjectId', () => {
  * Используется в тестах вместо ручного cy.window().then().
  */
 Cypress.Commands.add('getAuthToken', () => {
-  return cy.window().then(win => {
-    const token = win.localStorage.getItem('access_token')
-    if (!token) throw new Error('No auth token in localStorage')
-    return token
-  })
+  return cy.window()
+    .its('localStorage')
+    .invoke('getItem', 'access_token')
+    .should('not.be.null')
+    .and('not.be.undefined')
 })
 
 // ═══════════════════════════════════════════════════════
@@ -319,25 +319,28 @@ Cypress.Commands.add('updateArticleViaApi', (id, data) => {
  * Сохраняет id в @folderId.
  */
 Cypress.Commands.add('createFolderViaApi', (name = `CY-Folder-${Date.now()}`, parentId = null) => {
-  cy.window().then(win => {
-    const token = getToken(win)
-    cy.request({
-      method: 'POST',
-      url: '/api/articles/folders',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: {
-        name,
-        ...(parentId ? { parent_id: parentId } : {})
-      }
-    }).then(resp => {
-      expect(resp.status).to.be.oneOf([200, 201])
-      cy.wrap(resp.body.id).as('folderId')
-      cy.wrap(resp.body).as('createdFolder')
+  cy.window()
+    .its('localStorage')
+    .invoke('getItem', 'access_token')
+    .should('not.be.null')
+    .then(token => {
+      cy.request({
+        method: 'POST',
+        url: '/api/articles/folders',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: {
+          name,
+          ...(parentId ? { parent_id: parentId } : {})
+        }
+      }).then(resp => {
+        expect(resp.status).to.be.oneOf([200, 201])
+        cy.wrap(resp.body.id).as('folderId')
+        cy.wrap(resp.body).as('createdFolder')
+      })
     })
-  })
 })
 
 /**
@@ -345,15 +348,18 @@ Cypress.Commands.add('createFolderViaApi', (name = `CY-Folder-${Date.now()}`, pa
  */
 Cypress.Commands.add('deleteFolderViaApi', (id) => {
   if (!id) return
-  cy.window().then(win => {
-    const token = getToken(win)
-    cy.request({
-      method: 'DELETE',
-      url: `/api/articles/folders/${id}`,
-      headers: { Authorization: `Bearer ${token}` },
-      failOnStatusCode: false
+  cy.window()
+    .its('localStorage')
+    .invoke('getItem', 'access_token')
+    .should('not.be.null')
+    .then(token => {
+      cy.request({
+        method: 'DELETE',
+        url: `/api/articles/folders/${id}`,
+        headers: { Authorization: `Bearer ${token}` },
+        failOnStatusCode: false
+      })
     })
-  })
 })
 
 /**
