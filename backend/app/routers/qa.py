@@ -12,8 +12,8 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.middleware.jwt_auth import require_auth
 from app.models.task import SprintIssue, Task, TaskType
-from app.models.testcase import TestCase
-from app.models.testplan import TestPlanRunResult
+from app.models.testcase import TestCase, TestCaseFolder
+from app.models.testplan import TestPlan, TestPlanRun, TestPlanRunResult
 from app.models.user import User
 from app.services.redis_client import get_redis
 
@@ -56,7 +56,80 @@ async def get_qa_dashboard(
     )
     top_failed = [{"id": r.id, "title": r.title, "failed_count": r.failed_count} for r in result2.all()]
 
-    data = {"by_status": by_status, "top_failed": top_failed}
+    # --- trend: last 10 runs for project ---
+    runs_q = (
+        select(TestPlanRun)
+        .join(TestPlan, TestPlan.id == TestPlanRun.plan_id)
+        .where(TestPlan.project_id == project_id)
+        .order_by(TestPlanRun.started_at.desc())
+        .limit(10)
+    )
+    runs_result = await db.execute(runs_q)
+    runs = list(reversed(runs_result.scalars().all()))
+
+    trend = []
+    for run in runs:
+        counts_q = (
+            select(TestPlanRunResult.status, func.count(TestPlanRunResult.id).label("cnt"))
+            .where(TestPlanRunResult.run_id == run.id)
+            .group_by(TestPlanRunResult.status)
+        )
+        counts_result = await db.execute(counts_q)
+        counts = {r.status: r.cnt for r in counts_result.all()}
+        trend.append({
+            "date": run.started_at.strftime("%d.%m") if run.started_at else "",
+            "label": run.name[:20] if run.name else "",
+            "passed": counts.get("passed", 0),
+            "failed": counts.get("failed", 0) + counts.get("blocked", 0),
+        })
+
+    # --- coverage: % covered cases per folder ---
+    folders_q = select(TestCaseFolder).where(TestCaseFolder.project_id == project_id)
+    folders_result = await db.execute(folders_q)
+    folders = folders_result.scalars().all()
+
+    coverage = {}
+    for folder in folders:
+        total_q = select(func.count(TestCase.id)).where(
+            TestCase.folder_id == folder.id,
+            TestCase.project_id == project_id,
+        )
+        total_res = await db.execute(total_q)
+        total = total_res.scalar() or 0
+        if total == 0:
+            continue
+
+        covered_q = (
+            select(func.count(TestPlanRunResult.testcase_id.distinct()))
+            .join(TestCase, TestCase.id == TestPlanRunResult.testcase_id)
+            .where(
+                TestCase.folder_id == folder.id,
+                TestCase.project_id == project_id,
+                TestPlanRunResult.status == "passed",
+            )
+        )
+        covered_res = await db.execute(covered_q)
+        covered = covered_res.scalar() or 0
+        coverage[folder.name] = round(covered / total * 100)
+
+    if not coverage:
+        total_q = select(func.count(TestCase.id)).where(TestCase.project_id == project_id)
+        total_res = await db.execute(total_q)
+        total = total_res.scalar() or 0
+        if total > 0:
+            covered_q = (
+                select(func.count(TestPlanRunResult.testcase_id.distinct()))
+                .join(TestCase, TestCase.id == TestPlanRunResult.testcase_id)
+                .where(
+                    TestCase.project_id == project_id,
+                    TestPlanRunResult.status == "passed",
+                )
+            )
+            covered_res = await db.execute(covered_q)
+            covered = covered_res.scalar() or 0
+            coverage["All"] = round(covered / total * 100)
+
+    data = {"by_status": by_status, "top_failed": top_failed, "trend": trend, "coverage": coverage}
 
     try:
         redis = await get_redis()
