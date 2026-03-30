@@ -151,8 +151,31 @@
         </div>
 
         <!-- Linked Test Cases -->
-        <div v-if="linkedTestCases.length > 0 || linkedTestCasesLoading" class="sidebar-section">
-          <h4>Тест-кейсы</h4>
+        <div v-if="linkedTestCases.length > 0 || linkedTestCasesLoading || showTcLinker" class="sidebar-section">
+          <h4 style="display:flex;justify-content:space-between;align-items:center;">
+            Тест-кейсы
+            <button
+              v-if="!showTcLinker"
+              class="btn-add-link"
+              @click="showTcLinker = true"
+              title="Link test case"
+            >+</button>
+          </h4>
+
+          <!-- Linker (appears on + click) -->
+          <LinkSearch
+            v-if="showTcLinker"
+            title=""
+            empty-text=""
+            placeholder="Найти по TC-45 или названию..."
+            :items="[]"
+            :entity-types="['testcase']"
+            :project-id="task.project_id"
+            :exclude-ids="linkedTestCases.map(tc => tc.id)"
+            @add="addLinkedTc"
+            @remove="() => {}"
+          />
+
           <div v-if="linkedTestCasesLoading" class="empty-hint">Загрузка...</div>
           <div v-else class="linked-cases-list">
             <div
@@ -184,6 +207,7 @@ import { tasksApi, automationsApi, testCasesApi } from '@/services/api'
 import RichEditor from '@/components/common/RichEditor.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 import TaskActivityFeed from './TaskActivityFeed.vue'
+import LinkSearch from '@/components/qa/LinkSearch.vue'
 
 const props = defineProps({
   task: { type: Object, required: true },
@@ -201,6 +225,7 @@ const showStatusDropdown = ref(false)
 const allowedTransitions = ref([])
 const linkedTestCases = ref([])
 const linkedTestCasesLoading = ref(false)
+const showTcLinker = ref(false)
 let autoRunsPollTimer = null
 
 function parseContent(raw) {
@@ -310,6 +335,17 @@ function openTestCase(tc) {
   setTimeout(() => {
     router.push({ path: '/qa', query: { tab: 'tree', tcId: tc.id } })
   }, 100)
+}
+
+async function addLinkedTc(item) {
+  const currentIds = linkedTestCases.value.map(tc => tc.id)
+  if (currentIds.includes(item.id)) return
+  const newIds = [...currentIds, item.id]
+  try {
+    await tasksApi.update(props.task.id, { linked_tc_ids: newIds })
+    await loadLinkedTestCases()
+    showTcLinker.value = false
+  } catch { /* silent */ }
 }
 
 function formatTimeAgo(iso) {
@@ -736,6 +772,27 @@ watch(() => props.task.id, () => {
 .tc-status-draft    { background: rgba(107,114,128,0.15); color: #9ca3af; }
 .tc-status-ready    { background: rgba(16,185,129,0.15);  color: var(--success); }
 .tc-status-approved { background: rgba(124,92,191,0.15);  color: var(--accent); }
+
+.btn-add-link {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.btn-add-link:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
 
 @media (max-width: 768px) {
   .viewer-body {

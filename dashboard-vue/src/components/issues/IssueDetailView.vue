@@ -199,6 +199,25 @@
             </div>
           </div>
 
+          <!-- Links Section -->
+          <div class="sidebar-section">
+            <h4>Links</h4>
+            <div v-if="linkedEntitiesLoading" class="empty-hint">Loading...</div>
+            <LinkSearch
+              v-else
+              title=""
+              empty-text="No linked entities"
+              placeholder="EL-123, TC-45, or name..."
+              :items="linkedEntities"
+              :entity-types="['testcase', 'article']"
+              :project-id="task.project_id"
+              :exclude-ids="linkedEntities.map(e => e.id)"
+              @add="addLinkedEntity"
+              @remove="removeLinkedEntity"
+              @click-item="navigateToLinkedEntity"
+            />
+          </div>
+
           <!-- Linked Test Cases -->
           <div
             v-if="linkedTestCases.length > 0 || linkedTestCasesLoading"
@@ -239,7 +258,8 @@ import WorkLogBlock from './WorkLogBlock.vue'
 import TaskActivityFeed from '@/components/tasks/TaskActivityFeed.vue'
 import RichEditor from '@/components/common/RichEditor.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
-import { customFieldsApi, tasksApi, testCasesApi } from '@/services/api'
+import { customFieldsApi, tasksApi, testCasesApi, entityLinksApi } from '@/services/api'
+import LinkSearch from '@/components/qa/LinkSearch.vue'
 
 const props = defineProps({
   task: { type: Object, required: true },
@@ -261,6 +281,10 @@ const customValues = ref({})
 const editCustomValues = ref({})
 const linkedTestCases = ref([])
 const linkedTestCasesLoading = ref(false)
+const linkedEntities = ref([])
+const linkedEntitiesLoading = ref(false)
+const pendingLinkedTcIds = ref([...(props.task.linked_tc_ids || [])])
+const pendingLinkedArtIds = ref([...(props.task.linked_article_ids || [])])
 
 const tabs = [
   { key: 'details', label: 'Details' },
@@ -428,6 +452,69 @@ function openTestCase(tc) {
   }, 100)
 }
 
+async function loadLinkedEntities() {
+  const task = props.task
+  const tcIds = task.linked_tc_ids || []
+  const artIds = task.linked_article_ids || []
+  if (!tcIds.length && !artIds.length) { linkedEntities.value = []; return }
+
+  linkedEntitiesLoading.value = true
+  try {
+    const tcResults = await Promise.all(
+      tcIds.map(id =>
+        entityLinksApi.getPreview('testcase', id)
+          .then(r => ({ id: r.data.id, type: 'testcase', badge: r.data.human_id, label: r.data.title, status: r.data.status }))
+          .catch(() => ({ id, type: 'testcase', badge: null, label: id.slice(0,8), status: null }))
+      )
+    )
+    const artResults = await Promise.all(
+      artIds.map(id =>
+        entityLinksApi.getPreview('article', id)
+          .then(r => ({ id: r.data.id, type: 'article', badge: r.data.human_id, label: r.data.title, status: r.data.status }))
+          .catch(() => ({ id, type: 'article', badge: null, label: id.slice(0,8), status: null }))
+      )
+    )
+    linkedEntities.value = [...tcResults, ...artResults]
+  } finally {
+    linkedEntitiesLoading.value = false
+  }
+}
+
+async function addLinkedEntity(item) {
+  if (item.type === 'testcase' && !pendingLinkedTcIds.value.includes(item.id)) {
+    pendingLinkedTcIds.value.push(item.id)
+    linkedEntities.value.push(item)
+    await store.updateTask(props.task.id, { linked_tc_ids: pendingLinkedTcIds.value })
+  } else if (item.type === 'article' && !pendingLinkedArtIds.value.includes(item.id)) {
+    pendingLinkedArtIds.value.push(item.id)
+    linkedEntities.value.push(item)
+    await store.updateTask(props.task.id, { linked_article_ids: pendingLinkedArtIds.value })
+  }
+}
+
+async function removeLinkedEntity(id) {
+  const item = linkedEntities.value.find(e => e.id === id)
+  if (!item) return
+  linkedEntities.value = linkedEntities.value.filter(e => e.id !== id)
+  if (item.type === 'testcase') {
+    pendingLinkedTcIds.value = pendingLinkedTcIds.value.filter(i => i !== id)
+    await store.updateTask(props.task.id, { linked_tc_ids: pendingLinkedTcIds.value })
+  } else {
+    pendingLinkedArtIds.value = pendingLinkedArtIds.value.filter(i => i !== id)
+    await store.updateTask(props.task.id, { linked_article_ids: pendingLinkedArtIds.value })
+  }
+}
+
+function navigateToLinkedEntity(item) {
+  if (item.type === 'testcase') {
+    router.push({ path: '/qa', query: { tab: 'tree', tcId: item.id } })
+    emit('close')
+  } else if (item.type === 'article') {
+    router.push('/articles')
+    emit('close')
+  }
+}
+
 function loadAll() {
   initEditForm()
   loadTransitions()
@@ -436,6 +523,7 @@ function loadAll() {
   loadComponents()
   loadCustomFields()
   loadLinkedTestCases()
+  loadLinkedEntities()
 }
 
 onMounted(loadAll)

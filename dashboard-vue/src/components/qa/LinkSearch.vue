@@ -9,11 +9,17 @@
         v-for="item in items"
         :key="item.id"
         class="link-item"
-        :class="{ clickable: !!item.href }"
-        @click="item.href && $emit('click-item', item)"
       >
+        <!-- Type badge -->
+        <span
+          class="link-type-badge"
+          :style="{ background: typeColor(item.type), color: 'white' }"
+          :title="TYPE_CONFIG[item.type]?.label || item.type"
+        >{{ typeAbbr(item.type) }}</span>
+        <!-- human_id -->
         <span v-if="item.badge" class="link-id">{{ item.badge }}</span>
-        <span class="link-title">{{ item.label }}</span>
+        <!-- title -->
+        <span class="link-title" @click="$emit('click-item', item)" style="cursor:pointer">{{ item.label }}</span>
         <button class="link-remove" @click.stop="$emit('remove', item.id)">&times;</button>
       </div>
     </div>
@@ -33,6 +39,10 @@
           class="link-search-item"
           @click="select(r)"
         >
+          <span
+            class="link-type-badge small"
+            :style="{ background: typeColor(r.type), color: 'white' }"
+          >{{ typeAbbr(r.type) }}</span>
           <span v-if="r.badge" class="link-result-id">{{ r.badge }}</span>
           <span class="link-result-title">{{ r.label }}</span>
         </div>
@@ -44,17 +54,35 @@
 
 <script setup>
 import { ref } from 'vue'
+import { entityLinksApi } from '@/services/api'
 
 const props = defineProps({
   title: { type: String, required: true },
   emptyText: { type: String, default: 'No linked items' },
-  placeholder: { type: String, default: 'Search...' },
+  placeholder: { type: String, default: 'Type EL-123, TC-45, or a name...' },
   items: { type: Array, default: () => [] },
-  searchFn: { type: Function, required: true },
+  entityTypes: { type: Array, default: () => ['task', 'testcase', 'article'] },
+  projectId: { type: String, default: null },
+  // DEPRECATED but keep for backward compat:
+  searchFn: { type: Function, default: null },
   excludeIds: { type: Array, default: () => [] },
 })
 
 const emit = defineEmits(['add', 'remove', 'click-item'])
+
+const TYPE_CONFIG = {
+  task:     { label: 'Issue',    color: '#3b82f6', abbr: 'EL' },
+  testcase: { label: 'TestCase', color: '#7c3aed', abbr: 'TC' },
+  article:  { label: 'Article',  color: '#10b981', abbr: 'AR' },
+}
+
+function typeColor(type) {
+  return TYPE_CONFIG[type]?.color || 'var(--text-secondary)'
+}
+
+function typeAbbr(type) {
+  return TYPE_CONFIG[type]?.abbr || '?'
+}
 
 const query = ref('')
 const results = ref([])
@@ -70,9 +98,29 @@ function onInput() {
 async function doSearch() {
   loading.value = true
   try {
-    const raw = await props.searchFn(query.value)
-    results.value = raw.filter(r => !props.excludeIds.includes(r.id))
-  } catch (e) {
+    let raw = []
+    if (props.searchFn) {
+      // backward compat
+      raw = await props.searchFn(query.value)
+    } else {
+      const res = await entityLinksApi.search(
+        query.value,
+        props.entityTypes,
+        props.projectId
+      )
+      raw = res.data || []
+    }
+    // Normalize format: ensure {id, label, badge, type} shape
+    results.value = raw
+      .filter(r => !props.excludeIds.includes(r.id))
+      .map(r => ({
+        id: r.id,
+        type: r.type || 'unknown',
+        badge: r.human_id || r.badge || null,
+        label: r.title || r.label || r.id,
+        status: r.status,
+      }))
+  } catch {
     results.value = []
   } finally {
     loading.value = false
@@ -122,12 +170,6 @@ function select(item) {
   background: var(--bg-tertiary);
   border-radius: 6px;
   font-size: 13px;
-}
-.link-item.clickable {
-  cursor: pointer;
-}
-.link-item.clickable:hover .link-title {
-  color: var(--accent);
 }
 
 .link-id {
@@ -222,5 +264,24 @@ function select(item) {
   font-size: 12px;
   color: var(--text-secondary);
   padding: 6px 0;
+}
+
+.link-type-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+.link-type-badge.small {
+  min-width: 18px;
+  height: 16px;
+  font-size: 8px;
 }
 </style>

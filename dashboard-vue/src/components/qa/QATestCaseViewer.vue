@@ -121,22 +121,25 @@
               title="Issues"
               empty-text="No linked issues"
               placeholder="Find issue by ID or title..."
+              :entity-types="['task']"
+              :project-id="projectId"
               :items="issueItems"
-              :search-fn="searchIssues"
               :exclude-ids="form.linked_issue_ids"
               @add="addIssue"
               @remove="removeIssue"
-              @click-item="openIssue"
+              @click-item="navigateToEntity"
             />
             <LinkSearch
               title="Articles"
               empty-text="No linked articles"
               placeholder="Find article by title..."
+              :entity-types="['article']"
+              :project-id="projectId"
               :items="articleItems"
-              :search-fn="searchArticles"
               :exclude-ids="form.linked_article_ids"
               @add="addArticle"
               @remove="removeArticle"
+              @click-item="navigateToEntity"
             />
           </div>
         </div>
@@ -197,12 +200,13 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { tasksApi, articlesApi } from '@/services/api'
+import { entityLinksApi } from '@/services/api'
 import StepsEditor from './StepsEditor.vue'
 import LinkSearch from './LinkSearch.vue'
 
 const props = defineProps({
-  testCase: { type: Object, required: true }
+  testCase: { type: Object, required: true },
+  projectId: { type: String, default: null },
 })
 
 const emit = defineEmits(['close', 'save', 'delete'])
@@ -242,9 +246,10 @@ const issueItems = computed(() =>
     const d = linkedIssuesData.value.find(i => i.id === id)
     return {
       id,
-      badge: d?.human_id || id.slice(0, 8),
-      label: d?.title || 'Issue',
-      href: d?.human_id ? `/issues/${d.human_id}` : null,
+      type: 'task',
+      badge: d?.badge || null,
+      label: d?.label || id.slice(0, 8),
+      status: d?.status,
     }
   })
 )
@@ -252,7 +257,13 @@ const issueItems = computed(() =>
 const articleItems = computed(() =>
   form.value.linked_article_ids.map(id => {
     const d = linkedArticlesData.value.find(a => a.id === id)
-    return { id, label: d?.title || id.slice(0, 8) }
+    return {
+      id,
+      type: 'article',
+      badge: d?.badge || null,
+      label: d?.label || id.slice(0, 8),
+      status: d?.status,
+    }
   })
 )
 
@@ -276,28 +287,14 @@ onMounted(() => {
         _id: Math.random()
       })),
     }
-    hydrateLinkedIssues(props.testCase.linked_issue_ids || [])
-    hydrateLinkedArticles(props.testCase.linked_article_ids || [])
+    hydrateLinkedEntities()
   }
 })
-
-// Search functions for LinkSearch
-async function searchIssues(q) {
-  const res = await tasksApi.list({ q, limit: 10 })
-  const items = Array.isArray(res.data) ? res.data : res.data.items || []
-  return items.map(i => ({ id: i.id, badge: i.human_id, label: i.title, human_id: i.human_id, title: i.title }))
-}
-
-async function searchArticles(q) {
-  const res = await articlesApi.list({ q, limit: 10 })
-  const items = Array.isArray(res.data) ? res.data : res.data.items || []
-  return items.map(a => ({ id: a.id, label: a.title, title: a.title }))
-}
 
 function addIssue(item) {
   if (!form.value.linked_issue_ids.includes(item.id)) {
     form.value.linked_issue_ids.push(item.id)
-    linkedIssuesData.value.push({ id: item.id, human_id: item.human_id || item.badge, title: item.title || item.label })
+    linkedIssuesData.value.push({ id: item.id, badge: item.badge, label: item.label, status: item.status })
   }
 }
 
@@ -309,7 +306,7 @@ function removeIssue(id) {
 function addArticle(item) {
   if (!form.value.linked_article_ids.includes(item.id)) {
     form.value.linked_article_ids.push(item.id)
-    linkedArticlesData.value.push({ id: item.id, title: item.title || item.label })
+    linkedArticlesData.value.push({ id: item.id, badge: item.badge, label: item.label, status: item.status })
   }
 }
 
@@ -318,42 +315,54 @@ function removeArticle(id) {
   linkedArticlesData.value = linkedArticlesData.value.filter(a => a.id !== id)
 }
 
-// Hydrate linked entities on mount
-async function hydrateLinkedIssues(ids) {
-  if (!ids || !ids.length) return
-  try {
+// Hydrate linked entities via entityLinksApi.getPreview
+async function hydrateLinkedEntities() {
+  const issueIds = form.value.linked_issue_ids || []
+  const articleIds = form.value.linked_article_ids || []
+
+  if (issueIds.length) {
     const results = await Promise.all(
-      ids.map(id =>
-        tasksApi.get(id)
-          .then(r => ({ id: r.data.id, human_id: r.data.human_id, title: r.data.title }))
-          .catch(() => ({ id, human_id: id.slice(0, 8), title: 'Issue' }))
+      issueIds.map(id =>
+        entityLinksApi.getPreview('task', id)
+          .then(r => ({
+            id: r.data.id,
+            type: 'task',
+            badge: r.data.human_id,
+            label: r.data.title,
+            status: r.data.status,
+          }))
+          .catch(() => ({ id, type: 'task', badge: null, label: id.slice(0, 8), status: null }))
       )
     )
     linkedIssuesData.value = results
-  } catch {
-    // silent fail — show raw IDs
   }
-}
 
-async function hydrateLinkedArticles(ids) {
-  if (!ids || !ids.length) return
-  try {
+  if (articleIds.length) {
     const results = await Promise.all(
-      ids.map(id =>
-        articlesApi.get(id)
-          .then(r => ({ id: r.data.id, title: r.data.title }))
-          .catch(() => ({ id, title: id.slice(0, 8) }))
+      articleIds.map(id =>
+        entityLinksApi.getPreview('article', id)
+          .then(r => ({
+            id: r.data.id,
+            type: 'article',
+            badge: r.data.human_id || null,
+            label: r.data.title,
+            status: r.data.status,
+          }))
+          .catch(() => ({ id, type: 'article', badge: null, label: id.slice(0, 8), status: null }))
       )
     )
     linkedArticlesData.value = results
-  } catch {
-    // silent fail
   }
 }
 
-function openIssue(item) {
-  if (item.href) {
-    router.push(item.href)
+function navigateToEntity(item) {
+  if (item.type === 'task') {
+    const target = item.badge || item.id
+    router.push(`/issues/${target}`)
+    emit('close')
+  } else if (item.type === 'article') {
+    router.push('/articles')
+    emit('close')
   }
 }
 

@@ -60,6 +60,33 @@
             @click="emit('open-article', a.id)"
           >📄 {{ a.title }}</div>
         </div>
+
+        <!-- Links Section -->
+        <div class="viewer-links-section">
+          <div class="viewer-links-header" @click="linksExpanded = !linksExpanded">
+            <span class="viewer-links-title">
+              Связанные материалы
+              <span v-if="linkedItems.length" class="links-count">({{ linkedItems.length }})</span>
+            </span>
+            <span class="links-toggle">{{ linksExpanded ? '▲' : '▼' }}</span>
+          </div>
+
+          <div v-if="linksExpanded" class="viewer-links-body">
+            <div v-if="linkedItemsLoading" class="links-loading">Loading...</div>
+            <LinkSearch
+              v-else
+              title=""
+              empty-text="Нет связанных материалов. Введите EL-123 или название для поиска."
+              placeholder="EL-123, TC-45, или название..."
+              :items="linkedItems"
+              :entity-types="['task', 'testcase']"
+              :exclude-ids="linkedItems.map(e => e.id)"
+              @add="addLinkedToArticle"
+              @remove="removeLinkedFromArticle"
+              @click-item="navigateFromArticle"
+            />
+          </div>
+        </div>
       </div>
 
       <div class="viewer-toc" v-if="tocItems.length">
@@ -103,8 +130,11 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import GridEditor from './GridEditor.vue'
+import LinkSearch from '@/components/qa/LinkSearch.vue'
 import { useArticlesStore } from '@/stores/articles'
+import { entityLinksApi } from '@/services/api'
 
 const props = defineProps({
   article: { type: Object, required: true }
@@ -113,6 +143,82 @@ const props = defineProps({
 const emit = defineEmits(['close', 'edit', 'navigate-to-folder', 'open-article'])
 
 const store = useArticlesStore()
+const router = useRouter()
+
+// Links state
+const linkedItems = ref([])
+const linkedItemsLoading = ref(false)
+const linksExpanded = ref(true)
+const pendingLinkedIssueIds = ref([])
+const pendingLinkedTcIds = ref([])
+
+async function loadLinkedItems() {
+  if (!props.article?.id) return
+  linkedItemsLoading.value = true
+  try {
+    const article = props.article
+    const issueIds = article.linked_issue_ids || []
+    const tcIds = article.linked_testcase_ids || []
+
+    pendingLinkedIssueIds.value = [...issueIds]
+    pendingLinkedTcIds.value = [...tcIds]
+
+    const all = []
+
+    await Promise.all([
+      ...issueIds.map(id =>
+        entityLinksApi.getPreview('task', id)
+          .then(r => all.push({ id: r.data.id, type: 'task', badge: r.data.human_id, label: r.data.title, status: r.data.status }))
+          .catch(() => all.push({ id, type: 'task', badge: null, label: id.slice(0, 8), status: null }))
+      ),
+      ...tcIds.map(id =>
+        entityLinksApi.getPreview('testcase', id)
+          .then(r => all.push({ id: r.data.id, type: 'testcase', badge: r.data.human_id, label: r.data.title, status: r.data.status }))
+          .catch(() => all.push({ id, type: 'testcase', badge: null, label: id.slice(0, 8), status: null }))
+      ),
+    ])
+
+    linkedItems.value = all
+  } finally {
+    linkedItemsLoading.value = false
+  }
+}
+
+async function addLinkedToArticle(item) {
+  if (linkedItems.value.some(e => e.id === item.id)) return
+  linkedItems.value.push(item)
+
+  if (item.type === 'task') {
+    pendingLinkedIssueIds.value.push(item.id)
+    await store.updateArticle(props.article.id, { linked_issue_ids: pendingLinkedIssueIds.value })
+  } else if (item.type === 'testcase') {
+    pendingLinkedTcIds.value.push(item.id)
+    await store.updateArticle(props.article.id, { linked_testcase_ids: pendingLinkedTcIds.value })
+  }
+}
+
+async function removeLinkedFromArticle(id) {
+  const item = linkedItems.value.find(e => e.id === id)
+  if (!item) return
+  linkedItems.value = linkedItems.value.filter(e => e.id !== id)
+
+  if (item.type === 'task') {
+    pendingLinkedIssueIds.value = pendingLinkedIssueIds.value.filter(i => i !== id)
+    await store.updateArticle(props.article.id, { linked_issue_ids: pendingLinkedIssueIds.value })
+  } else {
+    pendingLinkedTcIds.value = pendingLinkedTcIds.value.filter(i => i !== id)
+    await store.updateArticle(props.article.id, { linked_testcase_ids: pendingLinkedTcIds.value })
+  }
+}
+
+function navigateFromArticle(item) {
+  if (item.type === 'task' && item.badge) {
+    router.push(`/issues/${item.badge}`)
+  } else if (item.type === 'testcase') {
+    router.push({ path: '/qa', query: { tab: 'tree', tcId: item.id } })
+  }
+}
+
 const showHistory = ref(false)
 const historyLoading = ref(false)
 const selectedVersion = ref(null)
@@ -228,6 +334,7 @@ async function loadArticleData() {
   if (props.article.folder_id) {
     await store.fetchFolderArticles(props.article.folder_id, props.article.id)
   }
+  loadLinkedItems()
   await nextTick()
   buildToc()
 }
@@ -379,6 +486,43 @@ onBeforeUnmount(() => {
 @media (max-width: 1280px) {
   .viewer-body { grid-template-columns: 1fr; }
   .viewer-toc { display: none; }
+}
+
+/* links section */
+.viewer-links-section {
+  margin-top: 32px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+}
+.viewer-links-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px 0;
+  user-select: none;
+}
+.viewer-links-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.links-count {
+  font-weight: 400;
+  color: var(--text-secondary);
+  margin-left: 4px;
+}
+.links-toggle {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.viewer-links-body {
+  padding-top: 12px;
+}
+.links-loading {
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 8px 0;
 }
 
 /* child pages */

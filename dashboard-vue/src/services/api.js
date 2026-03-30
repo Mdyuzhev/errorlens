@@ -228,6 +228,18 @@ export const entityLinksApi = {
     return response
   },
   getBacklinks: (type, id) => api.get(`/entities/${type}/${id}/backlinks`),
+
+  /**
+   * Unified entity search with prefix routing.
+   * @param {string} q - query: "EL-123" | "TC-45" | "login"
+   * @param {string[]} types - ['task', 'testcase', 'article'] (default: all)
+   * @param {string|null} projectId
+   */
+  search: (q, types = ['task', 'testcase', 'article'], projectId = null) => {
+    const params = { q, types: types.join(',') }
+    if (projectId) params.project_id = projectId
+    return api.get('/entities/search', { params })
+  },
 }
 
 // Test Plans API
