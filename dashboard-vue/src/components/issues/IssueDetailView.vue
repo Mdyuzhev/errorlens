@@ -198,6 +198,32 @@
               <span v-for="l in task.labels" :key="l" class="label-tag">{{ l }}</span>
             </div>
           </div>
+
+          <!-- Linked Test Cases -->
+          <div
+            v-if="linkedTestCases.length > 0 || linkedTestCasesLoading"
+            class="sidebar-section"
+          >
+            <h4>Test Cases</h4>
+            <div v-if="linkedTestCasesLoading" class="empty-hint">Loading...</div>
+            <div v-else class="linked-cases-list">
+              <div
+                v-for="tc in linkedTestCases"
+                :key="tc.id"
+                class="linked-case-item"
+                style="cursor: pointer"
+                @click="openTestCase(tc)"
+                :title="'Open ' + (tc.human_id || tc.title)"
+              >
+                <span class="linked-case-id">{{ tc.human_id || tc.id?.slice(0,8) }}</span>
+                <span class="linked-case-title">{{ tc.title }}</span>
+                <span
+                  class="linked-case-status"
+                  :class="'tc-status-' + (tc.status || 'draft').toLowerCase()"
+                >{{ tc.status || 'Draft' }}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -206,13 +232,14 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useIssuesStore } from '@/stores/issues'
 import AttachmentsBlock from './AttachmentsBlock.vue'
 import WorkLogBlock from './WorkLogBlock.vue'
 import TaskActivityFeed from '@/components/tasks/TaskActivityFeed.vue'
 import RichEditor from '@/components/common/RichEditor.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
-import { customFieldsApi, tasksApi } from '@/services/api'
+import { customFieldsApi, tasksApi, testCasesApi } from '@/services/api'
 
 const props = defineProps({
   task: { type: Object, required: true },
@@ -220,6 +247,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'updated', 'open-task'])
 
+const router = useRouter()
 const store = useIssuesStore()
 const editing = ref(false)
 const activeTab = ref('details')
@@ -231,6 +259,8 @@ const components = ref([])
 const customFields = ref([])
 const customValues = ref({})
 const editCustomValues = ref({})
+const linkedTestCases = ref([])
+const linkedTestCasesLoading = ref(false)
 
 const tabs = [
   { key: 'details', label: 'Details' },
@@ -378,6 +408,24 @@ async function confirmDelete() {
   }
 }
 
+async function loadLinkedTestCases() {
+  if (!props.task?.id) return
+  linkedTestCasesLoading.value = true
+  try {
+    const res = await testCasesApi.list({ linked_issue_id: props.task.id, limit: 20 })
+    linkedTestCases.value = Array.isArray(res.data) ? res.data : res.data.items || []
+  } catch {
+    linkedTestCases.value = []
+  } finally {
+    linkedTestCasesLoading.value = false
+  }
+}
+
+function openTestCase(tc) {
+  router.push({ path: '/qa', query: { tab: 'tree', tcId: tc.id } })
+  emit('close')
+}
+
 function loadAll() {
   initEditForm()
   loadTransitions()
@@ -385,6 +433,7 @@ function loadAll() {
   loadWorkLogs()
   loadComponents()
   loadCustomFields()
+  loadLinkedTestCases()
 }
 
 onMounted(loadAll)
@@ -441,6 +490,32 @@ watch(() => props.task.id, loadAll)
 .btn-sm:hover { opacity: 0.9; }
 .btn-sm.btn-primary { background: var(--accent); color: white; }
 .btn-sm.btn-danger { background: #ef4444; color: white; }
+/* Linked test cases */
+.linked-cases-list { display: flex; flex-direction: column; gap: 6px; }
+.linked-case-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; background: var(--bg-secondary);
+  border-radius: 6px; font-size: 12px;
+  transition: background 0.15s;
+}
+.linked-case-item:hover { background: var(--bg-tertiary); }
+.linked-case-id {
+  font-family: monospace; font-size: 11px; color: var(--accent);
+  background: var(--accent-muted); padding: 1px 5px; border-radius: 3px;
+  flex-shrink: 0;
+}
+.linked-case-title {
+  flex: 1; color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.linked-case-status {
+  font-size: 10px; font-weight: 600; padding: 1px 6px;
+  border-radius: 4px; flex-shrink: 0; text-transform: capitalize;
+}
+.tc-status-draft    { background: rgba(107,114,128,0.15); color: #9ca3af; }
+.tc-status-ready    { background: rgba(16,185,129,0.15); color: var(--success); }
+.tc-status-approved { background: rgba(124,92,191,0.15); color: var(--accent); }
+.empty-hint { font-size: 12px; color: var(--text-secondary); font-style: italic; }
 @media (max-width: 768px) {
   .task-body { flex-direction: column; }
   .task-sidebar { width: 100%; }

@@ -9,10 +9,12 @@
         v-for="item in items"
         :key="item.id"
         class="link-item"
+        :class="{ clickable: !!item.href }"
+        @click="item.href && $emit('click-item', item)"
       >
         <span v-if="item.badge" class="link-id">{{ item.badge }}</span>
         <span class="link-title">{{ item.label }}</span>
-        <button class="link-remove" @click="$emit('remove', item.id)">&times;</button>
+        <button class="link-remove" @click.stop="$emit('remove', item.id)">&times;</button>
       </div>
     </div>
     <div v-else class="empty-links">{{ emptyText }}</div>
@@ -52,7 +54,7 @@ const props = defineProps({
   excludeIds: { type: Array, default: () => [] },
 })
 
-const emit = defineEmits(['add', 'remove'])
+const emit = defineEmits(['add', 'remove', 'click-item'])
 
 const query = ref('')
 const results = ref([])
@@ -120,6 +122,12 @@ function select(item) {
   background: var(--bg-tertiary);
   border-radius: 6px;
   font-size: 13px;
+}
+.link-item.clickable {
+  cursor: pointer;
+}
+.link-item.clickable:hover .link-title {
+  color: var(--accent);
 }
 
 .link-id {

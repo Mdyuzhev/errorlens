@@ -159,6 +159,9 @@
               v-for="tc in linkedTestCases"
               :key="tc.id"
               class="linked-case-item"
+              style="cursor: pointer"
+              @click="openTestCase(tc)"
+              :title="'Open ' + (tc.human_id || tc.title)"
             >
               <span class="linked-case-id">{{ tc.human_id || tc.id?.slice(0,8) }}</span>
               <span class="linked-case-title">{{ tc.title }}</span>
@@ -175,6 +178,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useTasksStore } from '@/stores/tasks'
 import { tasksApi, automationsApi, testCasesApi } from '@/services/api'
 import RichEditor from '@/components/common/RichEditor.vue'
@@ -188,6 +192,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'edit', 'open-task', 'updated'])
 
+const router = useRouter()
 const store = useTasksStore()
 const activity = ref([])
 const relations = ref([])
@@ -298,6 +303,11 @@ async function loadLinkedTestCases() {
   } finally {
     linkedTestCasesLoading.value = false
   }
+}
+
+function openTestCase(tc) {
+  router.push({ path: '/qa', query: { tab: 'tree', tcId: tc.id } })
+  emit('close')
 }
 
 function formatTimeAgo(iso) {
@@ -685,7 +695,12 @@ watch(() => props.task.id, () => {
   background: var(--bg-secondary);
   border-radius: 6px;
   font-size: 12px;
-  cursor: default;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.linked-case-item:hover {
+  background: var(--bg-tertiary);
 }
 
 .linked-case-id {

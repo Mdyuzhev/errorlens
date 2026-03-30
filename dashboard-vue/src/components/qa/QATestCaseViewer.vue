@@ -76,6 +76,7 @@
               :exclude-ids="form.linked_issue_ids"
               @add="addIssue"
               @remove="removeIssue"
+              @click-item="openIssue"
             />
             <LinkSearch
               title="Articles"
@@ -145,6 +146,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { tasksApi, articlesApi } from '@/services/api'
 import StepsEditor from './StepsEditor.vue'
 import LinkSearch from './LinkSearch.vue'
@@ -154,6 +156,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'save', 'delete'])
+const router = useRouter()
 
 const detailTabs = [
   { key: 'details', label: 'Details' },
@@ -185,7 +188,12 @@ const linkedArticlesData = ref([])
 const issueItems = computed(() =>
   form.value.linked_issue_ids.map(id => {
     const d = linkedIssuesData.value.find(i => i.id === id)
-    return { id, badge: d?.human_id || id.slice(0, 8), label: d?.title || 'Issue' }
+    return {
+      id,
+      badge: d?.human_id || id.slice(0, 8),
+      label: d?.title || 'Issue',
+      href: d?.human_id ? `/issues/${d.human_id}` : null,
+    }
   })
 )
 
@@ -211,6 +219,8 @@ onMounted(() => {
       linked_issue_ids: [...(props.testCase.linked_issue_ids || [])],
       linked_article_ids: [...(props.testCase.linked_article_ids || [])],
     }
+    hydrateLinkedIssues(props.testCase.linked_issue_ids || [])
+    hydrateLinkedArticles(props.testCase.linked_article_ids || [])
   }
 })
 
@@ -249,6 +259,45 @@ function addArticle(item) {
 function removeArticle(id) {
   form.value.linked_article_ids = form.value.linked_article_ids.filter(a => a !== id)
   linkedArticlesData.value = linkedArticlesData.value.filter(a => a.id !== id)
+}
+
+// Hydrate linked entities on mount
+async function hydrateLinkedIssues(ids) {
+  if (!ids || !ids.length) return
+  try {
+    const results = await Promise.all(
+      ids.map(id =>
+        tasksApi.get(id)
+          .then(r => ({ id: r.data.id, human_id: r.data.human_id, title: r.data.title }))
+          .catch(() => ({ id, human_id: id.slice(0, 8), title: 'Issue' }))
+      )
+    )
+    linkedIssuesData.value = results
+  } catch {
+    // silent fail — show raw IDs
+  }
+}
+
+async function hydrateLinkedArticles(ids) {
+  if (!ids || !ids.length) return
+  try {
+    const results = await Promise.all(
+      ids.map(id =>
+        articlesApi.get(id)
+          .then(r => ({ id: r.data.id, title: r.data.title }))
+          .catch(() => ({ id, title: id.slice(0, 8) }))
+      )
+    )
+    linkedArticlesData.value = results
+  } catch {
+    // silent fail
+  }
+}
+
+function openIssue(item) {
+  if (item.href) {
+    router.push(item.href)
+  }
 }
 
 function handleSave() {

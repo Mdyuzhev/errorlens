@@ -99,7 +99,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, defineAsyncComponent } from 'vue'
+import { ref, watch, onMounted, computed, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQAStore } from '@/stores/qa'
 import { useLocaleStore } from '@/stores/locale'
@@ -155,7 +155,19 @@ onMounted(async () => {
   if (route.query.open) {
     openCase(route.query.open)
   }
+
+  if (route.query.tcId) {
+    activeTab.value = 'tree'
+    openCase(route.query.tcId)
+  }
 })
+
+// Handle tcId query param for navigation from issue/task views
+watch(() => route.query.tcId, async (tcId) => {
+  if (!tcId) return
+  activeTab.value = 'tree'
+  await openCase(tcId)
+}, { immediate: false })
 
 function switchTab(key) {
   activeTab.value = key
