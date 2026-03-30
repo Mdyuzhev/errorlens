@@ -955,7 +955,7 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
       cy.getAuthToken().then(token => {
         cy.request({
           method: 'DELETE',
-          url: `/api/v1/sprints/${sprintId}`,
+          url: `/api/api/v1/sprints/${sprintId}`,
           headers: { Authorization: `Bearer ${token}` },
           failOnStatusCode: false
         })
@@ -972,16 +972,12 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
       }).then(resp => {
         const pid = (resp.body[0] || resp.body.items?.[0])?.id
         cy.request({
-          method: 'POST', url: '/api/v1/sprints',
+          method: 'POST', url: '/api/api/v1/sprints',
           headers: { Authorization: `Bearer ${token}` },
           body: { name: `CY-Sprint-${Date.now()}`, project_id: pid,
                   start_date: '2026-04-01', end_date: '2026-04-14' },
           failOnStatusCode: false
         }).then(sr => {
-          if (sr.status === 404 || sr.status === 405) {
-            cy.log('Sprint API not implemented — skipping assertions')
-            return
-          }
           expect(sr.status).to.be.oneOf([200, 201])
           sprintId = sr.body.id
           expect(sprintId).to.exist
@@ -998,19 +994,16 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
       }).then(resp => {
         const pid = (resp.body[0] || resp.body.items?.[0])?.id
         cy.request({
-          method: 'POST', url: '/api/v1/sprints',
+          method: 'POST', url: '/api/api/v1/sprints',
           headers: { Authorization: `Bearer ${token}` },
           body: { name: `CY-Sprint-${Date.now()}`, project_id: pid,
                   start_date: '2026-04-01', end_date: '2026-04-14' },
           failOnStatusCode: false
         }).then(sr => {
-          if (sr.status === 404 || sr.status === 405) {
-            cy.log('Sprint API not implemented — skipping assertions')
-            return
-          }
+          expect(sr.status).to.be.oneOf([200, 201])
           sprintId = sr.body.id
           cy.request({
-            method: 'POST', url: `/api/v1/sprints/${sprintId}/start`,
+            method: 'POST', url: `/api/api/v1/sprints/${sprintId}/start`,
             headers: { Authorization: `Bearer ${token}` },
             failOnStatusCode: false
           }).then(startResp => {
@@ -1030,38 +1023,35 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
         const pid = (resp.body[0] || resp.body.items?.[0])?.id
         // Создать и стартовать первый спринт
         cy.request({
-          method: 'POST', url: '/api/v1/sprints',
+          method: 'POST', url: '/api/api/v1/sprints',
           headers: { Authorization: `Bearer ${token}` },
           body: { name: `CY-Sprint-A-${Date.now()}`, project_id: pid,
                   start_date: '2026-04-01', end_date: '2026-04-14' },
           failOnStatusCode: false
         }).then(s1 => {
-          if (s1.status === 404 || s1.status === 405) {
-            cy.log('Sprint API not implemented — skipping assertions')
-            return
-          }
+          expect(s1.status).to.be.oneOf([200, 201])
           sprintId = s1.body.id
           cy.request({
-            method: 'POST', url: `/api/v1/sprints/${sprintId}/start`,
+            method: 'POST', url: `/api/api/v1/sprints/${sprintId}/start`,
             headers: { Authorization: `Bearer ${token}` },
             failOnStatusCode: false
           }).then(() => {
             // Создать второй и попытаться стартовать → 409
             cy.request({
-              method: 'POST', url: '/api/v1/sprints',
+              method: 'POST', url: '/api/api/v1/sprints',
               headers: { Authorization: `Bearer ${token}` },
               body: { name: `CY-Sprint-B-${Date.now()}`, project_id: pid,
                       start_date: '2026-04-15', end_date: '2026-04-28' },
               failOnStatusCode: false
             }).then(s2 => {
               cy.request({
-                method: 'POST', url: `/api/v1/sprints/${s2.body.id}/start`,
+                method: 'POST', url: `/api/api/v1/sprints/${s2.body.id}/start`,
                 headers: { Authorization: `Bearer ${token}` },
                 failOnStatusCode: false
               }).its('status').should('be.oneOf', [409, 400])
               // Cleanup s2
               cy.request({
-                method: 'DELETE', url: `/api/v1/sprints/${s2.body.id}`,
+                method: 'DELETE', url: `/api/api/v1/sprints/${s2.body.id}`,
                 headers: { Authorization: `Bearer ${token}` },
                 failOnStatusCode: false
               })
@@ -1082,17 +1072,13 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
         }).then(resp => {
           const pid = (resp.body[0])?.id
           cy.request({
-            method: 'POST', url: '/api/v1/sprints',
+            method: 'POST', url: '/api/api/v1/sprints',
             headers: { Authorization: `Bearer ${token}` },
             body: { name: `CY-Sprint-C-${Date.now()}`, project_id: pid,
                     start_date: '2026-04-01', end_date: '2026-04-14' },
             failOnStatusCode: false
           }).then(sr => {
-            if (sr.status === 404 || sr.status === 405) {
-              cy.log('Sprint API not implemented — skipping assertions')
-              cy.deleteIssueViaApi(taskId)
-              return
-            }
+            expect(sr.status).to.be.oneOf([200, 201])
             sprintId = sr.body.id
             // Добавить issue в спринт
             cy.request({
@@ -1103,13 +1089,13 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
             })
             // Стартовать
             cy.request({
-              method: 'POST', url: `/api/v1/sprints/${sprintId}/start`,
+              method: 'POST', url: `/api/api/v1/sprints/${sprintId}/start`,
               headers: { Authorization: `Bearer ${token}` },
               failOnStatusCode: false
             })
             // Завершить
             cy.request({
-              method: 'POST', url: `/api/v1/sprints/${sprintId}/complete`,
+              method: 'POST', url: `/api/api/v1/sprints/${sprintId}/complete`,
               headers: { Authorization: `Bearer ${token}` },
               failOnStatusCode: false
             }).then(cr => {
@@ -1131,7 +1117,7 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
         const pid = resp.body[0]?.id
         cy.request({
           method: 'GET',
-          url: '/api/v1/sprints/velocity',
+          url: '/api/api/v1/sprints/velocity',
           headers: { Authorization: `Bearer ${token}` },
           qs: { project_id: pid, limit: 5 },
           failOnStatusCode: false
@@ -1153,7 +1139,7 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
       }).then(resp => {
         const pid = resp.body[0]?.id
         cy.request({
-          method: 'POST', url: '/api/v1/sprints',
+          method: 'POST', url: '/api/api/v1/sprints',
           headers: { Authorization: `Bearer ${token}` },
           body: { name: `CY-Burndown-${Date.now()}`, project_id: pid,
                   start_date: '2026-03-01', end_date: '2026-03-14' },
@@ -1162,7 +1148,7 @@ describe('CRUD-10: Sprint — Create → Start → Complete', () => {
           sprintId = sr.body.id
           cy.request({
             method: 'GET',
-            url: `/api/v1/sprints/${sprintId}/burndown`,
+            url: `/api/api/v1/sprints/${sprintId}/burndown`,
             headers: { Authorization: `Bearer ${token}` },
             failOnStatusCode: false
           }).then(br => {
