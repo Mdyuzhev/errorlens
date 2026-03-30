@@ -345,6 +345,56 @@ Cypress.Commands.add('deleteFolderViaApi', (id) => {
   })
 })
 
+// ═══════════════════════════════════════════════════════
+// TESTCASES API COMMANDS
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Создать тест-кейс через API.
+ * Сохраняет id в @testCaseId, полный объект в @createdTestCase.
+ */
+Cypress.Commands.add('createTestCaseViaApi', (overrides = {}) => {
+  const token = getToken()
+  cy.request({
+    method: 'GET',
+    url: '/api/projects',
+    headers: { Authorization: `Bearer ${token}` }
+  }).then(projResp => {
+    const projects = Array.isArray(projResp.body) ? projResp.body : (projResp.body?.items || [])
+    const projectId = projects[0]?.id
+    cy.request({
+      method: 'POST',
+      url: '/api/testcases',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: {
+        title: `CY-TC-${Date.now()}`,
+        priority: 'medium',
+        status: 'draft',
+        project_id: projectId,
+        ...overrides
+      }
+    }).then(resp => {
+      expect(resp.status).to.be.oneOf([200, 201])
+      cy.wrap(resp.body.id).as('testCaseId')
+      cy.wrap(resp.body).as('createdTestCase')
+    })
+  })
+})
+
+/**
+ * Удалить тест-кейс через API. failOnStatusCode: false — тихо игнорирует 404.
+ */
+Cypress.Commands.add('deleteTestCaseViaApi', (id) => {
+  if (!id) return
+  const token = getToken()
+  cy.request({
+    method: 'DELETE',
+    url: `/api/testcases/${id}`,
+    headers: { Authorization: `Bearer ${token}` },
+    failOnStatusCode: false
+  })
+})
+
 /**
  * Открыть первую статью в списке.
  */
