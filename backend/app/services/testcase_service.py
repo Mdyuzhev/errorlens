@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import cast, String, select
+from sqlalchemy import cast, func, String, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import TestCase
@@ -152,6 +152,30 @@ class TestCaseService:
         """Get test case statistics."""
         return await self.repo.get_stats()
 
+    async def count_testcases(
+        self,
+        folder_id: str | None = None,
+        folder: str | None = None,
+        status: str | None = None,
+        priority: str | None = None,
+        q: str | None = None,
+    ) -> int:
+        """Count test cases matching filters."""
+        query = select(func.count(TestCase.id))
+        if folder_id:
+            query = query.where(TestCase.folder_id == folder_id)
+        elif folder:
+            query = query.where(TestCase.folder == folder)
+        if status:
+            query = query.where(TestCase.status == status)
+        if priority:
+            query = query.where(TestCase.priority == priority)
+        if q:
+            query = query.where(TestCase.title.ilike(f'%{q}%'))
+
+        result = await self.db.execute(query)
+        return result.scalar() or 0
+
     async def update_testcase(self, testcase_id: str, **updates) -> TestCase | None:
         """Update test case fields."""
         testcase = await self.repo.get_by_id(testcase_id)
@@ -245,6 +269,7 @@ class TestCaseService:
             "linked_article_ids": tc.linked_article_ids,
             "created_at": tc.created_at.isoformat() if tc.created_at else None,
             "created_by": tc.created_by,
+            "updated_at": tc.updated_at.isoformat() if tc.updated_at else tc.created_at.isoformat() if tc.created_at else None,
         }
 
     def to_detail_dict(self, tc: TestCase) -> dict[str, Any]:

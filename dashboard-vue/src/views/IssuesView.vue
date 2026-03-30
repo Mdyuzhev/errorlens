@@ -107,9 +107,21 @@
       <!-- Kanban Board -->
       <div v-else class="kanban-board" data-testid="kanban-board">
         <div v-for="column in columns" :key="column.id" class="kanban-column" @dragover.prevent @drop="onDrop($event, column.id)">
-          <div class="column-header">
+          <div class="column-header" :class="{ 'wip-exceeded': isWipExceeded(column.id) }">
             <span class="column-title">{{ column.title }}</span>
-            <span class="column-count">{{ board[column.id]?.length || 0 }}</span>
+            <div class="column-header-right">
+              <span class="column-count" :class="{ 'count-exceeded': isWipExceeded(column.id) }">
+                {{ board[column.id]?.length || 0 }}
+                <span v-if="wipLimits[column.id]" class="wip-limit-badge">
+                  / {{ wipLimits[column.id] }}
+                </span>
+              </span>
+              <button
+                class="btn-wip-edit"
+                :title="wipLimits[column.id] ? `WIP limit: ${wipLimits[column.id]}` : 'Set WIP limit'"
+                @click.stop="openWipEditor(column.id)"
+              >&#9881;</button>
+            </div>
           </div>
           <div class="column-content">
             <div v-for="task in board[column.id]" :key="task.id" class="task-card" draggable="true" @dragstart="onDragStart($event, task)" @click="openTask(task)">
@@ -197,6 +209,26 @@
         </form>
       </div>
     </div>
+    <!-- WIP Limit Editor -->
+    <div v-if="showWipEditor" class="wip-modal-overlay" @click.self="showWipEditor = false">
+      <div class="wip-modal">
+        <h4 class="wip-modal-title">WIP Limit — {{ wipEditorColumn }}</h4>
+        <p class="wip-modal-hint">Максимальное число задач в колонке. Оставьте пустым для отключения.</p>
+        <input
+          v-model="wipEditorValue"
+          type="number"
+          min="1"
+          class="wip-modal-input"
+          placeholder="Без лимита"
+          @keydown.enter="saveWipLimit(wipEditorColumn, wipEditorValue)"
+          @keydown.esc="showWipEditor = false"
+        />
+        <div class="wip-modal-actions">
+          <button class="btn-wip-clear" @click="saveWipLimit(wipEditorColumn, null)">Убрать лимит</button>
+          <button class="btn-wip-save" @click="saveWipLimit(wipEditorColumn, wipEditorValue)">Сохранить</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -237,6 +269,42 @@ const columns = [
 const activeTab = ref('board')
 const showCreateModal = ref(false)
 const showCreateSprintModal = ref(false)
+
+// WIP limits
+const wipLimits = ref({})
+const showWipEditor = ref(false)
+const wipEditorColumn = ref(null)
+const wipEditorValue = ref('')
+
+function loadWipLimits() {
+  if (!currentProjectId.value) return
+  try {
+    const stored = localStorage.getItem(`errorlens:wip_limits:${currentProjectId.value}`)
+    wipLimits.value = stored ? JSON.parse(stored) : {}
+  } catch { wipLimits.value = {} }
+}
+
+function saveWipLimit(columnId, value) {
+  const limit = value === '' || value === null ? null : parseInt(value)
+  wipLimits.value = { ...wipLimits.value, [columnId]: limit }
+  localStorage.setItem(
+    `errorlens:wip_limits:${currentProjectId.value}`,
+    JSON.stringify(wipLimits.value)
+  )
+  showWipEditor.value = false
+}
+
+function isWipExceeded(columnId) {
+  const limit = wipLimits.value[columnId]
+  if (!limit) return false
+  return (board.value[columnId]?.length || 0) > limit
+}
+
+function openWipEditor(columnId) {
+  wipEditorColumn.value = columnId
+  wipEditorValue.value = wipLimits.value[columnId] ?? ''
+  showWipEditor.value = true
+}
 const viewerTask = ref(null)
 const editorTask = ref(null)
 const taskTypes = ref([])
@@ -458,8 +526,11 @@ watch(activeTab, async (tab) => {
   }
 })
 
+watch(currentProjectId, () => { loadWipLimits() })
+
 onMounted(async () => {
   await loadTaskTypes()
+  loadWipLimits()
   await Promise.all([
     store.fetchBoard({ project_id: currentProjectId.value }),
     store.fetchTasks({ project_id: currentProjectId.value }),
@@ -538,6 +609,111 @@ onMounted(async () => {
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
 .modal-content { background: var(--bg-card); border-radius: 16px; padding: 24px; max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; }
 .modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; }
+/* WIP exceeded states */
+.wip-exceeded .column-title { color: var(--error); }
+.count-exceeded { color: var(--error) !important; font-weight: 700; }
+
+.column-header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.wip-limit-badge {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.btn-wip-edit {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.column-header:hover .btn-wip-edit { opacity: 1; }
+.btn-wip-edit:hover { color: var(--text-primary); background: var(--bg-secondary); }
+
+/* WIP Modal */
+.wip-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+}
+
+.wip-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 20px;
+  width: 320px;
+}
+
+.wip-modal-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--text-primary);
+  text-transform: capitalize;
+}
+
+.wip-modal-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0 0 14px 0;
+}
+
+.wip-modal-input {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+  margin-bottom: 14px;
+}
+.wip-modal-input:focus { border-color: var(--accent); }
+
+.wip-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.btn-wip-clear {
+  padding: 6px 12px;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+.btn-wip-clear:hover { color: var(--error); border-color: var(--error); }
+
+.btn-wip-save {
+  padding: 6px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btn-wip-save:hover { opacity: 0.85; }
+
 @media (max-width: 1024px) { .kanban-board { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 640px) { .kanban-board { grid-template-columns: 1fr; } }
 </style>

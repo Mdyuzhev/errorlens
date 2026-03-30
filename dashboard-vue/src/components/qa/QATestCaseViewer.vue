@@ -65,6 +65,56 @@
             <StepsEditor v-model="form.steps" />
           </div>
 
+          <!-- Parameters tab -->
+          <div v-if="activeDetailTab === 'parameters'" class="tab-parameters">
+            <div class="param-toolbar">
+              <p class="param-hint">
+                Параметры позволяют запускать тест-кейс с разными наборами данных.
+                Каждый набор значений создаёт отдельную строку результата в прогоне.
+              </p>
+              <button class="btn-add-param" @click="addParameter">+ Add Parameter</button>
+            </div>
+
+            <table v-if="form.parameters.length" class="param-table">
+              <thead>
+                <tr>
+                  <th class="col-param-key">Parameter Name</th>
+                  <th class="col-param-values">Values (comma-separated)</th>
+                  <th class="col-param-del"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(param, idx) in form.parameters" :key="param._id" class="param-row">
+                  <td>
+                    <input
+                      v-model="param.key"
+                      class="param-input"
+                      placeholder="e.g. browser"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      v-model="param.values"
+                      class="param-input"
+                      placeholder="e.g. Chrome, Firefox, Safari"
+                    />
+                  </td>
+                  <td>
+                    <button class="param-del" @click="removeParameter(idx)">&times;</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div v-else class="param-empty">
+              No parameters defined. Click "+ Add Parameter" to add one.
+            </div>
+
+            <div v-if="form.parameters.length" class="param-preview">
+              <p class="param-preview-title">Preview: {{ paramCombinations }} combinations</p>
+            </div>
+          </div>
+
           <!-- Links tab -->
           <div v-if="activeDetailTab === 'links'" class="tab-links">
             <LinkSearch
@@ -161,6 +211,7 @@ const router = useRouter()
 const detailTabs = [
   { key: 'details', label: 'Details' },
   { key: 'steps', label: 'Steps' },
+  { key: 'parameters', label: 'Parameters' },
   { key: 'links', label: 'Links' },
 ]
 
@@ -179,6 +230,7 @@ const form = ref({
   tags: [],
   linked_issue_ids: [],
   linked_article_ids: [],
+  parameters: [],
 })
 
 // Linked entities preview data
@@ -218,6 +270,11 @@ onMounted(() => {
       tags: [...(props.testCase.tags || [])],
       linked_issue_ids: [...(props.testCase.linked_issue_ids || [])],
       linked_article_ids: [...(props.testCase.linked_article_ids || [])],
+      parameters: (props.testCase.parameters || []).map(p => ({
+        key: p.key || '',
+        values: Array.isArray(p.values) ? p.values.join(', ') : (p.values || ''),
+        _id: Math.random()
+      })),
     }
     hydrateLinkedIssues(props.testCase.linked_issue_ids || [])
     hydrateLinkedArticles(props.testCase.linked_article_ids || [])
@@ -300,8 +357,34 @@ function openIssue(item) {
   }
 }
 
+function addParameter() {
+  form.value.parameters.push({ key: '', values: '', _id: Math.random() })
+}
+
+function removeParameter(idx) {
+  form.value.parameters.splice(idx, 1)
+}
+
+const paramCombinations = computed(() => {
+  const params = form.value.parameters.filter(p => p.key && p.values)
+  if (!params.length) return 0
+  return params.reduce((acc, p) => {
+    const vals = p.values.split(',').map(v => v.trim()).filter(Boolean)
+    return acc * (vals.length || 1)
+  }, 1)
+})
+
 function handleSave() {
-  emit('save', { ...form.value })
+  const saveData = {
+    ...form.value,
+    parameters: form.value.parameters
+      .filter(p => p.key.trim())
+      .map(p => ({
+        key: p.key.trim(),
+        values: p.values.split(',').map(v => v.trim()).filter(Boolean)
+      }))
+  }
+  emit('save', saveData)
 }
 
 function addTag() {
@@ -505,4 +588,108 @@ function onTagBackspace() {
   outline: none;
 }
 .tag-input::placeholder { color: var(--placeholder-color); }
+
+.tab-parameters { padding: 0; }
+
+.param-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.param-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+  flex: 1;
+  line-height: 1.5;
+}
+
+.btn-add-param {
+  padding: 6px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-add-param:hover { opacity: 0.85; }
+
+.param-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.param-table th {
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.col-param-key { width: 35%; }
+.col-param-values { width: auto; }
+.col-param-del { width: 32px; }
+
+.param-row td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.param-input {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+}
+.param-input:focus { border-color: var(--accent); }
+
+.param-del {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.param-del:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
+
+.param-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  border: 1px dashed var(--border-color);
+  border-radius: 6px;
+}
+
+.param-preview {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: var(--accent-muted);
+  border-radius: 6px;
+}
+
+.param-preview-title {
+  margin: 0;
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 500;
+}
 </style>

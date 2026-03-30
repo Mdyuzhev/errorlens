@@ -56,24 +56,40 @@ async def list_testcases(
     status: str | None = None,
     priority: str | None = None,
     linked_issue_id: str | None = None,
-    limit: int = 50,
-    offset: int = 0,
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
-    """List test cases with filters."""
+    """List test cases with pagination."""
     service = TestCaseService(db)
-    if q:
-        return await service.search_testcases(q, limit=limit, offset=offset)
-    return await service.list_testcases(
-        folder=folder,
-        folder_id=folder_id,
-        status=status,
-        priority=priority,
-        linked_issue_id=linked_issue_id,
-        limit=limit,
-        offset=offset,
-    )
+
+    if q and not linked_issue_id:
+        items = await service.search_testcases(q, limit=limit, offset=offset)
+        total = await service.count_testcases(folder_id=folder_id, q=q)
+    else:
+        items = await service.list_testcases(
+            folder=folder,
+            folder_id=folder_id,
+            status=status,
+            priority=priority,
+            linked_issue_id=linked_issue_id,
+            limit=limit,
+            offset=offset,
+        )
+        total = await service.count_testcases(
+            folder_id=folder_id,
+            folder=folder,
+            status=status,
+            priority=priority,
+        )
+
+    return {
+        "items": items,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.get("/search")
