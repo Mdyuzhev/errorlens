@@ -476,6 +476,8 @@ class TaskService:
         result["session_id"] = task.session_id
         result["testcase_id"] = task.testcase_id
         result["updated_at"] = task.updated_at.isoformat() if task.updated_at else None
+        result["linked_tc_ids"] = task.linked_tc_ids or []
+        result["linked_article_ids"] = task.linked_article_ids or []
 
         # Children
         if task.children:

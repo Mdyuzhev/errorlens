@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db_models import Article, EntityLink, Task, TestCase
@@ -58,6 +58,110 @@ class EntityLinkService:
         for child in node.get("content", []):
             mentions.extend(self._extract_mentions(child))
         return mentions
+
+    async def search_entities(
+        self,
+        q: str,
+        types: list[str],
+        project_id: str | None = None,
+        limit: int = 8,
+    ) -> list[dict]:
+        """Search entities with prefix routing."""
+        results: list[dict] = []
+
+        q_upper = q.upper()
+        is_el_prefix = q_upper.startswith("EL-")
+        is_tc_prefix = q_upper.startswith("TC-")
+        is_ar_prefix = q_upper.startswith("AR-")
+
+        # Prefix detection — route to specific type only
+        if is_el_prefix and "task" in types:
+            stmt = select(Task).where(Task.human_id.ilike(f"%{q}%")).limit(limit)
+            if project_id:
+                stmt = stmt.where(Task.project_id == project_id)
+            r = await self.db.execute(stmt)
+            for t in r.scalars().all():
+                results.append({
+                    "id": t.id, "type": "task",
+                    "human_id": t.human_id, "title": t.title,
+                    "status": t.status, "icon": "task",
+                })
+            return results
+
+        if is_tc_prefix and "testcase" in types:
+            stmt = select(TestCase).where(TestCase.human_id.ilike(f"%{q}%")).limit(limit)
+            if project_id:
+                stmt = stmt.where(TestCase.project_id == project_id)
+            r = await self.db.execute(stmt)
+            for tc in r.scalars().all():
+                results.append({
+                    "id": tc.id, "type": "testcase",
+                    "human_id": tc.human_id, "title": tc.title,
+                    "status": tc.status, "icon": "testcase",
+                })
+            return results
+
+        if is_ar_prefix and "article" in types:
+            stmt = select(Article).where(Article.human_id.ilike(f"%{q}%")).limit(limit)
+            r = await self.db.execute(stmt)
+            for a in r.scalars().all():
+                results.append({
+                    "id": a.id, "type": "article",
+                    "human_id": a.human_id, "title": a.title,
+                    "status": a.status, "icon": "article",
+                })
+            return results
+
+        # Fallback: search by title across all requested types
+        per_type = max(1, limit // max(len(types), 1))
+
+        if "task" in types:
+            stmt = (
+                select(Task)
+                .where(or_(Task.title.ilike(f"%{q}%"), Task.human_id.ilike(f"%{q}%")))
+                .limit(per_type)
+            )
+            if project_id:
+                stmt = stmt.where(Task.project_id == project_id)
+            r = await self.db.execute(stmt)
+            for t in r.scalars().all():
+                results.append({
+                    "id": t.id, "type": "task",
+                    "human_id": t.human_id, "title": t.title,
+                    "status": t.status, "icon": "task",
+                })
+
+        if "testcase" in types:
+            stmt = (
+                select(TestCase)
+                .where(or_(TestCase.title.ilike(f"%{q}%"), TestCase.human_id.ilike(f"%{q}%")))
+                .limit(per_type)
+            )
+            if project_id:
+                stmt = stmt.where(TestCase.project_id == project_id)
+            r = await self.db.execute(stmt)
+            for tc in r.scalars().all():
+                results.append({
+                    "id": tc.id, "type": "testcase",
+                    "human_id": tc.human_id, "title": tc.title,
+                    "status": tc.status, "icon": "testcase",
+                })
+
+        if "article" in types:
+            stmt = (
+                select(Article)
+                .where(or_(Article.title.ilike(f"%{q}%"), Article.human_id.ilike(f"%{q}%")))
+                .limit(per_type)
+            )
+            r = await self.db.execute(stmt)
+            for a in r.scalars().all():
+                results.append({
+                    "id": a.id, "type": "article",
+                    "human_id": a.human_id, "title": a.title,
+                    "status": a.status, "icon": "article",
+                })
+
+        return results[:limit]
 
     async def get_entity_preview(
         self, entity_type: str, entity_id: str

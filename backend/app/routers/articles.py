@@ -44,6 +44,8 @@ class ArticleUpdate(BaseModel):
     category: str | None = None
     tags: list[str] | None = None
     status: str | None = None
+    linked_issue_ids: list[str] | None = None
+    linked_testcase_ids: list[str] | None = None
 
 
 class BreadcrumbItem(BaseModel):

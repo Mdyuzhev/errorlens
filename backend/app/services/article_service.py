@@ -267,4 +267,6 @@ class ArticleService:
             "created_at": article.created_at.isoformat() if article.created_at else None,
             "published_at": article.published_at.isoformat() if article.published_at else None,
             "views": article.views,
+            "linked_issue_ids": article.linked_issue_ids or [],
+            "linked_testcase_ids": article.linked_testcase_ids or [],
         }

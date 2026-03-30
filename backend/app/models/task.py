@@ -172,6 +172,10 @@ class Task(Base):
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    # Cross-entity links (JSON arrays of IDs)
+    linked_tc_ids: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    linked_article_ids: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
     # External integration
     jira_key: Mapped[str | None] = mapped_column(String(50), nullable=True)
     github_issue: Mapped[int | None] = mapped_column(Integer, nullable=True)

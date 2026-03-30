@@ -95,6 +95,10 @@ class Article(Base):
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    # Linked entities (JSON arrays of UUIDs)
+    linked_issue_ids: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    linked_testcase_ids: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
     # Stats
     views: Mapped[int] = mapped_column(Integer, default=0)
 

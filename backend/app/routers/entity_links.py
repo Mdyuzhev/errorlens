@@ -1,8 +1,8 @@
-"""Entity links router — preview and backlinks endpoints."""
+"""Entity links router — preview, backlinks, and unified search endpoints."""
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,6 +33,29 @@ class BacklinkItem(BaseModel):
 class BacklinksResponse(BaseModel):
     items: list[BacklinkItem]
     total: int
+
+
+@router.get("/search")
+async def search_entities(
+    q: str = Query(..., min_length=1, max_length=100),
+    types: str = Query(default="task,testcase,article"),
+    project_id: str | None = Query(default=None),
+    limit: int = Query(default=8, ge=1, le=20),
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_auth),
+):
+    """
+    Unified entity search with prefix routing.
+    Prefix rules:
+      EL- → tasks by human_id
+      TC- → testcases by human_id
+      AR- → articles by human_id
+      other → title search in all requested types
+    """
+    service = EntityLinkService(db)
+    requested_types = [t.strip() for t in types.split(",") if t.strip()]
+    results = await service.search_entities(q, requested_types, project_id, limit)
+    return results
 
 
 @router.get("/{entity_type}/{entity_id}/preview", response_model=EntityPreviewResponse)

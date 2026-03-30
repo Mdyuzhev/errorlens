@@ -57,6 +57,8 @@ class TaskUpdate(BaseModel):
     parent_id: str | None = None
     component_id: str | None = None
     story_points: int | None = None
+    linked_tc_ids: list[str] | None = None
+    linked_article_ids: list[str] | None = None
 
 
 @router.get("")
