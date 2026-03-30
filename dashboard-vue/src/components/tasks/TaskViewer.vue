@@ -306,8 +306,10 @@ async function loadLinkedTestCases() {
 }
 
 function openTestCase(tc) {
-  router.push({ path: '/qa', query: { tab: 'tree', tcId: tc.id } })
   emit('close')
+  setTimeout(() => {
+    router.push({ path: '/qa', query: { tab: 'tree', tcId: tc.id } })
+  }, 100)
 }
 
 function formatTimeAgo(iso) {

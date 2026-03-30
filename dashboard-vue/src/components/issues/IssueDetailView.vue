@@ -215,8 +215,8 @@
                 @click="openTestCase(tc)"
                 :title="'Open ' + (tc.human_id || tc.title)"
               >
-                <span class="linked-case-id">{{ tc.human_id || tc.id?.slice(0,8) }}</span>
-                <span class="linked-case-title">{{ tc.title }}</span>
+                <span v-if="tc.human_id" class="linked-case-id">{{ tc.human_id }}</span>
+                <span class="linked-case-title">{{ tc.title || tc.id?.slice(0,8) }}</span>
                 <span
                   class="linked-case-status"
                   :class="'tc-status-' + (tc.status || 'draft').toLowerCase()"
@@ -422,8 +422,10 @@ async function loadLinkedTestCases() {
 }
 
 function openTestCase(tc) {
-  router.push({ path: '/qa', query: { tab: 'tree', tcId: tc.id } })
   emit('close')
+  setTimeout(() => {
+    router.push({ path: '/qa', query: { tab: 'tree', tcId: tc.id } })
+  }, 100)
 }
 
 function loadAll() {
