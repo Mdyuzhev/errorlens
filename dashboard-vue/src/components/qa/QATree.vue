@@ -18,6 +18,12 @@
       <!-- Toolbar -->
       <div class="qa-toolbar">
         <div class="toolbar-left">
+          <input
+            v-model="searchInput"
+            class="search-input"
+            placeholder="Search test cases..."
+            @input="onSearchInput"
+          />
           <select v-model="store.filters.status" class="filter-select" @change="store.fetchTestCases()">
             <option value="">All Statuses</option>
             <option value="draft">Draft</option>
@@ -75,7 +81,8 @@
           />
         </div>
         <div class="col-id">
-          <span class="human-id">{{ tc.human_id || tc.id?.slice(0, 8) }}</span>
+          <span v-if="tc.human_id" class="human-id">{{ tc.human_id }}</span>
+          <span v-else class="text-subtle">—</span>
         </div>
         <div class="col-title">{{ tc.title }}</div>
         <div class="col-priority">
@@ -101,12 +108,36 @@
           {{ formatDate(tc.updated_at) }}
         </div>
       </div>
+
+      <!-- Pagination -->
+      <div class="tc-pagination" v-if="store.tcTotal > store.tcPageSize">
+        <button
+          class="page-btn"
+          :disabled="store.tcPage === 1"
+          @click="store.setTcPage(store.tcPage - 1)"
+        >&larr; Prev</button>
+
+        <span class="page-info">
+          {{ pageStart }}&ndash;{{ pageEnd }} из {{ store.tcTotal }}
+        </span>
+
+        <button
+          class="page-btn"
+          :disabled="pageEnd >= store.tcTotal"
+          @click="store.setTcPage(store.tcPage + 1)"
+        >Next &rarr;</button>
+      </div>
+
+      <!-- Summary when fits on one page -->
+      <div class="tc-page-summary" v-else-if="store.tcTotal > 0">
+        {{ store.tcTotal }} {{ store.tcTotal === 1 ? 'test case' : 'test cases' }}
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useQAStore } from '@/stores/qa'
 import FolderTree from '@/components/testcases/FolderTree.vue'
 
@@ -135,6 +166,16 @@ function formatDate(dateStr) {
   if (!dateStr) return '-'
   const d = new Date(dateStr)
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+const pageStart = computed(() => (store.tcPage - 1) * store.tcPageSize + 1)
+const pageEnd = computed(() => Math.min(store.tcPage * store.tcPageSize, store.tcTotal))
+
+const searchInput = ref('')
+let searchTimer = null
+function onSearchInput() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => store.setTcSearch(searchInput.value), 300)
 }
 
 onMounted(() => {
@@ -250,7 +291,7 @@ onMounted(() => {
 }
 
 .tc-row {
-  height: 42px;
+  height: 48px;
   cursor: pointer;
   border-bottom: 1px solid var(--border-color);
   transition: background 0.1s;
@@ -271,7 +312,7 @@ onMounted(() => {
 
 .col-check { width: 28px; flex-shrink: 0; }
 .col-id { width: 90px; flex-shrink: 0; }
-.col-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.col-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-size: 14px; }
 .col-priority { width: 80px; flex-shrink: 0; }
 .col-status { width: 80px; flex-shrink: 0; }
 .col-auto { width: 90px; flex-shrink: 0; }
@@ -316,5 +357,56 @@ onMounted(() => {
 input[type="checkbox"] {
   accent-color: var(--accent);
   cursor: pointer;
+}
+
+/* Search */
+.search-input {
+  padding: 5px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  width: 180px;
+}
+.search-input:focus { border-color: var(--accent); }
+
+/* Pagination bar */
+.tc-pagination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.page-btn {
+  padding: 5px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.page-btn:hover:not(:disabled) { background: var(--accent-muted); color: var(--accent); }
+.page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.page-info {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex: 1;
+  text-align: center;
+}
+
+.tc-page-summary {
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-color);
+  text-align: center;
 }
 </style>

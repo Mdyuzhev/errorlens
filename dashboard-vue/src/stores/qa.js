@@ -4,6 +4,10 @@ import { testCasesApi, testPlansApi, qaApi } from '@/services/api'
 export const useQAStore = defineStore('qa', {
   state: () => ({
     testCases: [],
+    tcTotal: 0,
+    tcPage: 1,
+    tcPageSize: 10,
+    tcSearch: '',
     currentTestCase: null,
     treeFolders: [],
     expandedFolders: new Set(),
@@ -32,12 +36,24 @@ export const useQAStore = defineStore('qa', {
     async fetchTestCases() {
       this.loading = true
       try {
-        const params = {}
+        const params = {
+          limit: this.tcPageSize,
+          offset: (this.tcPage - 1) * this.tcPageSize,
+        }
         if (this.selectedFolderId) params.folder_id = this.selectedFolderId
         if (this.filters.status) params.status = this.filters.status
         if (this.filters.priority) params.priority = this.filters.priority
+        if (this.tcSearch) params.q = this.tcSearch
         const res = await testCasesApi.list(params)
-        this.testCases = res.data
+        // New format: {items, total, limit, offset}
+        if (res.data && Array.isArray(res.data.items)) {
+          this.testCases = res.data.items
+          this.tcTotal = res.data.total || 0
+        } else {
+          // Fallback for old array format
+          this.testCases = Array.isArray(res.data) ? res.data : []
+          this.tcTotal = this.testCases.length
+        }
       } catch (e) {
         this.error = e.response?.data?.detail || 'Failed to load'
       } finally {
@@ -121,6 +137,19 @@ export const useQAStore = defineStore('qa', {
     selectFolder(id) {
       this.selectedFolderId = id
       this.selectedIds.clear()
+      this.tcPage = 1
+      this.fetchTestCases()
+    },
+
+    setTcPage(page) {
+      this.tcPage = page
+      this.selectedIds.clear()
+      this.fetchTestCases()
+    },
+
+    setTcSearch(q) {
+      this.tcSearch = q
+      this.tcPage = 1
       this.fetchTestCases()
     },
 
