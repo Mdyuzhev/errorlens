@@ -219,20 +219,21 @@ async def delete_plan(
 
 # --- Cases endpoints ---
 
-@router.post("/{plan_id}/cases", status_code=204)
+@router.post("/{plan_id}/cases")
 async def add_cases(
     plan_id: str,
     data: AddCasesRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):
-    """Add test cases to plan."""
+    """Add test cases to plan. Skips duplicates."""
     service = TestPlanService(db)
     plan = await service.get_plan(plan_id)
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")
     await check_project_access(plan.project_id, user, db)
-    await service.add_cases_to_plan(plan_id, data.testcase_ids)
+    result = await service.add_cases_to_plan(plan_id, data.testcase_ids)
+    return result
 
 
 @router.delete("/{plan_id}/cases/{testcase_id}", status_code=204)

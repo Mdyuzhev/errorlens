@@ -404,3 +404,80 @@ Cypress.Commands.add('openFirstArticle', () => {
     .first().click()
   cy.get('.article-viewer', { timeout: 10000 }).should('be.visible')
 })
+
+// ═══════════════════════════════════════════════════════
+// TEST PLANS API COMMANDS
+// ═══════════════════════════════════════════════════════
+
+Cypress.Commands.add('createTestPlanViaApi', (name, projectId) => {
+  const token = getToken()
+  const pid = projectId || '9ddfd925-9728-4224-8a3d-13a6e2e01719'
+  cy.request({
+    method: 'POST',
+    url: '/api/v1/test-plans',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: { name: name || `CY-Plan-${Date.now()}`, project_id: pid },
+  }).then(resp => {
+    expect(resp.status).to.be.oneOf([200, 201])
+    cy.wrap(resp.body.id).as('planId')
+    cy.wrap(resp.body).as('createdPlan')
+  })
+})
+
+Cypress.Commands.add('deleteTestPlanViaApi', (id) => {
+  if (!id) return
+  const token = getToken()
+  cy.request({
+    method: 'DELETE',
+    url: `/api/v1/test-plans/${id}`,
+    headers: { Authorization: `Bearer ${token}` },
+    failOnStatusCode: false,
+  })
+})
+
+Cypress.Commands.add('addCaseToPlanViaApi', (planId, testcaseId) => {
+  const token = getToken()
+  cy.request({
+    method: 'POST',
+    url: `/api/v1/test-plans/${planId}/cases`,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: { testcase_ids: [testcaseId] },
+    failOnStatusCode: false,
+  })
+})
+
+Cypress.Commands.add('startTestPlanRunViaApi', (planId, name) => {
+  const token = getToken()
+  cy.request({
+    method: 'POST',
+    url: `/api/v1/test-plans/${planId}/runs`,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: { name: name || `CY-Run-${Date.now()}` },
+    failOnStatusCode: false,
+  }).then(resp => {
+    expect(resp.status).to.be.oneOf([200, 201])
+    cy.wrap(resp.body.id).as('runId')
+    cy.wrap(resp.body).as('createdRun')
+  })
+})
+
+Cypress.Commands.add('recordResultViaApi', (runId, testcaseId, status, comment) => {
+  const token = getToken()
+  cy.request({
+    method: 'PUT',
+    url: `/api/v1/test-plans/runs/${runId}/results/${testcaseId}`,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: { status, comment: comment || null },
+    failOnStatusCode: false,
+  })
+})
+
+Cypress.Commands.add('finishRunViaApi', (runId) => {
+  const token = getToken()
+  cy.request({
+    method: 'POST',
+    url: `/api/v1/test-plans/runs/${runId}/finish`,
+    headers: { Authorization: `Bearer ${token}` },
+    failOnStatusCode: false,
+  })
+})

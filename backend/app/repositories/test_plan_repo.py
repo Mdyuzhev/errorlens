@@ -121,8 +121,12 @@ class TestPlanRepository(BaseRepository[TestPlan]):
         return run
 
     async def get_run(self, run_id: str) -> TestPlanRun | None:
-        """Get run by ID."""
-        query = select(TestPlanRun).where(TestPlanRun.id == run_id)
+        """Get run by ID with plan relationship eagerly loaded."""
+        query = (
+            select(TestPlanRun)
+            .where(TestPlanRun.id == run_id)
+            .options(selectinload(TestPlanRun.plan))
+        )
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 

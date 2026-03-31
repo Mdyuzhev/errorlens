@@ -149,22 +149,25 @@ class TestPlanService:
 
     async def add_cases_to_plan(
         self, plan_id: str, testcase_ids: list[str]
-    ) -> None:
-        """Add multiple test cases to plan."""
+    ) -> dict[str, int]:
+        """Add multiple test cases to plan. Skips already-present cases."""
         plan = await self.repo.get_by_id(plan_id)
         if not plan:
             raise HTTPException(status_code=404, detail="Plan not found")
 
         current_count = await self.repo.cases_count(plan_id)
-        for idx, tc_id in enumerate(testcase_ids):
+        added = 0
+        skipped = 0
+
+        for tc_id in testcase_ids:
             if await self.repo.case_exists(plan_id, tc_id):
-                raise HTTPException(
-                    status_code=400,
-                    detail="Test case already in plan",
-                )
-            await self.repo.add_case(plan_id, tc_id, sort_order=current_count + idx)
+                skipped += 1
+                continue
+            await self.repo.add_case(plan_id, tc_id, sort_order=current_count + added)
+            added += 1
 
         await self.db.commit()
+        return {"added": added, "skipped": skipped}
 
     async def remove_case(self, plan_id: str, testcase_id: str) -> bool:
         """Remove a case from plan."""
@@ -232,6 +235,14 @@ class TestPlanService:
         if status not in VALID_RESULT_STATUSES:
             raise HTTPException(status_code=400, detail="Invalid result status")
 
+        # Проверить что testcase принадлежит плану прогона
+        case_in_plan = await self.repo.case_exists(run.plan_id, testcase_id)
+        if not case_in_plan:
+            raise HTTPException(
+                status_code=404,
+                detail="Test case not found in this run's plan"
+            )
+
         result = await self.repo.upsert_result(run_id, testcase_id, {
             "status": status,
             "comment": comment,
@@ -273,6 +284,12 @@ class TestPlanService:
             raise HTTPException(status_code=404, detail="Run not found")
         if run.status == "completed":
             raise HTTPException(status_code=400, detail="Run is already completed")
+
+        if run.total == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot finish run with no test cases"
+            )
 
         results_count = await self.repo.results_count(run_id)
         if results_count == 0:

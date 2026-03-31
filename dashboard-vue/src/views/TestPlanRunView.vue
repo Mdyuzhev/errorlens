@@ -102,6 +102,9 @@
           <!-- Result marking block -->
           <div v-if="run.status !== 'completed'" class="result-block" data-testid="result-block">
             <h4>Mark Result</h4>
+            <div v-if="saveError" class="save-error-banner" data-testid="save-error">
+              {{ saveError }}
+            </div>
             <div class="result-buttons" data-testid="result-buttons">
               <button
                 class="result-btn passed"
@@ -139,10 +142,12 @@
             ></textarea>
             <button
               class="btn-save-result"
+              :class="{ 'btn-success': saveSuccess }"
               :disabled="!resultForm.status || store.runLoading"
               @click="saveResult"
+              data-testid="save-result-btn"
             >
-              {{ store.runLoading ? 'Saving...' : 'Save Result' }}
+              {{ store.runLoading ? 'Saving...' : saveSuccess ? 'Saved' : 'Save Result' }}
             </button>
           </div>
 
@@ -172,6 +177,8 @@ const store = useTestPlansStore()
 const selectedId = ref(null)
 const statusFilter = ref('all')
 const resultForm = ref({ status: null, comment: '', error_details: '' })
+const saveSuccess = ref(false)
+const saveError = ref(null)
 
 const run = computed(() => store.currentRun)
 
@@ -251,11 +258,21 @@ function selectCase(item) {
 
 async function saveResult() {
   if (!resultForm.value.status || !selectedId.value) return
-  await store.recordResult(run.value.id, selectedId.value, {
-    status: resultForm.value.status,
-    comment: resultForm.value.comment || null,
-    error_details: resultForm.value.error_details || null,
-  })
+  try {
+    await store.recordResult(run.value.id, selectedId.value, {
+      status: resultForm.value.status,
+      comment: resultForm.value.comment || null,
+      error_details: resultForm.value.error_details || null,
+    })
+    saveSuccess.value = true
+    setTimeout(() => { saveSuccess.value = false }, 1500)
+  } catch (err) {
+    const msg = err?.response?.data?.detail
+      || err?.message
+      || 'Failed to save result'
+    saveError.value = msg
+    setTimeout(() => { saveError.value = null }, 5000)
+  }
 }
 
 async function handleFinish() {
@@ -635,6 +652,19 @@ onMounted(async () => {
 .btn-save-result:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+.btn-save-result.btn-success {
+  background: var(--success);
+}
+
+.save-error-banner {
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  color: var(--error);
+  font-size: 13px;
+  margin-bottom: 12px;
 }
 
 /* Readonly */

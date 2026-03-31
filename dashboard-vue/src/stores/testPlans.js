@@ -160,7 +160,7 @@ export const useTestPlansStore = defineStore('testPlans', {
         return response.data
       } catch (error) {
         this.error = error.response?.data?.detail || 'Failed to record result'
-        return null
+        throw error
       } finally {
         this.runLoading = false
       }
