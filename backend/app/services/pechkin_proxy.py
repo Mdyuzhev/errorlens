@@ -38,6 +38,7 @@ class ProxyResponse:
     duration_ms: int
     size_bytes: int
     error: str | None = None
+    resolved_url: str | None = None
 
 
 async def execute_proxy(req: ProxyRequest) -> ProxyResponse:
@@ -90,6 +91,7 @@ async def execute_proxy(req: ProxyRequest) -> ProxyResponse:
             body=response.text,
             duration_ms=duration,
             size_bytes=len(response.content),
+            resolved_url=url,
         )
     except httpx.HTTPError as e:
         duration = int((time.perf_counter() - start) * 1000)
@@ -98,6 +100,7 @@ async def execute_proxy(req: ProxyRequest) -> ProxyResponse:
             headers={}, body="",
             duration_ms=duration, size_bytes=0,
             error=str(e),
+            resolved_url=url,
         )
     except OSError as e:
         duration = int((time.perf_counter() - start) * 1000)
@@ -106,4 +109,5 @@ async def execute_proxy(req: ProxyRequest) -> ProxyResponse:
             headers={}, body="",
             duration_ms=duration, size_bytes=0,
             error=str(e),
+            resolved_url=url,
         )

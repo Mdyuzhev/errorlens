@@ -99,9 +99,39 @@ class PechkinService:
         for iteration in range(iterations):
             for req in all_requests:
                 req_vars = dict(merged_vars)
+
+                # --- Run pre-request script ---
+                final_headers = dict(req.headers or {})
+                final_body = req.body
+
+                if req.pre_request_script and req.pre_request_script.strip():
+                    try:
+                        pre_result = await self.run_pre_request(
+                            req.pre_request_script,
+                            {
+                                "method": req.method,
+                                "url": req.url,
+                                "headers": dict(req.headers or {}),
+                                "body": req.body,
+                                "variables": req_vars,
+                            },
+                        )
+                        if pre_result.get("modified_request"):
+                            mr = pre_result["modified_request"]
+                            if isinstance(mr.get("headers"), dict):
+                                final_headers.update(mr["headers"])
+                            if mr.get("body") is not None:
+                                final_body = mr["body"]
+                        pre_output = pre_result.get("output", [])
+                    except Exception as e:
+                        logger.warning("Pre-request script failed for %s: %s", req.name, e)
+                        pre_output = [f"[pre-request error] {str(e)}"]
+                else:
+                    pre_output = []
+
                 resp = await self.execute_request(
                     method=req.method, url=req.url,
-                    headers=req.headers or {}, body=req.body,
+                    headers=final_headers, body=final_body,
                     body_type=req.body_type or "none",
                     auth=req.auth or {}, variables=req_vars,
                     request_id=req.id,
@@ -111,9 +141,18 @@ class PechkinService:
                     "iteration": iteration + 1,
                     "request_id": req.id,
                     "request_name": req.name,
+                    "method": req.method,
+                    "url": req.url,
+                    "resolved_url": resp.resolved_url if hasattr(resp, "resolved_url") else req.url,
                     "status_code": resp.status_code,
                     "duration_ms": resp.duration_ms,
+                    "size_bytes": resp.size_bytes,
                     "error": resp.error,
+                    "response_body": resp.body[:10000] if resp.body else "",
+                    "response_headers": dict(resp.headers) if resp.headers else {},
+                    "request_headers": final_headers,
+                    "request_body": final_body,
+                    "pre_output": pre_output,
                     "tests": None,
                 }
 
@@ -122,17 +161,35 @@ class PechkinService:
                     self._extract_vars(resp, req.extract_variables, merged_vars)
 
                 # Run test script
-                if req.test_script:
-                    test_result = await self.run_test_script(
-                        req.test_script,
-                        {"method": req.method, "url": req.url, "headers": req.headers},
-                        {
-                            "status_code": resp.status_code,
-                            "headers": resp.headers,
-                            "body": resp.body,
-                        },
-                    )
-                    entry["tests"] = test_result
+                if req.test_script and req.test_script.strip():
+                    try:
+                        test_result = await self.run_test_script(
+                            req.test_script,
+                            {
+                                "method": req.method,
+                                "url": req.url,
+                                "headers": final_headers,
+                                "body": final_body,
+                            },
+                            {
+                                "status_code": resp.status_code,
+                                "headers": dict(resp.headers or {}),
+                                "body": resp.body,
+                                "duration_ms": resp.duration_ms,
+                            },
+                        )
+                        entry["tests"] = test_result
+                        if pre_output:
+                            existing_output = test_result.get("output", [])
+                            entry["tests"]["output"] = pre_output + existing_output
+                    except Exception as e:
+                        entry["tests"] = {
+                            "assertions": {"passed": 0, "failed": 1, "tests": [{"name": str(e), "passed": False}]},
+                            "output": pre_output,
+                            "error": str(e),
+                        }
+                elif pre_output:
+                    entry["pre_output"] = pre_output
 
                 results.append(entry)
 
