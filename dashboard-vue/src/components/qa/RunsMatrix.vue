@@ -11,13 +11,13 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="tc in cases" :key="tc.id">
+          <tr v-for="tc in cases" :key="tc.testcase_id || tc.id">
             <td class="case-col">{{ tc.title || tc.name }}</td>
             <td v-for="run in recentRuns" :key="run.id" class="run-col">
               <span
                 class="status-dot"
-                :class="getStatus(run, tc.id)"
-                :title="getStatus(run, tc.id)"
+                :class="getStatus(run, tc.testcase_id || tc.id)"
+                :title="getStatus(run, tc.testcase_id || tc.id)"
               />
             </td>
           </tr>

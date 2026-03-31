@@ -204,7 +204,18 @@ export const useQAStore = defineStore('qa', {
     async fetchPlanRuns(planId) {
       try {
         const res = await testPlansApi.getRuns(planId)
-        this.planRuns = res.data
+        // Load results for each run (needed for RunsMatrix)
+        const runsWithResults = await Promise.all(
+          res.data.slice(0, 10).map(async (run) => {
+            try {
+              const detail = await testPlansApi.getRun(run.id)
+              return detail.data
+            } catch {
+              return run
+            }
+          })
+        )
+        this.planRuns = runsWithResults
       } catch { this.planRuns = [] }
     },
 
