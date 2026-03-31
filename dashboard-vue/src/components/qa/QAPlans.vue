@@ -97,7 +97,10 @@
 
     <!-- List View -->
     <div v-else>
-      <h3 class="plans-title">Test Plans</h3>
+      <div class="plans-header">
+        <h3 class="plans-title">Test Plans</h3>
+        <button class="action-btn accent" @click="showCreatePlan = true">+ New Plan</button>
+      </div>
 
       <div v-if="store.loading" class="plans-loading">Loading...</div>
 
@@ -125,6 +128,26 @@
         </div>
       </div>
     </div>
+
+    <!-- Create Plan Modal -->
+    <div v-if="showCreatePlan" class="modal-overlay" @click.self="showCreatePlan = false">
+      <div class="modal-box">
+        <h4 class="modal-title">Create Test Plan</h4>
+        <div class="modal-body">
+          <input
+            v-model="newPlanName"
+            class="form-input"
+            placeholder="Plan name"
+            @keydown.enter="createPlan"
+            autofocus
+          />
+        </div>
+        <div class="modal-footer">
+          <button class="action-btn" @click="showCreatePlan = false">Cancel</button>
+          <button class="action-btn accent" :disabled="!newPlanName.trim()" @click="createPlan">Create</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -141,6 +164,8 @@ const props = defineProps({
 const store = useQAStore()
 const selectedPlan = ref(null)
 const showAddCases = ref(false)
+const showCreatePlan = ref(false)
+const newPlanName = ref('')
 const addIds = reactive(new Set())
 let dragIdx = null
 const dragOverCaseIdx = ref(null)
@@ -207,6 +232,18 @@ async function confirmAdd() {
   showAddCases.value = false
 }
 
+async function createPlan() {
+  if (!newPlanName.value.trim()) return
+  await store.createPlan({
+    name: newPlanName.value.trim(),
+    project_id: props.projectId,
+    status: 'active',
+  })
+  newPlanName.value = ''
+  showCreatePlan.value = false
+  await store.fetchPlans(props.projectId)
+}
+
 function onDragStart(idx) {
   dragIdx = idx
 }
@@ -237,8 +274,11 @@ async function onDrop(idx) {
 </script>
 
 <style scoped>
-.qa-plans { padding: 0; }
-.plans-title { color: var(--text-primary); font-size: 16px; font-weight: 600; margin: 0 0 16px 0; }
+.qa-plans { padding: 16px 24px; }
+.plans-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.plans-title { color: var(--text-primary); font-size: 16px; font-weight: 600; margin: 0; }
+.form-input { width: 100%; padding: 8px 12px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 14px; box-sizing: border-box; }
+.form-input:focus { outline: none; border-color: var(--accent); }
 .plans-loading, .plans-empty, .empty-cases { color: var(--text-secondary); text-align: center; padding: 32px; font-size: 13px; }
 .empty-cases { padding: 16px; }
 .plans-list { display: flex; flex-direction: column; gap: 2px; }
