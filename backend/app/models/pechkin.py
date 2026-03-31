@@ -98,6 +98,7 @@ class PechkinRequest(Base):
     test_script: Mapped[str | None] = mapped_column(Text, nullable=True)
     test_snippets: Mapped[list] = mapped_column(JSON, default=list)
     extract_variables: Mapped[list] = mapped_column(JSON, default=list)
+    settings: Mapped[dict] = mapped_column(JSON, default=dict)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

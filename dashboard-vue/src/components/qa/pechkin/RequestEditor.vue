@@ -129,6 +129,14 @@
       </div>
     </div>
 
+    <!-- Settings -->
+    <div v-show="activeTab === 'Settings'" class="tab-content">
+      <SettingsEditor
+        v-model="req.settings"
+        @update:model-value="onSettingsChange"
+      />
+    </div>
+
     <!-- Auto-save on blur -->
   </div>
 </template>
@@ -137,10 +145,11 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { usePechkinStore } from '@/stores/pechkin'
 import AuthEditor from './AuthEditor.vue'
+import SettingsEditor from './SettingsEditor.vue'
 
 const store = usePechkinStore()
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
-const tabs = ['Params', 'Headers', 'Body', 'Auth', 'Pre-request', 'Tests', 'Code']
+const tabs = ['Params', 'Headers', 'Body', 'Auth', 'Pre-request', 'Tests', 'Code', 'Settings']
 const activeTab = ref('Params')
 const quickHeaders = ['Content-Type', 'Authorization', 'Accept', 'X-API-Key']
 const bodyTypes = [
@@ -157,7 +166,7 @@ const preScriptEl = ref(null)
 
 const req = reactive({
   method: 'GET', url: '', headers: {}, body: '', body_type: 'none',
-  auth: { type: 'none' }, pre_request_script: '', test_script: '',
+  auth: { type: 'none' }, pre_request_script: '', test_script: '', settings: {},
 })
 const params = ref([])
 const headers = ref([])
@@ -179,6 +188,7 @@ watch(() => store.activeRequest, (r) => {
   req.auth = r.auth || { type: 'none' }
   req.pre_request_script = r.pre_request_script || ''
   req.test_script = r.test_script || ''
+  req.settings = r.settings || {}
   // Parse headers
   headers.value = Object.entries(r.headers || {}).map(([k, v]) => ({ key: k, value: v, enabled: true }))
   // Parse URL params
@@ -260,6 +270,17 @@ function onPreScriptChange() {
   }, 800)
 }
 
+let settingsSaveTimer = null
+function onSettingsChange(newSettings) {
+  req.settings = newSettings
+  clearTimeout(settingsSaveTimer)
+  settingsSaveTimer = setTimeout(() => {
+    if (store.activeRequestId) {
+      store.updateRequest(store.activeRequestId, { settings: req.settings })
+    }
+  }, 500)
+}
+
 function parseUrlParams() {
   try {
     const url = new URL(req.url)
@@ -325,6 +346,7 @@ async function send() {
       method: req.method, url: req.url, headers: h,
       body: req.body, body_type: req.body_type, auth: req.auth,
       pre_request_script: req.pre_request_script, test_script: req.test_script,
+      settings: req.settings,
     })
   }
   store.$patch({

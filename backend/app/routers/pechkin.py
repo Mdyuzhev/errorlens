@@ -185,6 +185,7 @@ async def create_request(
         test_script=data.test_script,
         test_snippets=data.test_snippets,
         extract_variables=data.extract_variables,
+        settings=data.settings,
     )
     await db.commit()
     return request_to_dict(req)
@@ -362,6 +363,7 @@ async def execute(
         variables=data.variables,
         timeout=data.timeout,
         request_id=request_id,
+        settings=data.settings,
     )
 
     result = asdict(resp)

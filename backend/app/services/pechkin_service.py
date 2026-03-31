@@ -30,12 +30,14 @@ class PechkinService:
         variables: dict,
         timeout: int = 30,
         request_id: str | None = None,
+        settings: dict | None = None,
     ) -> ProxyResponse:
         """Execute HTTP request through proxy, optionally save history."""
         req = ProxyRequest(
             method=method, url=url, headers=headers,
             body=body, body_type=body_type, auth=auth,
             variables=variables, timeout=timeout,
+            settings=settings,
         )
         resp = await execute_proxy(req)
 

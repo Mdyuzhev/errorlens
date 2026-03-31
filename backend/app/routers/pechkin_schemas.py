@@ -41,6 +41,7 @@ class RequestCreate(BaseModel):
     test_script: str | None = None
     test_snippets: list = []
     extract_variables: list = []
+    settings: dict = {}
 
 
 class RequestUpdate(BaseModel):
@@ -56,6 +57,7 @@ class RequestUpdate(BaseModel):
     test_script: str | None = None
     test_snippets: list | None = None
     extract_variables: list | None = None
+    settings: dict | None = None
     sort_order: int | None = None
 
 
@@ -78,6 +80,7 @@ class ExecuteRequest(BaseModel):
     timeout: int = 30
     pre_request_script: str | None = None
     test_script: str | None = None
+    settings: dict = {}
 
 
 class ScriptRequest(BaseModel):
@@ -152,6 +155,7 @@ def request_to_dict(r) -> dict:
         "test_script": r.test_script,
         "test_snippets": r.test_snippets,
         "extract_variables": r.extract_variables,
+        "settings": r.settings or {},
         "sort_order": r.sort_order,
         "created_at": r.created_at.isoformat() if r.created_at else None,
         "updated_at": r.updated_at.isoformat() if r.updated_at else None,

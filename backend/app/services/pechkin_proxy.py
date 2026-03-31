@@ -27,6 +27,7 @@ class ProxyRequest:
     auth: dict
     variables: dict[str, str]
     timeout: int = 30
+    settings: dict = None
 
 
 @dataclass
@@ -76,10 +77,20 @@ async def execute_proxy(req: ProxyRequest) -> ProxyResponse:
         content = body.encode()
         headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
 
+    # Extract settings
+    settings = req.settings or {}
+    follow_redirects = settings.get("follow_redirects", True)
+    verify_ssl = settings.get("verify_ssl", False)
+    timeout_val = settings.get("timeout", req.timeout)
+    max_redirects = settings.get("max_redirects", 10)
+    if timeout_val == 0:
+        timeout_val = None
+
     start = time.perf_counter()
     try:
         async with httpx.AsyncClient(
-            follow_redirects=True, verify=False, timeout=req.timeout,
+            follow_redirects=follow_redirects, verify=verify_ssl,
+            timeout=timeout_val, max_redirects=max_redirects,
         ) as client:
             response = await client.request(
                 method=req.method.upper(), url=url,

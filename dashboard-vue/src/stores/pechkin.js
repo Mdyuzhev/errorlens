@@ -116,6 +116,7 @@ export const usePechkinStore = defineStore('pechkin', {
           request_id: req.id,
           pre_request_script: req.pre_request_script || '',
           test_script: req.test_script || '',
+          settings: req.settings || {},
         })
         this.response = resp.data
         const entry = {
