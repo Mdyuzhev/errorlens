@@ -119,8 +119,8 @@ app = FastAPI(
     description="AI-powered error analysis for QA engineers",
     version=settings.version,
     lifespan=lifespan,
-    root_path="/api",
-    root_path_in_servers=False,
+    docs_url="/docs",
+    openapi_url="/openapi.json",
 )
 
 # CORS: allow all origins (bookmarklet runs on any domain)
