@@ -3,48 +3,44 @@
     <div class="runner-overlay" @click.self="$emit('close')">
       <div class="runner-modal">
 
-        <!-- ── Header ─────────────────────────────────────── -->
+        <!-- Header -->
         <div class="runner-header">
           <div class="runner-header-left">
-            <h3 class="runner-title">Collection Runner</h3>
-            <span class="runner-col-name">{{ collectionName }}</span>
+            <span class="runner-title">{{ collectionName }}</span>
+            <span v-if="done" class="runner-run-badge" :class="totalFailed > 0 ? 'badge-error' : 'badge-ok'">
+              {{ totalFailed > 0 ? 'ERROR' : 'PASS' }}
+            </span>
           </div>
-          <div class="runner-header-right">
-            <button
-              v-if="!running && !done"
-              class="btn-settings"
-              @click="showSettings = !showSettings"
-              :class="{ active: showSettings }"
-            >⚙ Settings</button>
-            <button class="runner-close" @click="$emit('close')">&times;</button>
-          </div>
+          <button class="runner-close" @click="$emit('close')">&times;</button>
         </div>
 
-        <!-- ── Settings panel (collapsible) ──────────────────── -->
-        <div v-if="showSettings && !running && !done" class="runner-settings-panel">
-          <div class="settings-row">
-            <label class="setting-label">
+        <!-- Pre-run settings -->
+        <div v-if="!running && !done" class="runner-setup">
+          <div class="setup-row">
+            <label class="setup-label">
               Delay (ms)
-              <input v-model.number="options.delayMs" type="number" min="0" step="100" class="setting-input" />
+              <input v-model.number="options.delayMs" type="number" min="0" step="100" class="setup-input" />
             </label>
-            <label class="setting-label">
+            <label class="setup-label">
               Iterations
-              <input v-model.number="options.iterations" type="number" min="1" max="100" class="setting-input" />
+              <input v-model.number="options.iterations" type="number" min="1" max="100" class="setup-input" />
             </label>
-            <label class="setting-check">
+            <label class="setup-check">
               <input v-model="options.stopOnError" type="checkbox" />
-              Stop on first error
+              Stop on error
             </label>
           </div>
-          <!-- Requests list with drag -->
-          <div class="request-list">
-            <div class="request-list-header">
-              <span>Requests ({{ selectedCount }} selected)</span>
-              <button class="btn-select-all" @click="selectAll">Select All</button>
+
+          <div class="req-checklist">
+            <div class="req-checklist-header">
+              <span>Requests</span>
+              <button class="btn-link" @click="toggleAll">
+                {{ allSelected ? 'Deselect All' : 'Select All' }}
+              </button>
             </div>
             <div
               v-for="(req, idx) in orderedRequests" :key="req.id"
-              class="request-item"
+              class="req-check-row"
               draggable="true"
               @dragstart="onDragStart(idx, $event)"
               @dragover.prevent="onDragOver(idx)"
@@ -52,226 +48,183 @@
               @dragend="dragIdx = -1"
               :class="{ 'drag-over': dragOverIdx === idx }"
             >
-              <span class="drag-handle">⠿</span>
-              <input type="checkbox" v-model="req.selected" class="req-check" />
-              <span class="method-badge" :class="methodClass(req.method)">{{ req.method }}</span>
-              <span class="req-name">{{ req.name || 'Untitled' }}</span>
+              <span class="drag-dots">⠿</span>
+              <input type="checkbox" v-model="req.selected" class="req-checkbox" />
+              <span class="req-method-badge" :class="methodClass(req.method)">{{ req.method }}</span>
+              <span class="req-check-name">{{ req.name || 'Untitled' }}</span>
             </div>
-            <div v-if="!orderedRequests.length" class="empty-msg">No requests in collection</div>
+            <div v-if="!orderedRequests.length" class="setup-empty">No requests</div>
           </div>
         </div>
 
-        <!-- ── Summary Bar ───────────────────────────────────── -->
-        <div class="runner-summary-bar" :class="summaryBarClass">
-          <div class="summary-bar-left">
-            <template v-if="!running && !done">
-              <span class="sb-item sb-neutral">{{ selectedCount }} requests selected</span>
-            </template>
-            <template v-else>
-              <span class="sb-item sb-accent">
-                {{ done ? completedCount : completed }}/{{ totalRequests }} requests
-              </span>
-              <span class="sb-sep">·</span>
-              <span class="sb-item" :class="totalFailed > 0 ? 'sb-fail' : 'sb-pass'">
-                {{ totalPassed }}/{{ totalPassed + totalFailed }} assertions
-              </span>
-              <span class="sb-sep">·</span>
-              <span class="sb-item" :class="passRateCls">{{ passRate }}% pass</span>
-              <span class="sb-sep">·</span>
-              <span class="sb-item sb-neutral">{{ totalTime }}ms</span>
-            </template>
-          </div>
-          <div class="summary-bar-right">
-            <div v-if="running" class="sb-progress-wrap">
-              <div class="sb-progress-bar" :style="{ width: progressPct + '%' }"></div>
-            </div>
+        <!-- Running: progress -->
+        <div v-if="running" class="runner-progress-wrap">
+          <div class="runner-progress-bar" :style="{ width: progressPct + '%' }"></div>
+          <div class="runner-progress-text">
+            Running {{ results.length }} / {{ totalRequests }}...
           </div>
         </div>
 
-        <!-- ── Main Body: split layout ───────────────────────── -->
-        <div v-if="running || done" class="runner-body">
+        <!-- Stats bar (after run starts) -->
+        <div v-if="running || done" class="runner-stats-bar">
+          <div class="stat-block">
+            <div class="stat-label">Duration</div>
+            <div class="stat-value">{{ totalTime }}ms</div>
+          </div>
+          <div class="stat-block">
+            <div class="stat-label">All tests</div>
+            <div class="stat-value">{{ totalPassed + totalFailed }}</div>
+          </div>
+          <div class="stat-block">
+            <div class="stat-label">Passed</div>
+            <div class="stat-value stat-pass">{{ totalPassed }}</div>
+          </div>
+          <div class="stat-block">
+            <div class="stat-label">Failed</div>
+            <div class="stat-value stat-fail">{{ totalFailed }}</div>
+          </div>
+          <div class="stat-block">
+            <div class="stat-label">Avg. Resp.</div>
+            <div class="stat-value">{{ avgTime }}ms</div>
+          </div>
+        </div>
 
-          <!-- LEFT: request list -->
-          <div class="runner-left">
-            <div class="runner-left-filters">
-              <button
-                v-for="f in filters" :key="f.key"
-                class="filter-tab"
-                :class="{ active: activeFilter === f.key }"
-                @click="activeFilter = f.key"
-              >
-                {{ f.label }}
-                <span v-if="f.count !== undefined" class="filter-count" :class="f.colorClass">
-                  {{ f.count }}
+        <!-- Filter tabs -->
+        <div v-if="results.length" class="runner-filter-tabs">
+          <button
+            v-for="f in filterTabs" :key="f.key"
+            class="filter-tab"
+            :class="{ active: activeFilter === f.key }"
+            @click="activeFilter = f.key"
+          >
+            {{ f.label }}
+            <span class="filter-tab-count" :class="f.cls">{{ f.count }}</span>
+          </button>
+        </div>
+
+        <!-- Results list -->
+        <div v-if="running || done" class="runner-results-scroll">
+
+          <div v-for="(r, i) in filteredResults" :key="i">
+            <!-- Request row -->
+            <div
+              class="result-request-row"
+              :class="rowClass(r)"
+              @click="toggleExpand(i)"
+            >
+              <span class="expand-arrow">{{ expandedRows.has(i) ? '▾' : '▸' }}</span>
+              <span class="rr-method" :class="methodClass(r.method)">{{ r.method || 'GET' }}</span>
+              <div class="rr-name-url">
+                <span class="rr-name">{{ r.request_name }}</span>
+                <span class="rr-url">{{ r.resolved_url || r.url || '' }}</span>
+              </div>
+              <div class="rr-right">
+                <span class="rr-status" :class="statusBadgeClass(r.status_code)">
+                  {{ r.status_code || 'ERR' }}
                 </span>
-              </button>
+                <span class="rr-time">{{ r.duration_ms }} ms</span>
+                <span v-if="r.size_bytes" class="rr-size">{{ formatSize(r.size_bytes) }}</span>
+                <!-- Test count badges -->
+                <template v-if="r.tests?.assertions">
+                  <span v-if="r.tests.assertions.passed" class="rr-badge rr-pass">
+                    {{ r.tests.assertions.passed }}
+                  </span>
+                  <span v-if="r.tests.assertions.failed" class="rr-badge rr-fail">
+                    {{ r.tests.assertions.failed }}
+                  </span>
+                </template>
+                <span v-if="r.error" class="rr-badge rr-fail">ERR</span>
+              </div>
             </div>
 
-            <div class="request-results-list">
+            <!-- Expanded: assertions inline -->
+            <div v-if="expandedRows.has(i)" class="result-assertions">
+
+              <!-- HTTP error -->
+              <div v-if="r.error" class="assertion-row assertion-fail">
+                <span class="assertion-badge badge-fail">FAIL</span>
+                <span class="assertion-text">Connection error: {{ r.error }}</span>
+              </div>
+
+              <!-- No test script -->
+              <div v-else-if="!r.tests" class="assertion-no-tests">
+                No tests found
+              </div>
+
+              <!-- Script error -->
+              <div v-else-if="r.tests.error" class="assertion-row assertion-fail">
+                <span class="assertion-badge badge-fail">ERROR</span>
+                <span class="assertion-text">{{ r.tests.error }}</span>
+              </div>
+
+              <!-- Individual assertions -->
+              <template v-else>
+                <div
+                  v-for="(a, ai) in (r.tests.assertions?.tests || [])"
+                  :key="ai"
+                  class="assertion-row"
+                  :class="a.passed ? 'assertion-pass' : 'assertion-fail'"
+                >
+                  <span class="assertion-badge" :class="a.passed ? 'badge-pass' : 'badge-fail'">
+                    {{ a.passed ? 'PASS' : 'FAIL' }}
+                  </span>
+                  <span class="assertion-text">{{ a.name }}</span>
+                </div>
+
+                <div v-if="!r.tests.assertions?.tests?.length" class="assertion-no-tests">
+                  Script ran but no assertions found
+                </div>
+              </template>
+
+              <!-- Console output -->
               <div
-                v-for="(r, i) in filteredResults" :key="i"
-                class="req-result-row"
-                :class="[rowStatusClass(r), { active: selectedResult === r }]"
-                @click="selectResult(r)"
+                v-if="r.tests?.output?.length"
+                class="assertion-console"
               >
-                <span class="req-result-icon">{{ resultIcon(r) }}</span>
-                <div class="req-result-info">
-                  <div class="req-result-name">{{ r.request_name || 'Request' }}</div>
-                  <div class="req-result-meta">
-                    <span class="rr-status" :class="statusClass(r.status_code)">{{ r.status_code || 'ERR' }}</span>
-                    <span class="rr-method" :class="methodClass(r.method)">{{ r.method }}</span>
-                    <span class="rr-time">{{ r.duration_ms }}ms</span>
-                    <span v-if="r.tests?.assertions" class="rr-tests" :class="r.tests.assertions.failed > 0 ? 'rr-fail' : 'rr-pass'">
-                      {{ r.tests.assertions.passed }}/{{ r.tests.assertions.passed + r.tests.assertions.failed }}
-                    </span>
-                    <span v-if="r.error" class="rr-error-badge">ERR</span>
-                  </div>
+                <div class="console-header">Console</div>
+                <div
+                  v-for="(line, li) in r.tests.output" :key="li"
+                  class="console-line"
+                >{{ line }}</div>
+              </div>
+
+              <!-- Response preview (collapsed by default) -->
+              <div class="assertion-response">
+                <button
+                  class="response-toggle"
+                  @click.stop="toggleResponse(i)"
+                >
+                  {{ openResponses.has(i) ? '▾ Hide Response' : '▸ Show Response' }}
+                  <span class="response-status" :class="statusBadgeClass(r.status_code)">
+                    {{ r.status_code }}
+                  </span>
+                </button>
+                <div v-if="openResponses.has(i)" class="response-body-wrap">
+                  <pre class="response-body">{{ prettyBody(r.response_body) }}</pre>
                 </div>
               </div>
 
-              <div v-if="running && filteredResults.length < totalRequests" class="req-result-pending">
-                <span class="pending-spinner">⟳</span>
-                <span>Running {{ totalRequests - filteredResults.length }} more...</span>
-              </div>
             </div>
           </div>
 
-          <!-- RIGHT: detail panel -->
-          <div class="runner-right">
-            <div v-if="!selectedResult" class="runner-right-empty">
-              <div class="empty-icon">←</div>
-              <p>Select a request to see details</p>
-            </div>
-
-            <template v-else>
-              <!-- Request title -->
-              <div class="rr-detail-header">
-                <span class="rr-detail-icon">{{ resultIcon(selectedResult) }}</span>
-                <div class="rr-detail-title">
-                  <span class="rr-detail-name">{{ selectedResult.request_name }}</span>
-                  <span class="rr-detail-url">{{ selectedResult.resolved_url || selectedResult.url }}</span>
-                </div>
-                <div class="rr-detail-badges">
-                  <span class="rr-status" :class="statusClass(selectedResult.status_code)">{{ selectedResult.status_code }}</span>
-                  <span class="rr-time">{{ selectedResult.duration_ms }}ms</span>
-                  <span v-if="selectedResult.size_bytes">{{ formatSize(selectedResult.size_bytes) }}</span>
-                </div>
-              </div>
-
-              <!-- Detail tabs -->
-              <div class="rr-detail-tabs">
-                <button
-                  v-for="t in detailTabs(selectedResult)" :key="t.key"
-                  class="rr-detail-tab"
-                  :class="{ active: activeDetailTab === t.key, 'tab-fail': t.hasFail }"
-                  @click="activeDetailTab = t.key"
-                >{{ t.label }}</button>
-              </div>
-
-              <!-- TESTS tab -->
-              <div v-if="activeDetailTab === 'tests'" class="rr-detail-content">
-                <div v-if="!selectedResult.tests" class="detail-empty">
-                  No test script for this request
-                </div>
-                <template v-else>
-                  <!-- Error -->
-                  <div v-if="selectedResult.tests.error" class="test-script-error">
-                    ⚠ Script error: {{ selectedResult.tests.error }}
-                  </div>
-                  <!-- Assertions -->
-                  <div
-                    v-for="(a, ai) in (selectedResult.tests.assertions?.tests || [])"
-                    :key="ai"
-                    class="assertion-row"
-                    :class="a.passed ? 'a-pass' : 'a-fail'"
-                  >
-                    <span class="a-icon">{{ a.passed ? '✓' : '✗' }}</span>
-                    <span class="a-name">{{ a.name }}</span>
-                  </div>
-                  <div v-if="!selectedResult.tests.assertions?.tests?.length" class="detail-empty">
-                    Test script ran but produced no assertions
-                  </div>
-                </template>
-              </div>
-
-              <!-- RESPONSE tab -->
-              <div v-if="activeDetailTab === 'response'" class="rr-detail-content">
-                <div v-if="selectedResult.error" class="detail-error">
-                  Connection error: {{ selectedResult.error }}
-                </div>
-                <template v-else>
-                  <div class="response-toolbar">
-                    <button class="rv-toggle" :class="{ active: prettyResponse }" @click="prettyResponse = !prettyResponse">Pretty</button>
-                    <button class="rv-toggle" @click="copyResponse">{{ responseCopied ? 'Copied!' : 'Copy' }}</button>
-                  </div>
-                  <pre class="rr-code">{{ formattedResponseBody }}</pre>
-                </template>
-              </div>
-
-              <!-- HEADERS tab -->
-              <div v-if="activeDetailTab === 'headers'" class="rr-detail-content">
-                <div class="headers-section-title">Response Headers</div>
-                <table class="rr-headers-table">
-                  <tbody>
-                    <tr v-for="(val, key) in (selectedResult.response_headers || {})" :key="key">
-                      <td class="rh-key">{{ key }}</td>
-                      <td class="rh-val">{{ val }}</td>
-                    </tr>
-                    <tr v-if="!Object.keys(selectedResult.response_headers || {}).length">
-                      <td colspan="2" class="detail-empty">No headers</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <!-- CONSOLE tab -->
-              <div v-if="activeDetailTab === 'console'" class="rr-detail-content">
-                <div v-if="!consoleLines.length" class="detail-empty">
-                  No console output
-                </div>
-                <div v-else class="console-output">
-                  <div v-for="(line, li) in consoleLines" :key="li" class="console-line">
-                    <span class="console-prefix">[log]</span>
-                    <span class="console-text">{{ line }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- REQUEST tab -->
-              <div v-if="activeDetailTab === 'request'" class="rr-detail-content">
-                <div class="headers-section-title">Sent to</div>
-                <div class="rr-sent-url">{{ selectedResult.resolved_url || selectedResult.url }}</div>
-                <div class="headers-section-title" style="margin-top:12px">Request Headers</div>
-                <table class="rr-headers-table">
-                  <tbody>
-                    <tr v-for="(val, key) in (selectedResult.request_headers || {})" :key="key">
-                      <td class="rh-key">{{ key }}</td>
-                      <td class="rh-val">{{ val }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-                <template v-if="selectedResult.request_body">
-                  <div class="headers-section-title" style="margin-top:12px">Request Body</div>
-                  <pre class="rr-code">{{ selectedResult.request_body }}</pre>
-                </template>
-              </div>
-
-            </template>
+          <!-- Running spinner -->
+          <div v-if="running" class="running-indicator">
+            <span class="running-spinner">⟳</span> Running...
           </div>
         </div>
 
-        <!-- ── Actions ────────────────────────────────────────── -->
+        <!-- Actions -->
         <div class="runner-actions">
           <template v-if="!running && !done">
             <button class="btn btn-primary" @click="runAll" :disabled="!selectedCount">
-              ▶ Run ({{ selectedCount }})
+              ▶ Run {{ selectedCount > 0 ? `(${selectedCount})` : '' }}
             </button>
           </template>
           <template v-else-if="running">
-            <button class="btn btn-danger" @click="stopRun">■ Stop</button>
+            <button class="btn btn-danger" @click="stopped = true">■ Stop</button>
           </template>
           <template v-else>
-            <button class="btn btn-secondary" @click="exportResults">↓ Export CSV</button>
+            <button class="btn btn-secondary" @click="exportCsv">↓ Export CSV</button>
             <button
               v-if="failedResults.length"
               class="btn btn-warn"
@@ -300,28 +253,24 @@ const emit = defineEmits(['close'])
 const store = usePechkinStore()
 
 // ── State ──────────────────────────────────────────────────
-const running = ref(false)
-const done = ref(false)
-const stopped = ref(false)
-const results = ref([])
-const completed = ref(0)
-const completedCount = ref(0)
+const running   = ref(false)
+const done      = ref(false)
+const stopped   = ref(false)
+const results   = ref([])
 const totalTime = ref(0)
-const showSettings = ref(false)
-const activeFilter = ref('all')
-const selectedResult = ref(null)
-const activeDetailTab = ref('tests')
-const prettyResponse = ref(true)
-const responseCopied = ref(false)
-const options = reactive({ delayMs: 0, stopOnError: false, iterations: 1 })
+const activeFilter  = ref('all')
+const expandedRows  = ref(new Set())
+const openResponses = ref(new Set())
+const options   = reactive({ delayMs: 0, stopOnError: false, iterations: 1 })
 const orderedRequests = ref([])
-const dragIdx = ref(-1)
+const dragIdx     = ref(-1)
 const dragOverIdx = ref(-1)
 
 // ── Computed ───────────────────────────────────────────────
 const selectedCount = computed(() => orderedRequests.value.filter(r => r.selected).length)
+const allSelected   = computed(() => orderedRequests.value.every(r => r.selected))
 const totalRequests = computed(() => selectedCount.value * options.iterations)
-const progressPct = computed(() =>
+const progressPct   = computed(() =>
   totalRequests.value ? (results.value.length / totalRequests.value) * 100 : 0
 )
 
@@ -331,83 +280,57 @@ const totalPassed = computed(() =>
 const totalFailed = computed(() =>
   results.value.reduce((s, r) => s + (r.tests?.assertions?.failed || 0), 0)
 )
-const passRate = computed(() => {
-  const total = totalPassed.value + totalFailed.value
-  return total ? Math.round((totalPassed.value / total) * 100) : 100
-})
-const passRateCls = computed(() =>
-  passRate.value >= 80 ? 'sb-pass' : passRate.value >= 50 ? 'sb-warn' : 'sb-fail'
-)
-const summaryBarClass = computed(() => {
-  if (running.value) return 'bar-running'
-  if (done.value) return totalFailed.value > 0 ? 'bar-fail' : 'bar-pass'
-  return ''
+const avgTime = computed(() => {
+  if (!results.value.length) return 0
+  const total = results.value.reduce((s, r) => s + (r.duration_ms || 0), 0)
+  return Math.round(total / results.value.length)
 })
 
-const filters = computed(() => [
-  { key: 'all', label: 'All', count: results.value.length, colorClass: '' },
+const failedResults = computed(() =>
+  results.value.filter(r =>
+    r.error || r.status_code >= 400 || (r.tests?.assertions?.failed || 0) > 0
+  )
+)
+
+const filterTabs = computed(() => [
+  {
+    key: 'all',
+    label: 'All Tests',
+    count: results.value.length,
+    cls: '',
+  },
   {
     key: 'passed',
     label: 'Passed',
-    count: results.value.filter(r => isResultPassed(r)).length,
-    colorClass: 'fc-pass'
+    count: results.value.filter(r => isPass(r)).length,
+    cls: 'cnt-pass',
   },
   {
     key: 'failed',
     label: 'Failed',
-    count: results.value.filter(r => !isResultPassed(r)).length,
-    colorClass: 'fc-fail'
+    count: failedResults.value.length,
+    cls: 'cnt-fail',
   },
 ])
 
 const filteredResults = computed(() => {
-  if (activeFilter.value === 'passed') return results.value.filter(r => isResultPassed(r))
-  if (activeFilter.value === 'failed') return results.value.filter(r => !isResultPassed(r))
+  if (activeFilter.value === 'passed') return results.value.filter(r => isPass(r))
+  if (activeFilter.value === 'failed') return failedResults.value
   return results.value
 })
 
-const failedResults = computed(() => results.value.filter(r => !isResultPassed(r)))
-
-const formattedResponseBody = computed(() => {
-  const body = selectedResult.value?.response_body
-  if (!body) return ''
-  if (!prettyResponse.value) return body
-  try {
-    return JSON.stringify(JSON.parse(body), null, 2)
-  } catch { return body }
-})
-
-const consoleLines = computed(() => {
-  const r = selectedResult.value
-  if (!r) return []
-  const lines = []
-  if (r.tests?.output?.length) lines.push(...r.tests.output)
-  if (r.pre_output?.length) lines.push(...r.pre_output)
-  return lines
-})
-
 // ── Helpers ────────────────────────────────────────────────
-function isResultPassed(r) {
-  if (r.error) return false
-  if (r.status_code >= 400) return false
-  if ((r.tests?.assertions?.failed || 0) > 0) return false
-  return true
+function isPass(r) {
+  return !r.error && r.status_code < 400 && (r.tests?.assertions?.failed || 0) === 0
 }
 
-function resultIcon(r) {
-  if (!r) return '○'
-  if (r.error || r.status_code >= 400 || (r.tests?.assertions?.failed || 0) > 0) return '✗'
-  return '✓'
-}
-
-function rowStatusClass(r) {
-  if (!r) return ''
+function rowClass(r) {
   if (r.error || r.status_code >= 400) return 'row-error'
   if ((r.tests?.assertions?.failed || 0) > 0) return 'row-fail'
   return 'row-pass'
 }
 
-function statusClass(code) {
+function statusBadgeClass(code) {
   if (!code) return 'status-err'
   if (code < 300) return 'status-ok'
   if (code < 400) return 'status-redirect'
@@ -416,51 +339,38 @@ function statusClass(code) {
 
 function methodClass(m) {
   const map = { GET: 'method-get', POST: 'method-post', PUT: 'method-put', PATCH: 'method-patch', DELETE: 'method-delete' }
-  return map[m?.toUpperCase()] || 'method-get'
+  return map[(m || 'GET').toUpperCase()] || 'method-get'
 }
 
-function formatSize(bytes) {
-  if (!bytes) return ''
-  if (bytes < 1024) return bytes + 'B'
-  return (bytes / 1024).toFixed(1) + 'KB'
+function formatSize(b) {
+  if (!b) return ''
+  return b < 1024 ? b + ' B' : (b / 1024).toFixed(1) + ' KB'
 }
 
-function detailTabs(r) {
-  const tabs = []
-  const testsFailed = r.tests?.assertions?.failed > 0
-  const testsExist = r.tests !== null
-  tabs.push({
-    key: 'tests',
-    label: testsExist
-      ? `Tests (${r.tests?.assertions?.passed || 0}/${(r.tests?.assertions?.passed || 0) + (r.tests?.assertions?.failed || 0)})`
-      : 'Tests',
-    hasFail: testsFailed
-  })
-  tabs.push({ key: 'response', label: 'Response', hasFail: false })
-  tabs.push({ key: 'headers', label: 'Headers', hasFail: false })
-  const hasConsole = (r.tests?.output?.length || 0) + (r.pre_output?.length || 0) > 0
-  tabs.push({ key: 'console', label: hasConsole ? 'Console ●' : 'Console', hasFail: false })
-  tabs.push({ key: 'request', label: 'Request', hasFail: false })
-  return tabs
+function prettyBody(body) {
+  if (!body) return 'Empty response'
+  try { return JSON.stringify(JSON.parse(body), null, 2) }
+  catch { return body }
 }
 
-function selectResult(r) {
-  selectedResult.value = r
-  // Auto-select first relevant tab
-  if (r.tests) {
-    activeDetailTab.value = 'tests'
-  } else {
-    activeDetailTab.value = 'response'
-  }
+function toggleExpand(idx) {
+  const s = new Set(expandedRows.value)
+  s.has(idx) ? s.delete(idx) : s.add(idx)
+  expandedRows.value = s
 }
 
-function copyResponse() {
-  navigator.clipboard.writeText(formattedResponseBody.value)
-  responseCopied.value = true
-  setTimeout(() => { responseCopied.value = false }, 2000)
+function toggleResponse(idx) {
+  const s = new Set(openResponses.value)
+  s.has(idx) ? s.delete(idx) : s.add(idx)
+  openResponses.value = s
 }
 
-// ── Drag & Drop ────────────────────────────────────────────
+function toggleAll() {
+  const val = !allSelected.value
+  orderedRequests.value.forEach(r => { r.selected = val })
+}
+
+// ── Drag ───────────────────────────────────────────────────
 function onDragStart(idx, e) { dragIdx.value = idx; e.dataTransfer.effectAllowed = 'move' }
 function onDragOver(idx) { dragOverIdx.value = idx }
 function onDrop(idx) {
@@ -470,10 +380,6 @@ function onDrop(idx) {
   orderedRequests.value = arr
   dragOverIdx.value = -1
 }
-function selectAll() {
-  const allSelected = orderedRequests.value.every(r => r.selected)
-  orderedRequests.value.forEach(r => { r.selected = !allSelected })
-}
 
 // ── Run ────────────────────────────────────────────────────
 async function runAll(onlyIds = null) {
@@ -481,31 +387,32 @@ async function runAll(onlyIds = null) {
   done.value = false
   stopped.value = false
   results.value = []
-  completed.value = 0
-  completedCount.value = 0
   totalTime.value = 0
-  selectedResult.value = null
+  expandedRows.value = new Set()
+  openResponses.value = new Set()
 
   const selectedIds = onlyIds || orderedRequests.value.filter(r => r.selected).map(r => r.id)
   try {
     const resp = await pechkinApi.runCollection({
       collection_id: props.collectionId,
       request_ids: selectedIds,
-      delay_ms: options.delayMs,
+      delay_ms: options.delayMs || 0,
       stop_on_error: options.stopOnError,
-      iterations: options.iterations,
+      iterations: options.iterations || 1,
       variables: store.resolvedVariables,
     })
     results.value = resp.data.results || resp.data
-    completedCount.value = results.value.length
     totalTime.value = resp.data.total_time_ms
       || results.value.reduce((s, r) => s + (r.duration_ms || 0), 0)
 
-    // Auto-select first failed or first result
-    if (results.value.length) {
-      const firstFailed = results.value.find(r => !isResultPassed(r))
-      selectResult(firstFailed || results.value[0])
-    }
+    // Auto-expand failed requests
+    results.value.forEach((r, i) => {
+      if (!isPass(r)) {
+        const s = new Set(expandedRows.value)
+        s.add(i)
+        expandedRows.value = s
+      }
+    })
   } catch (e) {
     console.error('Collection run failed:', e)
   } finally {
@@ -514,29 +421,37 @@ async function runAll(onlyIds = null) {
   }
 }
 
-function stopRun() { stopped.value = true }
-function reset() { done.value = false; results.value = []; selectedResult.value = null }
-function rerunFailed() { runAll(failedResults.value.map(r => r.request_id)) }
+function reset() {
+  done.value = false
+  results.value = []
+  expandedRows.value = new Set()
+  openResponses.value = new Set()
+}
 
-function exportResults() {
+function rerunFailed() {
+  runAll(failedResults.value.map(r => r.request_id))
+}
+
+function exportCsv() {
   const rows = [
-    'Name,Method,URL,Status,Duration(ms),Tests Passed,Tests Failed,Error',
+    'Iteration,Name,Method,URL,Status,Duration(ms),Tests Passed,Tests Failed,Error',
     ...results.value.map(r => [
-      `"${(r.request_name || '').replace(/"/g,'""')}"`,
+      r.iteration || 1,
+      `"${(r.request_name || '').replace(/"/g, '""')}"`,
       r.method || '',
-      `"${(r.resolved_url || r.url || '').replace(/"/g,'""')}"`,
+      `"${(r.resolved_url || r.url || '').replace(/"/g, '""')}"`,
       r.status_code || '',
       r.duration_ms || 0,
       r.tests?.assertions?.passed || 0,
       r.tests?.assertions?.failed || 0,
-      `"${(r.error || '').replace(/"/g,'""')}"`,
+      `"${(r.error || '').replace(/"/g, '""')}"`,
     ].join(','))
   ]
   const blob = new Blob([rows.join('\n')], { type: 'text/csv' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${props.collectionName.replace(/[^a-zA-Z0-9]/g,'_')}-run.csv`
+  a.download = `${props.collectionName.replace(/[^a-zA-Z0-9]/g, '_')}-run.csv`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -550,16 +465,16 @@ onMounted(() => {
 /* ── Overlay & Modal ─────────────────────────────────── */
 .runner-overlay {
   position: fixed; inset: 0; z-index: 9000;
-  background: rgba(0,0,0,0.65);
+  background: rgba(0, 0, 0, 0.6);
   display: flex; align-items: center; justify-content: center;
 }
 .runner-modal {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: 0 24px 80px rgba(0,0,0,0.4);
-  width: min(1100px, 95vw);
-  height: 85vh;
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  width: min(900px, 95vw);
+  max-height: 88vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -568,241 +483,262 @@ onMounted(() => {
 /* ── Header ──────────────────────────────────────────── */
 .runner-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 20px; border-bottom: 1px solid var(--border-color);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
 }
 .runner-header-left { display: flex; align-items: center; gap: 10px; }
-.runner-title { font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 0; }
-.runner-col-name {
-  font-size: 13px; color: var(--text-secondary);
-  padding: 2px 8px; background: var(--bg-tertiary); border-radius: 4px;
+.runner-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.runner-run-badge {
+  font-size: 11px; font-weight: 700; padding: 2px 8px;
+  border-radius: 4px; letter-spacing: 0.5px;
 }
-.runner-header-right { display: flex; align-items: center; gap: 8px; }
-.btn-settings {
-  padding: 5px 12px; font-size: 12px; background: var(--bg-tertiary);
-  border: 1px solid var(--border-color); border-radius: 6px;
-  color: var(--text-secondary); cursor: pointer; transition: all 0.15s;
-}
-.btn-settings:hover, .btn-settings.active { color: var(--accent); border-color: var(--accent); }
+.badge-ok { background: rgba(16,185,129,0.15); color: var(--success); }
+.badge-error { background: rgba(239,68,68,0.15); color: var(--error); }
 .runner-close {
   background: none; border: none; font-size: 20px;
-  color: var(--text-secondary); cursor: pointer; line-height: 1; padding: 4px;
+  color: var(--text-secondary); cursor: pointer; padding: 4px;
 }
 .runner-close:hover { color: var(--text-primary); }
 
-/* ── Settings Panel ──────────────────────────────────── */
-.runner-settings-panel {
-  padding: 12px 20px; border-bottom: 1px solid var(--border-color);
-  background: var(--bg-secondary); flex-shrink: 0;
-  max-height: 260px; overflow-y: auto;
+/* ── Pre-run Setup ───────────────────────────────────── */
+.runner-setup { padding: 14px 20px; overflow-y: auto; flex-shrink: 0; max-height: 320px; }
+.setup-row { display: flex; gap: 20px; align-items: flex-end; margin-bottom: 14px; flex-wrap: wrap; }
+.setup-label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary); }
+.setup-input { width: 80px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 5px; background: var(--bg-secondary); color: var(--text-primary); font-size: 12px; }
+.setup-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; padding-bottom: 4px; }
+.req-checklist { border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; }
+.req-checklist-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 12px; background: var(--bg-tertiary);
+  font-size: 11px; font-weight: 600; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.5px;
 }
-.settings-row { display: flex; gap: 16px; align-items: flex-end; margin-bottom: 12px; flex-wrap: wrap; }
-.setting-label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary); }
-.setting-input { width: 90px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 5px; background: var(--bg-primary); color: var(--text-primary); font-size: 12px; }
-.setting-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; padding-bottom: 4px; }
-.request-list { border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; }
-.request-list-header { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; font-size: 11px; font-weight: 600; color: var(--text-secondary); background: var(--bg-tertiary); text-transform: uppercase; letter-spacing: 0.5px; }
-.btn-select-all { background: none; border: none; color: var(--accent); font-size: 11px; cursor: pointer; }
-.request-item { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-top: 1px solid var(--border-color); font-size: 12px; color: var(--text-primary); cursor: grab; }
-.request-item:hover { background: var(--bg-tertiary); }
-.request-item.drag-over { border-top: 2px solid var(--accent); }
-.drag-handle { color: var(--text-secondary); user-select: none; }
-.req-check { accent-color: var(--accent); }
-.req-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.empty-msg { padding: 12px; text-align: center; color: var(--text-secondary); font-size: 12px; }
-
-/* ── Summary Bar ─────────────────────────────────────── */
-.runner-summary-bar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 20px; border-bottom: 1px solid var(--border-color);
-  background: var(--bg-secondary); flex-shrink: 0; min-height: 36px;
+.btn-link { background: none; border: none; color: var(--accent); font-size: 11px; cursor: pointer; }
+.req-check-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; border-top: 1px solid var(--border-color);
+  font-size: 13px; color: var(--text-primary); cursor: grab;
 }
-.summary-bar-left { display: flex; align-items: center; gap: 6px; font-size: 12px; flex-wrap: wrap; }
-.sb-item { font-weight: 500; }
-.sb-sep { color: var(--text-secondary); }
-.sb-accent { color: var(--accent); }
-.sb-pass { color: var(--success); }
-.sb-fail { color: var(--error); }
-.sb-warn { color: var(--warning); }
-.sb-neutral { color: var(--text-secondary); }
-.sb-progress-wrap { width: 140px; height: 4px; background: var(--bg-tertiary); border-radius: 2px; overflow: hidden; }
-.sb-progress-bar { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
+.req-check-row:hover { background: var(--bg-secondary); }
+.req-check-row.drag-over { border-top: 2px solid var(--accent); }
+.drag-dots { color: var(--text-secondary); user-select: none; }
+.req-checkbox { accent-color: var(--accent); }
+.req-check-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.setup-empty { padding: 14px; text-align: center; color: var(--text-secondary); font-size: 12px; }
 
-/* ── Body split ──────────────────────────────────────── */
-.runner-body {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
+/* ── Progress bar ────────────────────────────────────── */
+.runner-progress-wrap {
+  flex-shrink: 0; padding: 0 20px 10px; background: var(--bg-secondary);
 }
+.runner-progress-bar {
+  height: 3px; background: var(--accent); border-radius: 2px;
+  transition: width 0.3s; margin-bottom: 4px;
+}
+.runner-progress-text { font-size: 11px; color: var(--text-secondary); text-align: center; }
 
-/* ── Left panel ──────────────────────────────────────── */
-.runner-left {
-  border-right: 1px solid var(--border-color);
-  display: flex; flex-direction: column; overflow: hidden;
+/* ── Stats bar ───────────────────────────────────────── */
+.runner-stats-bar {
+  display: flex; gap: 0;
+  border-bottom: 1px solid var(--border-color);
   background: var(--bg-secondary);
+  flex-shrink: 0;
 }
-.runner-left-filters {
-  display: flex; gap: 0; padding: 8px 12px 0;
-  border-bottom: 1px solid var(--border-color); flex-shrink: 0;
+.stat-block {
+  flex: 1; padding: 10px 16px; text-align: center;
+  border-right: 1px solid var(--border-color);
+}
+.stat-block:last-child { border-right: none; }
+.stat-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 2px; }
+.stat-value { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.stat-pass { color: var(--success); }
+.stat-fail { color: var(--error); }
+
+/* ── Filter tabs ─────────────────────────────────────── */
+.runner-filter-tabs {
+  display: flex; gap: 0;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
 }
 .filter-tab {
-  padding: 5px 12px; background: none; border: none; border-bottom: 2px solid transparent;
-  color: var(--text-secondary); font-size: 11px; font-weight: 600; cursor: pointer;
-  text-transform: uppercase; letter-spacing: 0.4px; display: flex; align-items: center; gap: 4px;
+  padding: 8px 18px; background: none; border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary); font-size: 12px; font-weight: 500;
+  cursor: pointer; display: flex; align-items: center; gap: 6px;
 }
 .filter-tab:hover { color: var(--text-primary); }
-.filter-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-.filter-count { font-size: 10px; padding: 1px 5px; border-radius: 8px; background: var(--bg-tertiary); }
-.fc-pass { color: var(--success); }
-.fc-fail { color: var(--error); }
+.filter-tab.active { color: var(--text-primary); border-bottom-color: var(--accent); }
+.filter-tab-count {
+  font-size: 11px; font-weight: 700; padding: 1px 6px;
+  border-radius: 10px; background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+.cnt-pass { color: var(--success); background: rgba(16,185,129,0.1); }
+.cnt-fail { color: var(--error); background: rgba(239,68,68,0.1); }
 
-.request-results-list { flex: 1; overflow-y: auto; }
+/* ── Results scroll area ─────────────────────────────── */
+.runner-results-scroll {
+  flex: 1; overflow-y: auto;
+  min-height: 0;
+}
 
-.req-result-row {
-  display: flex; align-items: flex-start; gap: 8px;
-  padding: 8px 12px; cursor: pointer;
+/* ── Request row ─────────────────────────────────────── */
+.result-request-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 20px; cursor: pointer;
   border-bottom: 1px solid var(--border-color);
   transition: background 0.1s;
+  font-size: 13px;
 }
-.req-result-row:hover { background: var(--bg-tertiary); }
-.req-result-row.active { background: var(--accent-muted); }
-.req-result-row.row-pass .req-result-icon { color: var(--success); }
-.req-result-row.row-fail .req-result-icon,
-.req-result-row.row-error .req-result-icon { color: var(--error); }
-.req-result-icon { font-size: 14px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+.result-request-row:hover { background: var(--bg-secondary); }
+.row-pass .expand-arrow { color: var(--success); }
+.row-fail .expand-arrow { color: var(--error); }
+.row-error .expand-arrow { color: var(--error); }
+.expand-arrow { font-size: 13px; color: var(--text-secondary); width: 14px; flex-shrink: 0; }
 
-.req-result-info { flex: 1; min-width: 0; }
-.req-result-name {
-  font-size: 12px; font-weight: 500; color: var(--text-primary);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  margin-bottom: 3px;
+.rr-method {
+  font-size: 10px; font-weight: 700; padding: 2px 6px;
+  border-radius: 3px; text-transform: uppercase; flex-shrink: 0;
 }
-.req-result-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-.rr-status { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px; }
-.status-ok { color: var(--success); background: rgba(16,185,129,0.12); }
-.status-redirect { color: var(--warning); background: rgba(245,158,11,0.12); }
-.status-err { color: var(--error); background: rgba(239,68,68,0.12); }
-.rr-method { font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 3px; text-transform: uppercase; }
 .method-get { color: var(--success); background: rgba(16,185,129,0.12); }
 .method-post { color: var(--accent); background: var(--accent-muted); }
 .method-put, .method-patch { color: var(--warning); background: rgba(245,158,11,0.12); }
 .method-delete { color: var(--error); background: rgba(239,68,68,0.12); }
-.rr-time { font-size: 10px; color: var(--text-secondary); }
-.rr-tests { font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 8px; }
-.rr-pass { color: var(--success); background: rgba(16,185,129,0.1); }
-.rr-fail { color: var(--error); background: rgba(239,68,68,0.1); }
-.rr-error-badge { font-size: 9px; padding: 1px 4px; background: rgba(239,68,68,0.15); color: var(--error); border-radius: 3px; font-weight: 700; }
-.req-result-pending { padding: 12px; text-align: center; font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; gap: 6px; }
-.pending-spinner { animation: spin 1s linear infinite; display: inline-block; }
+
+.rr-name-url {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+}
+.rr-name {
+  font-size: 13px; font-weight: 500; color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rr-url {
+  font-size: 11px; font-family: monospace; color: var(--text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.rr-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.rr-status { font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+.status-ok { color: var(--success); background: rgba(16,185,129,0.12); }
+.status-redirect { color: var(--warning); background: rgba(245,158,11,0.12); }
+.status-err { color: var(--error); background: rgba(239,68,68,0.12); }
+.rr-time, .rr-size { font-size: 11px; color: var(--text-secondary); }
+.rr-badge {
+  font-size: 10px; font-weight: 700; padding: 1px 6px;
+  border-radius: 10px; min-width: 20px; text-align: center;
+}
+.rr-pass { background: rgba(16,185,129,0.12); color: var(--success); }
+.rr-fail { background: rgba(239,68,68,0.12); color: var(--error); }
+
+/* ── Expanded assertions ─────────────────────────────── */
+.result-assertions {
+  background: var(--bg-secondary);
+  border-bottom: 2px solid var(--border-color);
+  padding: 6px 20px 10px 44px;
+}
+
+.assertion-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 5px 0; border-bottom: 1px solid var(--border-color);
+  font-size: 13px;
+}
+.assertion-row:last-of-type { border-bottom: none; }
+.assertion-pass .assertion-badge { }
+.assertion-fail .assertion-badge { }
+
+.assertion-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 7px;
+  border-radius: 3px; letter-spacing: 0.5px; flex-shrink: 0; margin-top: 1px;
+  font-family: monospace;
+}
+.badge-pass { background: rgba(16,185,129,0.15); color: var(--success); }
+.badge-fail { background: rgba(239,68,68,0.15); color: var(--error); }
+
+.assertion-text {
+  color: var(--text-primary); line-height: 1.4; flex: 1;
+}
+.assertion-pass .assertion-text { color: var(--text-secondary); }
+
+.assertion-no-tests {
+  font-size: 12px; color: var(--text-secondary);
+  font-style: italic; padding: 6px 0;
+}
+
+/* Console output */
+.assertion-console {
+  margin-top: 8px; padding: 8px 10px;
+  background: var(--bg-primary); border: 1px solid var(--border-color);
+  border-radius: 5px;
+}
+.console-header {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  color: var(--text-secondary); letter-spacing: 0.5px; margin-bottom: 4px;
+}
+.console-line {
+  font-family: monospace; font-size: 12px; color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* Response toggle */
+.assertion-response { margin-top: 8px; }
+.response-toggle {
+  background: none; border: none; font-size: 12px;
+  color: var(--text-secondary); cursor: pointer; padding: 0;
+  display: flex; align-items: center; gap: 6px;
+}
+.response-toggle:hover { color: var(--text-primary); }
+.response-status { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px; }
+.response-body-wrap {
+  margin-top: 6px; max-height: 200px; overflow-y: auto;
+  border: 1px solid var(--border-color); border-radius: 5px;
+}
+.response-body {
+  margin: 0; padding: 10px 12px;
+  background: var(--bg-primary); color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  line-height: 1.5; white-space: pre; overflow-x: auto;
+}
+
+/* Running indicator */
+.running-indicator {
+  padding: 16px; text-align: center;
+  font-size: 13px; color: var(--text-secondary);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.running-spinner { animation: spin 1s linear infinite; display: inline-block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Right panel ─────────────────────────────────────── */
-.runner-right {
-  display: flex; flex-direction: column; overflow: hidden;
-  background: var(--bg-card);
+/* ── Method badges in request list ──────────────────── */
+.req-method-badge {
+  font-size: 9px; font-weight: 700; padding: 1px 5px;
+  border-radius: 3px; text-transform: uppercase; flex-shrink: 0;
 }
-.runner-right-empty {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  height: 100%; color: var(--text-secondary);
-}
-.empty-icon { font-size: 32px; margin-bottom: 8px; }
-.runner-right-empty p { font-size: 13px; }
-
-.rr-detail-header {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 16px; border-bottom: 1px solid var(--border-color);
-  flex-shrink: 0; background: var(--bg-secondary);
-}
-.rr-detail-icon { font-size: 16px; font-weight: 700; flex-shrink: 0; }
-.row-pass .rr-detail-icon, .runner-right .rr-detail-icon { color: var(--success); }
-.rr-detail-title { flex: 1; min-width: 0; }
-.rr-detail-name { font-size: 13px; font-weight: 600; color: var(--text-primary); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rr-detail-url { font-family: monospace; font-size: 11px; color: var(--text-secondary); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rr-detail-badges { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.rr-time { font-size: 11px; color: var(--text-secondary); }
-
-.rr-detail-tabs {
-  display: flex; gap: 0; padding: 0 16px;
-  border-bottom: 1px solid var(--border-color); flex-shrink: 0;
-  background: var(--bg-secondary);
-}
-.rr-detail-tab {
-  padding: 8px 14px; background: none; border: none; border-bottom: 2px solid transparent;
-  color: var(--text-secondary); font-size: 12px; cursor: pointer; font-weight: 500; white-space: nowrap;
-}
-.rr-detail-tab:hover { color: var(--text-primary); }
-.rr-detail-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-.rr-detail-tab.tab-fail { color: var(--error); }
-.rr-detail-tab.tab-fail.active { border-bottom-color: var(--error); }
-
-.rr-detail-content {
-  flex: 1; overflow-y: auto; padding: 14px 16px;
-}
-
-/* Assertions */
-.assertion-row {
-  display: flex; align-items: flex-start; gap: 8px;
-  padding: 6px 8px; border-radius: 5px; margin-bottom: 3px; font-size: 12px;
-}
-.a-pass { background: rgba(16,185,129,0.07); }
-.a-fail { background: rgba(239,68,68,0.07); }
-.a-icon { font-size: 13px; font-weight: 700; flex-shrink: 0; }
-.a-pass .a-icon { color: var(--success); }
-.a-fail .a-icon { color: var(--error); }
-.a-name { color: var(--text-primary); line-height: 1.4; }
-.test-script-error {
-  padding: 8px 10px; background: rgba(239,68,68,0.08);
-  border: 1px solid rgba(239,68,68,0.25); border-radius: 6px;
-  font-size: 12px; color: var(--error); margin-bottom: 10px;
-}
-.detail-empty { color: var(--text-secondary); font-size: 12px; font-style: italic; text-align: center; padding: 20px; }
-.detail-error { color: var(--error); font-size: 12px; padding: 8px 0; }
-
-/* Response */
-.response-toolbar { display: flex; gap: 6px; margin-bottom: 8px; }
-.rv-toggle { padding: 3px 10px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-secondary); font-size: 11px; cursor: pointer; }
-.rv-toggle:hover { color: var(--text-primary); }
-.rv-toggle.active { background: var(--accent-muted); color: var(--accent); border-color: var(--accent); }
-.rr-code {
-  margin: 0; padding: 12px; background: var(--bg-primary);
-  border: 1px solid var(--border-color); border-radius: 6px;
-  color: var(--text-primary); font-family: 'JetBrains Mono', monospace;
-  font-size: 12px; line-height: 1.5; white-space: pre; overflow-x: auto;
-  max-height: 300px; overflow-y: auto;
-}
-
-/* Headers table */
-.headers-section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px; margin-bottom: 6px; }
-.rr-headers-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.rr-headers-table td { padding: 4px 8px; border-bottom: 1px solid var(--border-color); }
-.rh-key { font-weight: 500; color: var(--text-secondary); white-space: nowrap; width: 40%; }
-.rh-val { color: var(--text-primary); word-break: break-all; font-family: monospace; font-size: 11px; }
-
-/* Console */
-.console-output { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px 12px; }
-.console-line { display: flex; gap: 8px; padding: 2px 0; font-size: 12px; font-family: monospace; line-height: 1.6; }
-.console-prefix { color: var(--accent); font-weight: 600; flex-shrink: 0; }
-.console-text { color: var(--text-primary); }
-
-/* Request */
-.rr-sent-url { font-family: monospace; font-size: 12px; color: var(--text-primary); padding: 6px 8px; background: var(--bg-secondary); border-radius: 4px; word-break: break-all; }
 
 /* ── Actions ─────────────────────────────────────────── */
 .runner-actions {
   display: flex; gap: 10px; padding: 12px 20px;
-  border-top: 1px solid var(--border-color); justify-content: flex-end; flex-shrink: 0;
+  border-top: 1px solid var(--border-color);
+  justify-content: flex-end; flex-shrink: 0;
   background: var(--bg-secondary);
 }
-.btn { padding: 7px 18px; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+.btn {
+  padding: 7px 18px; border: none; border-radius: 6px;
+  font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s;
+}
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-primary:hover:not(:disabled) { opacity: 0.85; }
 .btn-danger { background: var(--error); color: #fff; }
 .btn-danger:hover { opacity: 0.9; }
-.btn-warn { background: rgba(245,158,11,0.15); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
-.btn-warn:hover { background: rgba(245,158,11,0.25); }
-.btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); }
+.btn-warn {
+  background: rgba(245,158,11,0.12); color: var(--warning);
+  border: 1px solid rgba(245,158,11,0.3);
+}
+.btn-warn:hover { background: rgba(245,158,11,0.22); }
+.btn-secondary {
+  background: var(--bg-tertiary); color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
 .btn-secondary:hover { background: var(--bg-secondary); }
 </style>

@@ -1,6 +1,6 @@
 """Pechkin Pydantic schemas and serialization helpers."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 
 # ── Pydantic schemas ────────────────────────────────────────────
@@ -88,10 +88,20 @@ class ScriptRequest(BaseModel):
 class RunCollectionRequest(BaseModel):
     collection_id: str
     request_ids: list[str] | None = None
-    delay_ms: int = 0
+    delay_ms: int | None = 0
     stop_on_error: bool = False
-    iterations: int = 1
+    iterations: int | None = 1
     variables: dict = {}
+
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_nulls(cls, values):
+        if isinstance(values, dict):
+            if values.get("delay_ms") is None:
+                values["delay_ms"] = 0
+            if values.get("iterations") is None:
+                values["iterations"] = 1
+        return values
 
 
 # ── Serialization helpers ────────────────────────────────────────

@@ -4,7 +4,7 @@ import json
 import logging
 from dataclasses import asdict
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -429,6 +429,7 @@ async def execute_test(
 @router.post("/run-collection")
 async def run_collection(
     data: RunCollectionRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_auth),
 ):

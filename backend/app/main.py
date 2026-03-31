@@ -4,8 +4,10 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -122,6 +124,17 @@ app = FastAPI(
     docs_url="/docs",
     openapi_url="/openapi.json",
 )
+
+# DEBUG: log 422 validation errors with request body (temporary)
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    body = await request.body()
+    logger.error(
+        f"422 Validation Error: path={request.url.path} "
+        f"body={body[:500]} errors={exc.errors()}"
+    )
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
 
 # CORS: allow all origins (bookmarklet runs on any domain)
 app.add_middleware(
