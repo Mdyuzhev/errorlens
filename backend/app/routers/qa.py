@@ -129,7 +129,22 @@ async def get_qa_dashboard(
             covered = covered_res.scalar() or 0
             coverage["All"] = round(covered / total * 100)
 
-    data = {"by_status": by_status, "top_failed": top_failed, "trend": trend, "coverage": coverage}
+    # --- plans_by_status: count plans by status ---
+    plans_q = (
+        select(TestPlan.status, func.count(TestPlan.id).label("count"))
+        .where(TestPlan.project_id == project_id)
+        .group_by(TestPlan.status)
+    )
+    plans_result = await db.execute(plans_q)
+    plans_by_status = {r.status: r.count for r in plans_result.all()}
+
+    data = {
+        "by_status": by_status,
+        "plans_by_status": plans_by_status,
+        "top_failed": top_failed,
+        "trend": trend,
+        "coverage": coverage,
+    }
 
     try:
         redis = await get_redis()

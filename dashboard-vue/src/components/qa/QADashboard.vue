@@ -83,7 +83,7 @@ let coverageChart = null
 const topFailed = computed(() => store.dashboard?.top_failed || [])
 
 const hasStatusData = computed(() => {
-  const s = store.dashboard?.by_status
+  const s = store.dashboard?.plans_by_status
   if (!s) return false
   return Object.values(s).some(v => v > 0)
 })
@@ -106,11 +106,13 @@ function getCssVar(name) {
 function getStatusColors(labels) {
   return labels.map(label => {
     switch (label) {
+      case 'active':
       case 'ready':      return getCssVar('--success')
       case 'approved':   return getCssVar('--accent')
+      case 'archived':   return getCssVar('--text-secondary')
       case 'needs_work': return getCssVar('--warning')
       case 'draft':
-      default:           return getCssVar('--text-secondary')
+      default:           return getCssVar('--accent-hover') || getCssVar('--accent')
     }
   })
 }
@@ -118,10 +120,10 @@ function getStatusColors(labels) {
 let themeObserver = null
 
 function buildChart() {
-  if (!chartCanvas.value || !store.dashboard?.by_status) return
+  if (!chartCanvas.value || !store.dashboard?.plans_by_status) return
   destroyChart()
 
-  const data = store.dashboard.by_status
+  const data = store.dashboard.plans_by_status
   const labels = Object.keys(data)
   const values = Object.values(data)
   const colors = getStatusColors(labels)
