@@ -6,13 +6,6 @@
         <button class="tree-add-btn" @click="triggerImport" title="Import Postman JSON">&#8593;</button>
         <button class="tree-add-btn" @click="addCollection" title="New Collection">+</button>
       </div>
-      <input
-        ref="importInput"
-        type="file"
-        accept=".json"
-        style="display: none"
-        @change="handleImportFile"
-      />
     </div>
 
     <div v-if="store.loading" class="tree-loading">Loading...</div>
@@ -97,6 +90,7 @@
           <button class="ctx-item ctx-danger" @click="deleteFolder(ctx.item.id)">Delete Folder</button>
         </template>
         <template v-else-if="ctx.type === 'collection'">
+          <button class="ctx-item" @click="exportCollection(ctx.item.id)">Export as Postman</button>
           <button class="ctx-item ctx-danger" @click="deleteCollection(ctx.item.id)">Delete Collection</button>
         </template>
       </div>
@@ -110,6 +104,90 @@
       :requests="runnerCollection.requests"
       @close="runnerCollection = null"
     />
+
+    <!-- Import Modal -->
+    <Teleport to="body">
+      <div v-if="showImportModal" class="import-overlay" @click.self="showImportModal = false">
+        <div class="import-modal">
+          <div class="import-modal-header">
+            <h3 class="import-modal-title">Import Postman Collection</h3>
+            <button class="import-close" @click="showImportModal = false">&times;</button>
+          </div>
+
+          <!-- Drop zone -->
+          <div
+            class="import-dropzone"
+            :class="{ dragover: importDragOver, 'has-file': !!importFile }"
+            @dragover="onImportDragOver"
+            @dragleave="onImportDragLeave"
+            @drop="onImportDrop"
+            @click="$refs.importFileInput.click()"
+          >
+            <div v-if="!importFile" class="dropzone-placeholder">
+              <div class="dropzone-icon">&#128194;</div>
+              <div class="dropzone-text">Drag Postman JSON here<br>or click to browse</div>
+            </div>
+            <div v-else class="dropzone-file">
+              <span class="dropzone-file-icon">&#128196;</span>
+              <span class="dropzone-file-name">{{ importFile.name }}</span>
+              <button class="dropzone-clear" @click.stop="importFile = null">&times;</button>
+            </div>
+            <input
+              ref="importFileInput"
+              type="file"
+              accept=".json"
+              style="display:none"
+              @change="onImportFileSelect"
+            />
+          </div>
+
+          <!-- Target selection -->
+          <div class="import-target-section">
+            <label class="import-section-label">Import into:</label>
+            <div class="import-radio-group">
+              <label class="import-radio">
+                <input type="radio" v-model="importTarget" value="existing" />
+                <span>Existing collection</span>
+              </label>
+              <label class="import-radio">
+                <input type="radio" v-model="importTarget" value="new" />
+                <span>New collection</span>
+              </label>
+            </div>
+
+            <select
+              v-if="importTarget === 'existing'"
+              v-model="importTargetColId"
+              class="import-select"
+            >
+              <option v-for="col in store.collections" :key="col.id" :value="col.id">
+                {{ col.name }}
+              </option>
+              <option v-if="!store.collections.length" value="" disabled>No collections</option>
+            </select>
+
+            <input
+              v-else
+              v-model="importNewName"
+              class="import-input"
+              placeholder="New collection name..."
+            />
+          </div>
+
+          <!-- Actions -->
+          <div class="import-modal-actions">
+            <button class="import-btn-cancel" @click="showImportModal = false">Cancel</button>
+            <button
+              class="import-btn-import"
+              :disabled="!importFile || importLoading || (importTarget === 'existing' && !importTargetColId)"
+              @click="doImport"
+            >
+              {{ importLoading ? 'Importing...' : 'Import' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -121,11 +199,19 @@ import CollectionRunner from './CollectionRunner.vue'
 const props = defineProps({ projectId: { type: String, required: true } })
 const store = usePechkinStore()
 
-const importInput = ref(null)
 const expanded = reactive({})
 const expandedFolders = reactive({})
 const runnerCollection = ref(null)
 const ctx = reactive({ show: false, x: 0, y: 0, type: '', item: null })
+
+// Import modal state
+const showImportModal = ref(false)
+const importTarget = ref('existing')
+const importNewName = ref('')
+const importTargetColId = ref(null)
+const importFile = ref(null)
+const importLoading = ref(false)
+const importDragOver = ref(false)
 
 onMounted(() => {
   store.fetchCollections(props.projectId)
@@ -192,28 +278,85 @@ async function deleteReq(id) { if (confirm('Delete request?')) await store.delet
 async function deleteFolder(id) { if (confirm('Delete folder?')) await store.deleteFolder(id) }
 async function deleteCollection(id) { if (confirm('Delete collection?')) await store.deleteCollection(id) }
 
-function triggerImport() {
-  importInput.value?.click()
+async function exportCollection(id) {
+  try {
+    await store.exportCollection(id)
+  } catch (err) {
+    alert('Export failed: ' + err.message)
+  }
 }
 
-async function handleImportFile(e) {
-  const file = e.target.files?.[0]
-  if (!file) return
-  // Pick first collection or create one
-  let col = store.collections[0]
-  if (!col) {
-    col = await store.createCollection(props.projectId, 'Imported')
-    expanded[col.id] = true
+// Import modal functions
+function triggerImport() {
+  showImportModal.value = true
+  importTarget.value = 'existing'
+  importTargetColId.value = store.collections[0]?.id || null
+  importNewName.value = ''
+  importFile.value = null
+}
+
+function onImportDragOver(e) {
+  e.preventDefault()
+  importDragOver.value = true
+}
+
+function onImportDragLeave() {
+  importDragOver.value = false
+}
+
+function onImportDrop(e) {
+  e.preventDefault()
+  importDragOver.value = false
+  const f = e.dataTransfer?.files?.[0]
+  if (f && f.name.endsWith('.json')) {
+    importFile.value = f
+    importNewName.value = f.name.replace('.postman_collection.json', '').replace('.json', '').replace(/_/g, ' ')
   }
-  const formData = new FormData()
-  formData.append('file', file)
+}
+
+function onImportFileSelect(e) {
+  const f = e.target.files?.[0]
+  if (f) {
+    importFile.value = f
+    importNewName.value = f.name.replace('.postman_collection.json', '').replace('.json', '').replace(/_/g, ' ')
+  }
+}
+
+async function doImport() {
+  if (!importFile.value) return
+  importLoading.value = true
   try {
-    await store.importPostmanFile(col.id, formData)
+    let targetColId = importTargetColId.value
+
+    if (importTarget.value === 'new') {
+      let colName = importNewName.value.trim() || 'Imported Collection'
+      try {
+        const text = await importFile.value.text()
+        const json = JSON.parse(text)
+        if (json.info?.name) colName = json.info.name
+      } catch { /* use filename */ }
+      const newCol = await store.createCollection(props.projectId, colName)
+      targetColId = newCol.id
+      expanded[newCol.id] = true
+    }
+
+    const formData = new FormData()
+    formData.append('file', importFile.value)
+    const result = await store.importPostmanFile(targetColId, formData)
+
+    const msg = `Imported: ${result.imported_requests} requests, ${result.imported_folders} folders`
+    if (window.showToast) window.showToast(msg, 'success', 4000)
+    else alert(msg)
+
+    showImportModal.value = false
+    importFile.value = null
   } catch (err) {
-    alert('Import failed: ' + (err?.response?.data?.detail || err.message))
+    const msg = 'Import error: ' + (err?.response?.data?.detail || err.message || 'Unknown error')
+    if (window.showToast) window.showToast(msg, 'error', 5000)
+    else alert(msg)
+  } finally {
+    importLoading.value = false
   }
-  // Reset input so same file can be re-imported
-  if (importInput.value) importInput.value.value = ''
 }
 </script>
 
@@ -280,4 +423,128 @@ async function handleImportFile(e) {
 }
 .ctx-item:hover { background: var(--bg-tertiary); }
 .ctx-danger { color: var(--error); }
+
+/* Import Modal */
+.import-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.import-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  width: 460px;
+  max-width: 95vw;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.import-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.import-modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.import-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.import-close:hover { color: var(--text-primary); }
+
+.import-dropzone {
+  border: 2px dashed var(--border-color);
+  border-radius: 8px;
+  padding: 28px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.import-dropzone:hover, .import-dropzone.dragover {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+}
+.import-dropzone.has-file {
+  border-color: var(--success);
+  border-style: solid;
+}
+
+.dropzone-placeholder { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.dropzone-icon { font-size: 32px; }
+.dropzone-text { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+.dropzone-file { display: flex; align-items: center; gap: 8px; }
+.dropzone-file-icon { font-size: 20px; }
+.dropzone-file-name { font-size: 13px; color: var(--text-primary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dropzone-clear { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px; padding: 0 4px; }
+.dropzone-clear:hover { color: var(--error); }
+
+.import-target-section { display: flex; flex-direction: column; gap: 8px; }
+.import-section-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+
+.import-radio-group { display: flex; gap: 16px; }
+.import-radio { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-primary); cursor: pointer; }
+
+.import-select, .import-input {
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+.import-select:focus, .import-input:focus { border-color: var(--accent); }
+
+.import-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+.import-btn-cancel {
+  padding: 8px 16px;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+.import-btn-cancel:hover { color: var(--text-primary); }
+
+.import-btn-import {
+  padding: 8px 20px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.import-btn-import:hover:not(:disabled) { opacity: 0.85; }
+.import-btn-import:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>

@@ -444,4 +444,21 @@ export const pechkinApi = {
   runCollection: (data) => api.post('/api/v1/pechkin/run-collection', data),
   importPostman: (colId, data) => api.post(`/api/v1/pechkin/collections/${colId}/import`, data),
   importPostmanFile: (colId, formData) => api.post(`/api/v1/pechkin/collections/${colId}/import`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  exportCollection: async (collectionId, collectionName = 'collection') => {
+    const token = localStorage.getItem('access_token')
+    const response = await fetch(`/api/api/v1/pechkin/collections/${collectionId}/export`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (!response.ok) throw new Error('Export failed')
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const safeName = collectionName.replace(/[^a-zA-Z0-9_-]/g, '_')
+    a.download = `${safeName}.postman_collection.json`
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+  },
 }

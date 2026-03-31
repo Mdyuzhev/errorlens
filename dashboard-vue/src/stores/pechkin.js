@@ -12,6 +12,7 @@ export const usePechkinStore = defineStore('pechkin', {
     variables: {},
     activeEnv: 'collection',
     globalHistory: [],
+    projectId: null,
     loading: false,
     executing: false,
   }),
@@ -32,6 +33,7 @@ export const usePechkinStore = defineStore('pechkin', {
   actions: {
     async fetchCollections(projectId) {
       this.loading = true
+      this.projectId = projectId || null
       try {
         const resp = await pechkinApi.listCollections(projectId)
         this.collections = resp.data
@@ -157,9 +159,14 @@ export const usePechkinStore = defineStore('pechkin', {
         return []
       }
     },
+    async exportCollection(collectionId) {
+      const col = this.collections.find(c => c.id === collectionId)
+      const name = col?.name || 'collection'
+      await pechkinApi.exportCollection(collectionId, name)
+    },
     async importPostmanFile(collectionId, formData) {
       const resp = await pechkinApi.importPostmanFile(collectionId, formData)
-      const pid = this.collections[0]?.project_id
+      const pid = this.projectId || this.collections[0]?.project_id
       if (pid) await this.fetchCollections(pid)
       return resp.data
     },

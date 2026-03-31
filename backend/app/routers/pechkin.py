@@ -428,3 +428,39 @@ async def import_postman_endpoint(
         "imported_folders": len(result.folders),
         "imported_requests": len(result.requests),
     }
+
+
+# ── Export ──────────────────────────────────────────────────────
+
+
+@router.get("/collections/{col_id}/export")
+async def export_collection(
+    col_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+):
+    """Export collection as Postman Collection v2.1 JSON."""
+    from fastapi.responses import Response
+    from app.services.postman_exporter import export_to_postman
+
+    repo = PechkinRepository(db)
+    col = await repo.get_collection(col_id)
+    if not col:
+        raise HTTPException(404, "Collection not found")
+
+    col_dict = collection_to_dict(col)
+    postman_json = export_to_postman(col_dict)
+
+    content = json.dumps(postman_json, ensure_ascii=False, indent=2)
+
+    safe_name = col.name.replace(" ", "_").replace("/", "_")[:50]
+    filename = f"{safe_name}.postman_collection.json"
+
+    return Response(
+        content=content,
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": "application/json; charset=utf-8",
+        },
+    )
