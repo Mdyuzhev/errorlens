@@ -36,7 +36,7 @@
         >
           <span class="drag-handle">&#9776;</span>
           <span class="case-title">{{ tc.title || tc.name }}</span>
-          <button class="remove-btn" @click="removeCase(tc.id)">&#215;</button>
+          <button class="remove-btn" @click="removeCase(tc.testcase_id || tc.id)">&#215;</button>
         </div>
         <div v-if="!planCases.length" class="empty-cases">
           No cases added yet
@@ -79,6 +79,7 @@
                 :checked="addIds.has(tc.id)"
                 @click.stop="toggleAdd(tc.id)"
               />
+              <span v-if="tc.human_id" class="human-id-badge">{{ tc.human_id }}</span>
               <span>{{ tc.title || tc.name }}</span>
             </div>
             <div v-if="!availableCases.length" class="empty-cases">
@@ -154,7 +155,7 @@
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useQAStore } from '@/stores/qa'
-import { testPlansApi } from '@/services/api'
+import { testPlansApi, testCasesApi } from '@/services/api'
 import RunsMatrix from './RunsMatrix.vue'
 
 const props = defineProps({
@@ -167,19 +168,27 @@ const showAddCases = ref(false)
 const showCreatePlan = ref(false)
 const newPlanName = ref('')
 const addIds = reactive(new Set())
+const allProjectCases = ref([])
 let dragIdx = null
 const dragOverCaseIdx = ref(null)
 
 const planCases = computed(() => selectedPlan.value?.cases || [])
 
 const availableCases = computed(() => {
-  const existing = new Set(planCases.value.map(c => c.id))
-  return store.testCases.filter(tc => !existing.has(tc.id))
+  const existing = new Set(planCases.value.map(c => c.testcase_id || c.id))
+  return allProjectCases.value.filter(tc => !existing.has(tc.id))
 })
+
+async function loadAllCases() {
+  try {
+    const res = await testCasesApi.list({ limit: 1000, project_id: props.projectId })
+    allProjectCases.value = res.data?.items || (Array.isArray(res.data) ? res.data : [])
+  } catch { allProjectCases.value = [] }
+}
 
 onMounted(() => {
   store.fetchPlans(props.projectId)
-  store.fetchTestCases()
+  loadAllCases()
 })
 
 async function selectPlan(plan) {
@@ -264,7 +273,7 @@ async function onDrop(idx) {
   cases.splice(idx, 0, moved)
   dragIdx = null
 
-  const orderedIds = cases.map(c => c.id)
+  const orderedIds = cases.map(c => c.testcase_id || c.id)
   try {
     await testPlansApi.reorderCases(selectedPlan.value.id, orderedIds)
     const refreshed = await store.fetchPlan(selectedPlan.value.id)
@@ -326,4 +335,5 @@ async function onDrop(idx) {
 .modal-body { padding: 12px 20px; overflow-y: auto; flex: 1; }
 .modal-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; color: var(--text-primary); font-size: 13px; cursor: pointer; border-radius: 4px; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--border-color); }
+.human-id-badge { flex-shrink: 0; padding: 2px 6px; background: var(--accent-muted); color: var(--accent); border-radius: 4px; font-size: 10px; font-weight: 600; }
 </style>

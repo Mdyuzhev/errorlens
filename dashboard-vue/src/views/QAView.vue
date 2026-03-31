@@ -1,11 +1,5 @@
 <template>
   <div class="qa-page">
-    <!-- Topbar -->
-    <div class="qa-topbar">
-      <h1 class="qa-title">{{ t('qa.title') }}</h1>
-      <button class="btn-new-case" @click="showCreateModal = true">{{ t('qa.newCase') }}</button>
-    </div>
-
     <!-- Tab nav -->
     <nav class="qa-tabs">
       <button
@@ -17,6 +11,8 @@
       >
         {{ tab.label }}
       </button>
+      <div class="tabs-spacer"></div>
+      <button class="btn-new-case" @click="showCreateModal = true">{{ t('qa.newCase') }}</button>
     </nav>
 
     <!-- Content -->
@@ -230,24 +226,6 @@ async function createCase() {
   color: var(--text-primary);
 }
 
-.qa-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 46px;
-  min-height: 46px;
-  padding: 0 20px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.qa-title {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0;
-  color: var(--text-primary);
-}
-
 .btn-new-case {
   padding: 6px 16px;
   background: var(--accent);
@@ -258,6 +236,8 @@ async function createCase() {
   font-weight: 500;
   cursor: pointer;
   transition: opacity 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .btn-new-case:hover {
   opacity: 0.85;
@@ -265,11 +245,16 @@ async function createCase() {
 
 .qa-tabs {
   display: flex;
+  align-items: center;
   gap: 0;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   padding: 0 20px;
   overflow-x: auto;
+}
+
+.tabs-spacer {
+  flex: 1;
 }
 
 .qa-tab {
