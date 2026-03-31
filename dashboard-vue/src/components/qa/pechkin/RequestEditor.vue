@@ -60,12 +60,58 @@
 
     <!-- Pre-request -->
     <div v-show="activeTab === 'Pre-request'" class="tab-content">
-      <textarea v-model="req.pre_request_script" class="script-textarea" placeholder="# Python pre-request script" />
+      <div class="script-toolbar">
+        <span class="script-lang-label">Python</span>
+        <div class="snippet-btns">
+          <button class="snippet-btn" @click="insertSnippet('pre', 'setauth')">Set Bearer</button>
+          <button class="snippet-btn" @click="insertSnippet('pre', 'log')">Log request</button>
+          <button class="snippet-btn" @click="insertSnippet('pre', 'setheader')">Set header</button>
+        </div>
+      </div>
+      <div class="script-editor-wrap" :data-line-count="preLineCount">
+        <div class="line-numbers" aria-hidden="true">
+          <span v-for="n in preLineCount" :key="n">{{ n }}</span>
+        </div>
+        <textarea
+          ref="preScriptEl"
+          v-model="req.pre_request_script"
+          class="script-textarea with-lines"
+          placeholder="# Pre-request script runs before sending
+# Example: set_header('X-Custom', 'value')"
+          spellcheck="false"
+          @input="onPreScriptChange"
+          @keydown.tab.prevent="insertTab($event)"
+        />
+      </div>
     </div>
 
     <!-- Tests -->
     <div v-show="activeTab === 'Tests'" class="tab-content">
-      <textarea v-model="req.test_script" class="script-textarea" placeholder="# Python test script" />
+      <div class="script-toolbar">
+        <span class="script-lang-label">Python</span>
+        <div class="snippet-btns">
+          <button class="snippet-btn" @click="insertSnippet('tests', 'status200')">Status 200</button>
+          <button class="snippet-btn" @click="insertSnippet('tests', 'hasbody')">Has body</button>
+          <button class="snippet-btn" @click="insertSnippet('tests', 'jsonparse')">Parse JSON</button>
+          <button class="snippet-btn" @click="insertSnippet('tests', 'hasfield')">Has field</button>
+        </div>
+      </div>
+      <div class="script-editor-wrap" :data-line-count="testLineCount">
+        <div class="line-numbers" aria-hidden="true">
+          <span v-for="n in testLineCount" :key="n">{{ n }}</span>
+        </div>
+        <textarea
+          ref="testScriptEl"
+          v-model="req.test_script"
+          class="script-textarea with-lines"
+          placeholder="# Write test assertions here
+# Example: test(response['status_code'] == 200, 'Status OK')"
+          spellcheck="false"
+          @input="onTestScriptChange"
+          @keydown.tab.prevent="insertTab($event)"
+          @scroll="syncScroll($event, 'test')"
+        />
+      </div>
     </div>
 
     <!-- Code -->
@@ -106,6 +152,8 @@ const bodyTypes = [
 const codeLangs = ['cURL', 'Python', 'JavaScript']
 const codeLang = ref('cURL')
 const snippetCopied = ref(false)
+const testScriptEl = ref(null)
+const preScriptEl = ref(null)
 
 const req = reactive({
   method: 'GET', url: '', headers: {}, body: '', body_type: 'none',
@@ -136,6 +184,81 @@ watch(() => store.activeRequest, (r) => {
   // Parse URL params
   parseUrlParams()
 }, { immediate: true })
+
+const testLineCount = computed(() => {
+  const lines = (req.test_script || '').split('\n').length
+  return Math.max(lines, 10)
+})
+
+const preLineCount = computed(() => {
+  const lines = (req.pre_request_script || '').split('\n').length
+  return Math.max(lines, 10)
+})
+
+// Snippets library
+const SNIPPETS = {
+  tests: {
+    status200: `test(response['status_code'] == 200, "Status 200 OK")\n`,
+    hasbody: `test(len(response['body']) > 0, "Response has body")\n`,
+    jsonparse: `import json\ndata = json.loads(response['body'])\ntest(isinstance(data, (dict, list)), "Body is valid JSON")\n`,
+    hasfield: `import json\ndata = json.loads(response['body'])\ntest('id' in data, "Response has 'id' field")\n`,
+  },
+  pre: {
+    setauth: `set_header('Authorization', 'Bearer ' + env.get('token', ''))\n`,
+    log: `log('Sending', request['method'], request['url'])\n`,
+    setheader: `set_header('X-Custom-Header', 'value')\n`,
+  }
+}
+
+function insertSnippet(type, key) {
+  const code = SNIPPETS[type]?.[key]
+  if (!code) return
+  if (type === 'tests') {
+    req.test_script = (req.test_script || '') + code
+  } else {
+    req.pre_request_script = (req.pre_request_script || '') + code
+  }
+}
+
+function insertTab(e) {
+  const ta = e.target
+  const start = ta.selectionStart
+  const end = ta.selectionEnd
+  const value = ta.value
+  ta.value = value.substring(0, start) + '    ' + value.substring(end)
+  ta.selectionStart = ta.selectionEnd = start + 4
+  ta.dispatchEvent(new Event('input'))
+}
+
+function syncScroll(e) {
+  const wrap = e.target.closest('.script-editor-wrap')
+  if (wrap) {
+    const lineNums = wrap.querySelector('.line-numbers')
+    if (lineNums) lineNums.scrollTop = e.target.scrollTop
+  }
+}
+
+// Auto-save
+let testSaveTimer = null
+let preSaveTimer = null
+
+function onTestScriptChange() {
+  clearTimeout(testSaveTimer)
+  testSaveTimer = setTimeout(() => {
+    if (store.activeRequestId) {
+      store.updateRequest(store.activeRequestId, { test_script: req.test_script })
+    }
+  }, 800)
+}
+
+function onPreScriptChange() {
+  clearTimeout(preSaveTimer)
+  preSaveTimer = setTimeout(() => {
+    if (store.activeRequestId) {
+      store.updateRequest(store.activeRequestId, { pre_request_script: req.pre_request_script })
+    }
+  }, 800)
+}
 
 function parseUrlParams() {
   try {
@@ -474,4 +597,102 @@ export default { components: { KvTable } }
   border-radius: 4px; color: var(--text-secondary); font-size: 11px; cursor: pointer;
 }
 .rv-toggle:hover { color: var(--text-primary); }
+
+/* Script editor */
+.script-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0 8px;
+  flex-wrap: wrap;
+}
+
+.script-lang-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--bg-tertiary);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.snippet-btns {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.snippet-btn {
+  padding: 3px 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--accent);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.snippet-btn:hover {
+  background: var(--accent-muted);
+  border-color: var(--accent);
+}
+
+.script-editor-wrap {
+  display: flex;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+  min-height: 200px;
+  max-height: 400px;
+  background: var(--bg-primary);
+}
+
+.line-numbers {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 12px 8px 12px 4px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  user-select: none;
+  overflow: hidden;
+  min-width: 32px;
+}
+
+.line-numbers span {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.script-textarea.with-lines {
+  flex: 1;
+  border: none;
+  border-radius: 0;
+  min-height: 200px;
+  max-height: 400px;
+  padding: 12px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  overflow-y: auto;
+  white-space: pre;
+  tab-size: 4;
+}
+.script-textarea.with-lines:focus {
+  box-shadow: none;
+}
+.script-editor-wrap:focus-within {
+  border-color: var(--accent);
+}
 </style>

@@ -15,13 +15,28 @@
         <span class="rv-status-code" :class="statusClass">{{ store.response.status_code }}</span>
         <span class="rv-meta">{{ store.response.duration_ms?.toFixed(0) || '?' }}ms</span>
         <span class="rv-meta">{{ formatSize(store.response.size_bytes) }}</span>
+        <span
+          v-if="store.response.resolved_url && store.response.resolved_url !== store.activeRequest?.url"
+          class="rv-resolved-url"
+          :title="store.response.resolved_url"
+        >
+          → {{ truncate(store.response.resolved_url, 55) }}
+        </span>
       </div>
 
       <!-- Tabs -->
       <div class="rv-tabs">
-        <button v-for="t in tabs" :key="t" class="rv-tab" :class="{ active: activeTab === t }" @click="activeTab = t">
-          {{ t }}
-        </button>
+        <button
+          v-for="t in tabLabels"
+          :key="t"
+          class="rv-tab"
+          :class="{
+            active: activeTab === tabKey(t),
+            'tab-all-pass': t.startsWith('Tests') && testStats.total > 0 && testStats.failed === 0,
+            'tab-has-fail': t.startsWith('Tests') && testStats.failed > 0,
+          }"
+          @click="activeTab = tabKey(t)"
+        >{{ t }}</button>
       </div>
 
       <!-- Body tab -->
@@ -48,10 +63,40 @@
 
       <!-- Test Results tab -->
       <div v-show="activeTab === 'Tests'" class="rv-tests">
-        <div v-if="!testResults.length" class="rv-no-tests">No test results</div>
-        <div v-for="(tr, i) in testResults" :key="i" class="rv-test-item" :class="tr.passed ? 'test-pass' : 'test-fail'">
-          <span class="rv-test-icon">{{ tr.passed ? '\u2713' : '\u2717' }}</span>
-          <span>{{ tr.name || tr.message }}</span>
+        <!-- Summary badge -->
+        <div v-if="testStats.total > 0" class="rv-test-summary">
+          <span class="test-summary-badge" :class="testStats.failed === 0 ? 'badge-pass' : 'badge-fail'">
+            {{ testStats.passed }}/{{ testStats.total }} passed
+          </span>
+          <span v-if="store.response?.test_output?.length" class="test-output-toggle" @click="showOutput = !showOutput">
+            {{ showOutput ? 'Hide output' : 'Show output' }}
+          </span>
+        </div>
+
+        <!-- Output logs -->
+        <div v-if="showOutput && store.response?.test_output?.length" class="rv-test-output">
+          <div v-for="(line, i) in store.response.test_output" :key="i" class="rv-output-line">{{ line }}</div>
+        </div>
+
+        <!-- Error -->
+        <div v-if="store.response?.test_error" class="rv-test-error">
+          <span class="rv-test-icon">⚠</span> {{ store.response.test_error }}
+        </div>
+
+        <!-- Empty state -->
+        <div v-if="!testStats.total && !store.response?.test_error" class="rv-no-tests">
+          No test script — add tests in the Tests tab of the request editor
+        </div>
+
+        <!-- Test items -->
+        <div
+          v-for="(tr, i) in (store.response?.test_results || [])"
+          :key="i"
+          class="rv-test-item"
+          :class="tr.passed ? 'test-pass' : 'test-fail'"
+        >
+          <span class="rv-test-icon">{{ tr.passed ? '✓' : '✗' }}</span>
+          <span class="rv-test-name">{{ tr.name }}</span>
         </div>
       </div>
 
@@ -78,10 +123,30 @@ import { ref, computed } from 'vue'
 import { usePechkinStore } from '@/stores/pechkin'
 
 const store = usePechkinStore()
-const tabs = ['Body', 'Headers', 'Tests', 'History']
 const activeTab = ref('Body')
 const prettyMode = ref(true)
 const copied = ref(false)
+const showOutput = ref(false)
+
+const testStats = computed(() => {
+  const results = store.response?.test_results || []
+  const passed = results.filter(r => r.passed).length
+  const total = results.length
+  return { passed, total, failed: total - passed }
+})
+
+const tabLabels = computed(() => {
+  const stats = testStats.value
+  const testsLabel = stats.total > 0
+    ? `Tests (${stats.passed}/${stats.total})`
+    : 'Tests'
+  return ['Body', 'Headers', testsLabel, 'History']
+})
+
+function tabKey(label) {
+  if (label.startsWith('Tests')) return 'Tests'
+  return label
+}
 
 const statusClass = computed(() => {
   const code = store.response?.status_code
@@ -101,8 +166,6 @@ const displayBody = computed(() => {
     return typeof body === 'string' ? body : String(body)
   }
 })
-
-const testResults = computed(() => store.response?.test_results || [])
 
 function formatSize(bytes) {
   if (!bytes) return '0 B'
@@ -215,7 +278,6 @@ function loadHistory(h) {
 .rv-header-val { word-break: break-all; }
 
 .rv-tests, .rv-history { padding: 8px 14px; overflow: auto; }
-.rv-no-tests { color: var(--text-secondary); font-size: 12px; text-align: center; padding: 20px; }
 .rv-test-item {
   display: flex; align-items: center; gap: 8px; padding: 6px 0;
   font-size: 12px; color: var(--text-primary);
@@ -232,4 +294,94 @@ function loadHistory(h) {
 .rv-history-method { font-weight: 600; color: var(--text-secondary); font-size: 10px; }
 .rv-history-url { flex: 1; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rv-history-time { color: var(--text-secondary); font-size: 11px; white-space: nowrap; }
+
+/* Tests tab badge colors */
+.tab-all-pass { color: var(--success) !important; }
+.tab-has-fail { color: var(--error) !important; }
+.rv-tab.active.tab-all-pass { border-bottom-color: var(--success); }
+.rv-tab.active.tab-has-fail { border-bottom-color: var(--error); }
+
+/* Resolved URL */
+.rv-resolved-url {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+  flex: 1;
+}
+
+/* Test summary */
+.rv-test-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0 12px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 8px;
+}
+
+.test-summary-badge {
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge-pass {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+}
+.badge-fail {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--error);
+}
+
+.test-output-toggle {
+  font-size: 11px;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.rv-test-output {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.rv-output-line { color: var(--text-secondary); line-height: 1.6; }
+
+.rv-test-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--error);
+  margin-bottom: 8px;
+  font-family: monospace;
+}
+
+.rv-test-name {
+  flex: 1;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.rv-no-tests {
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: center;
+  padding: 20px;
+  font-style: italic;
+}
 </style>

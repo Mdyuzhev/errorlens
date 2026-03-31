@@ -68,8 +68,10 @@
             <span class="method-badge small" :class="methodClass(r.method)">{{ r.method }}</span>
             <span class="result-name">{{ r.request_name || 'Request' }}</span>
             <span class="result-duration">{{ r.duration_ms }}ms</span>
-            <span v-if="r.passed" class="stat-passed">{{ r.passed }}&#10003;</span>
-            <span v-if="r.failed" class="stat-failed">{{ r.failed }}&#10007;</span>
+            <template v-if="r.tests?.assertions">
+              <span class="stat-passed" v-if="r.tests.assertions.passed > 0">{{ r.tests.assertions.passed }}&#10003;</span>
+              <span class="stat-failed" v-if="r.tests.assertions.failed > 0">{{ r.tests.assertions.failed }}&#10007;</span>
+            </template>
             <span v-if="r.error" class="result-error" :title="r.error">{{ r.error }}</span>
           </div>
         </div>
@@ -151,7 +153,10 @@ function statusClass(code) {
 }
 
 function resultClass(r) {
-  return r.error || r.failed ? 'result-fail' : 'result-pass'
+  if (r.error) return 'result-fail'
+  if (r.tests?.assertions?.failed > 0) return 'result-fail'
+  if (r.status_code >= 400) return 'result-fail'
+  return 'result-pass'
 }
 
 // Drag and drop
@@ -191,8 +196,10 @@ async function runAll() {
     results.value = resp.data.results || resp.data
     for (const r of results.value) {
       completed.value++
-      passed.value += r.passed || 0
-      failed.value += r.failed || 0
+      // tests может быть null (если test_script пустой) или объектом
+      const assertions = r.tests?.assertions
+      passed.value += assertions?.passed || 0
+      failed.value += assertions?.failed || 0
     }
     totalTime.value = resp.data.total_time_ms || results.value.reduce((s, r) => s + (r.duration_ms || 0), 0)
   } catch (e) {
@@ -218,7 +225,7 @@ function exportResults() {
   const rows = [
     'Name,Method,URL,Status,Duration(ms),Passed,Failed,Error',
     ...results.value.map(r =>
-      `"${r.request_name || ''}",${r.method || ''},"${r.url || ''}",${r.status_code || ''},${r.duration_ms || 0},${r.passed || 0},${r.failed || 0},"${(r.error || '').replace(/"/g, '""')}"`
+      `"${r.request_name || ''}",${r.method || ''},"${r.url || ''}",${r.status_code || ''},${r.duration_ms || 0},${r.tests?.assertions?.passed || 0},${r.tests?.assertions?.failed || 0},"${(r.error || '').replace(/"/g, '""')}"`
     )
   ]
   const csv = rows.join('\n')

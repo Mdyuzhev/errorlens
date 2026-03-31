@@ -44,6 +44,11 @@ export const usePechkinStore = defineStore('pechkin', {
       this.collections.push(resp.data)
       return resp.data
     },
+    async updateCollectionName(id, name) {
+      await pechkinApi.updateCollection(id, { name })
+      const col = this.collections.find(c => c.id === id)
+      if (col) col.name = name
+    },
     async deleteCollection(id) {
       await pechkinApi.deleteCollection(id)
       this.collections = this.collections.filter(c => c.id !== id)
@@ -109,6 +114,8 @@ export const usePechkinStore = defineStore('pechkin', {
           auth: req.auth || {},
           variables: this.resolvedVariables,
           request_id: req.id,
+          pre_request_script: req.pre_request_script || '',
+          test_script: req.test_script || '',
         })
         this.response = resp.data
         const entry = {

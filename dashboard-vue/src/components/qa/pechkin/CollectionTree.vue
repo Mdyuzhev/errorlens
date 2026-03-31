@@ -3,8 +3,12 @@
     <div class="tree-header">
       <span class="tree-title">Collections</span>
       <div class="tree-header-actions">
-        <button class="tree-add-btn" @click="triggerImport" title="Import Postman JSON">&#8593;</button>
-        <button class="tree-add-btn" @click="addCollection" title="New Collection">+</button>
+        <button class="tree-btn" @click="triggerImport" title="Import Postman collection (JSON)">
+          <span class="tree-btn-icon">&#8593;</span>
+        </button>
+        <button class="tree-btn tree-btn-primary" @click="addCollection" title="New collection">
+          <span class="tree-btn-icon">+</span>
+        </button>
       </div>
     </div>
 
@@ -18,9 +22,12 @@
             {{ expanded[col.id] ? '\u25BE' : '\u25B8' }}
           </button>
           <span class="collection-name" @click="toggle(col.id)">{{ col.name }}</span>
-          <button class="tree-add-btn small run-btn" @click.stop="openRunner(col)" title="Run collection">&#9654;</button>
-          <button class="tree-add-btn small" @click.stop="addFolder(col.id)" title="Add folder">+</button>
-          <button class="tree-add-btn small" @click.stop="addRequest(col.id)" title="Add request">R</button>
+          <!-- Кнопки появляются при hover -->
+          <div class="row-actions">
+            <button class="row-btn" @click.stop="openRunner(col)" title="Run collection">&#9654;</button>
+            <button class="row-btn" @click.stop="addFolder(col.id)" title="New folder">&#128193;</button>
+            <button class="row-btn" @click.stop="addRequest(col.id)" title="New request">+</button>
+          </div>
         </div>
 
         <!-- Children (folders + requests) -->
@@ -82,16 +89,22 @@
     <!-- Context menu -->
     <Teleport to="body">
       <div v-if="ctx.show" class="ctx-menu" :style="{ top: ctx.y + 'px', left: ctx.x + 'px' }" @click="ctx.show = false">
-        <template v-if="ctx.type === 'request'">
-          <button class="ctx-item" @click="duplicateReq(ctx.item.id)">Duplicate</button>
-          <button class="ctx-item ctx-danger" @click="deleteReq(ctx.item.id)">Delete</button>
+        <template v-if="ctx.type === 'collection'">
+          <button class="ctx-item" @click="renameCollection(ctx.item)">&#9998; Rename</button>
+          <button class="ctx-item" @click="exportCollection(ctx.item.id)">&#8595; Export as Postman</button>
+          <div class="ctx-divider"></div>
+          <button class="ctx-item ctx-danger" @click="deleteCollection(ctx.item.id)">&#128465; Delete</button>
         </template>
         <template v-else-if="ctx.type === 'folder'">
-          <button class="ctx-item ctx-danger" @click="deleteFolder(ctx.item.id)">Delete Folder</button>
+          <button class="ctx-item" @click="renameFolder(ctx.item)">&#9998; Rename</button>
+          <div class="ctx-divider"></div>
+          <button class="ctx-item ctx-danger" @click="deleteFolder(ctx.item.id)">&#128465; Delete</button>
         </template>
-        <template v-else-if="ctx.type === 'collection'">
-          <button class="ctx-item" @click="exportCollection(ctx.item.id)">Export as Postman</button>
-          <button class="ctx-item ctx-danger" @click="deleteCollection(ctx.item.id)">Delete Collection</button>
+        <template v-else-if="ctx.type === 'request'">
+          <button class="ctx-item" @click="renameReq(ctx.item)">&#9998; Rename</button>
+          <button class="ctx-item" @click="duplicateReq(ctx.item.id)">&#9112; Duplicate</button>
+          <div class="ctx-divider"></div>
+          <button class="ctx-item ctx-danger" @click="deleteReq(ctx.item.id)">&#128465; Delete</button>
         </template>
       </div>
     </Teleport>
@@ -194,6 +207,7 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { usePechkinStore } from '@/stores/pechkin'
+import { pechkinApi } from '@/services/api'
 import CollectionRunner from './CollectionRunner.vue'
 
 const props = defineProps({ projectId: { type: String, required: true } })
@@ -284,6 +298,28 @@ async function exportCollection(id) {
   } catch (err) {
     alert('Export failed: ' + err.message)
   }
+}
+
+async function renameCollection(col) {
+  const name = prompt('New name:', col.name)
+  if (!name || name === col.name) return
+  await store.updateCollectionName(col.id, name)
+}
+
+async function renameFolder(folder) {
+  const name = prompt('New folder name:', folder.name)
+  if (!name || name === folder.name) return
+  await pechkinApi.updateFolder(folder.id, { name })
+  const pid = store.collections[0]?.project_id
+  if (pid) await store.fetchCollections(pid)
+}
+
+async function renameReq(req) {
+  const name = prompt('New request name:', req.name)
+  if (!name || name === req.name) return
+  await store.updateRequest(req.id, { name })
+  const pid = store.collections[0]?.project_id
+  if (pid) await store.fetchCollections(pid)
 }
 
 // Import modal functions
@@ -377,20 +413,68 @@ async function doImport() {
 }
 .tree-title { font-size: 13px; font-weight: 600; color: var(--text-primary); flex: 1; }
 .tree-header-actions { display: flex; gap: 4px; }
-.tree-add-btn {
-  width: 24px; height: 24px; border: 1px solid var(--border-color); border-radius: 4px;
-  background: var(--bg-tertiary); color: var(--text-secondary); cursor: pointer; font-size: 14px;
-  display: flex; align-items: center; justify-content: center;
+/* Кнопки в header */
+.tree-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  font-size: 14px;
+  flex-shrink: 0;
 }
-.tree-add-btn:hover { color: var(--accent); border-color: var(--accent); }
-.tree-add-btn.small { width: 20px; height: 20px; font-size: 11px; }
-.tree-add-btn.run-btn { font-size: 9px; }
-.tree-add-btn.run-btn:hover { color: var(--success); border-color: var(--success); }
+.tree-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-muted); }
+.tree-btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+.tree-btn-primary:hover { opacity: 0.85; color: white; }
+.tree-btn-icon { font-size: 14px; line-height: 1; }
+
+/* Кнопки в row */
+.row-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.collection-row:hover .row-actions,
+.tree-row:hover .row-actions {
+  opacity: 1;
+}
+.row-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.12s;
+}
+.row-btn:hover { background: var(--bg-tertiary); color: var(--accent); }
+
+/* Убрать старые small кнопки */
+.tree-add-btn.small { display: none; }
 .tree-loading { padding: 20px; text-align: center; color: var(--text-secondary); font-size: 12px; }
-.tree-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+.tree-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
 .tree-row {
-  display: flex; align-items: center; gap: 6px; padding: 4px 14px; cursor: pointer;
-  font-size: 12px; color: var(--text-primary); transition: background 0.1s;
+  display: flex; align-items: center; gap: 6px; padding: 5px 14px; cursor: pointer;
+  font-size: 13px; color: var(--text-primary); transition: background 0.1s;
+  min-height: 32px;
 }
 .tree-row:hover { background: var(--bg-tertiary); }
 .tree-row.active { background: var(--accent-subtle); }
@@ -423,6 +507,11 @@ async function doImport() {
 }
 .ctx-item:hover { background: var(--bg-tertiary); }
 .ctx-danger { color: var(--error); }
+.ctx-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 4px 0;
+}
 
 /* Import Modal */
 .import-overlay {

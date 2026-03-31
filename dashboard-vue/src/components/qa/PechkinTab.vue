@@ -101,7 +101,7 @@ async function onReplay(historyItem) {
 
 .pechkin-tab {
   display: grid;
-  grid-template-columns: 280px 1fr 380px;
+  grid-template-columns: 260px 1fr 420px;
   gap: 1px;
   flex: 1;
   min-height: 0;

@@ -76,6 +76,8 @@ class ExecuteRequest(BaseModel):
     auth: dict = {}
     variables: dict = {}
     timeout: int = 30
+    pre_request_script: str | None = None
+    test_script: str | None = None
 
 
 class ScriptRequest(BaseModel):

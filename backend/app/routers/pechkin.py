@@ -329,14 +329,75 @@ async def execute(
     user: User = Depends(require_auth),
 ):
     svc = PechkinService(db)
+
+    # 1. Run pre-request script (modifies request context if needed)
+    modified_headers = dict(data.headers)
+    modified_body = data.body
+    if data.pre_request_script and data.pre_request_script.strip():
+        pre_result = await svc.run_pre_request(
+            data.pre_request_script,
+            {
+                "method": data.method,
+                "url": data.url,
+                "headers": dict(data.headers),
+                "body": data.body,
+            },
+        )
+        # Apply modifications from pre-request script
+        if pre_result.get("modified_request"):
+            mr = pre_result["modified_request"]
+            if mr.get("headers"):
+                modified_headers.update(mr["headers"])
+            if mr.get("body") is not None:
+                modified_body = mr["body"]
+
+    # 2. Execute HTTP request
     resp = await svc.execute_request(
-        method=data.method, url=data.url,
-        headers=data.headers, body=data.body,
-        body_type=data.body_type, auth=data.auth,
-        variables=data.variables, timeout=data.timeout,
+        method=data.method,
+        url=data.url,
+        headers=modified_headers,
+        body=modified_body,
+        body_type=data.body_type,
+        auth=data.auth,
+        variables=data.variables,
+        timeout=data.timeout,
         request_id=request_id,
     )
-    return asdict(resp)
+
+    result = asdict(resp)
+
+    # 3. Run test script if provided
+    if data.test_script and data.test_script.strip():
+        try:
+            test_result = await svc.run_test_script(
+                data.test_script,
+                {
+                    "method": data.method,
+                    "url": data.url,
+                    "headers": modified_headers,
+                    "body": data.body,
+                },
+                {
+                    "status_code": resp.status_code,
+                    "headers": dict(resp.headers),
+                    "body": resp.body,
+                    "duration_ms": resp.duration_ms,
+                },
+            )
+            # Attach results: list of {name, passed} dicts
+            result["test_results"] = test_result.get("assertions", {}).get("tests", [])
+            result["test_output"] = test_result.get("output", [])
+            result["test_error"] = test_result.get("error")
+        except Exception as e:
+            result["test_results"] = [{"name": f"Script error: {str(e)}", "passed": False}]
+            result["test_output"] = []
+            result["test_error"] = str(e)
+    else:
+        result["test_results"] = []
+        result["test_output"] = []
+        result["test_error"] = None
+
+    return result
 
 
 @router.post("/execute/pre-request")
