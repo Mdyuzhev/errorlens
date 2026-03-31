@@ -17,7 +17,7 @@ from app.models.testplan import TestPlan, TestPlanRun, TestPlanRunResult
 from app.models.user import User
 from app.services.redis_client import get_redis
 
-router = APIRouter(prefix="/api/v1/qa", tags=["qa"])
+router = APIRouter(prefix="/v1/qa", tags=["qa"])
 
 CACHE_TTL = 300
 COVERAGE_CACHE_TTL = 60
