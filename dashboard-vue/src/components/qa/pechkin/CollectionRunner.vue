@@ -383,6 +383,7 @@ function onDrop(idx) {
 
 // ── Run ────────────────────────────────────────────────────
 async function runAll(onlyIds = null) {
+  if (onlyIds && !Array.isArray(onlyIds)) onlyIds = null
   running.value = true
   done.value = false
   stopped.value = false
