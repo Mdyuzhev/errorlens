@@ -68,8 +68,10 @@ async def execute_proxy(req: ProxyRequest) -> ProxyResponse:
 
     # Build content
     content = None
-    if body and req.body_type == "raw":
+    if body and req.body_type in ("raw", "json"):
         content = body.encode()
+        if req.body_type == "json":
+            headers.setdefault("Content-Type", "application/json")
     elif req.body_type == "x-www-form-urlencoded" and body:
         content = body.encode()
         headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
