@@ -60,6 +60,11 @@
         :project-id="projectId"
         @open-case="openCase"
       />
+      <component
+        v-else-if="activeTab === 'api'"
+        :is="SwaggerView"
+        :project-id="projectId"
+      />
     </div>
 
     <!-- TestCase Viewer -->
@@ -114,6 +119,7 @@ const SessionsTab  = defineAsyncComponent(() => import('@/views/DashboardView.vu
 const ResultsTab   = defineAsyncComponent(() => import('@/views/ResultsView.vue'))
 const GeneratorTab = defineAsyncComponent(() => import('@/components/qa/SpecGeneratorTab.vue'))
 const QACoverage   = defineAsyncComponent(() => import('@/components/qa/QACoverage.vue'))
+const SwaggerView  = defineAsyncComponent(() => import('@/components/qa/SwaggerView.vue'))
 
 const route = useRoute()
 const router = useRouter()
@@ -130,6 +136,7 @@ const tabs = computed(() => [
   { key: 'results',   label: t('qa.tabs.results') },
   { key: 'generator', label: t('qa.tabs.generator') },
   { key: 'coverage', label: t('qa.tabs.coverage') },
+  { key: 'api',      label: '⚡ API' },
 ])
 
 const activeTab = ref('tree')

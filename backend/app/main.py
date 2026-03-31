@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -118,6 +119,8 @@ app = FastAPI(
     description="AI-powered error analysis for QA engineers",
     version=settings.version,
     lifespan=lifespan,
+    root_path="/api",
+    root_path_in_servers=False,
 )
 
 # CORS: allow all origins (bookmarklet runs on any domain)
@@ -177,6 +180,36 @@ app.include_router(issue_attachments.router)    # EL031: Attachments
 app.include_router(work_logs.router)        # EL031: Work logs
 app.include_router(ws_router)  # Wave 4.0: WebSocket
 app.include_router(launches_ws_router)  # EL062: Launch streaming WS
+
+
+# Custom OpenAPI schema with Bearer security scheme
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+
+    schema["components"] = schema.get("components", {})
+    schema["components"]["securitySchemes"] = {
+        "Bearer": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "JWT token from /auth/login. Paste: Bearer {token}"
+        }
+    }
+    schema["security"] = [{"Bearer": []}]
+
+    app.openapi_schema = schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 # Static files setup
 DASHBOARD_PATH = None
