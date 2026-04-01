@@ -9,6 +9,7 @@
       <router-link to="/issues" class="nav-link">{{ t('nav.issues') }}</router-link>
       <router-link to="/articles" class="nav-link">{{ t('nav.articles') }}</router-link>
       <router-link to="/settings" class="nav-link">{{ t('nav.settings') }}</router-link>
+      <router-link to="/import" class="nav-link">Import</router-link>
     </div>
 
     <div class="nav-user">
