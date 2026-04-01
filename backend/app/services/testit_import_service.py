@@ -62,8 +62,8 @@ STATUS_MAP = {
 # Known header patterns for TestIT export formats
 _HEADER_PATTERNS: dict[str, list[str]] = {
     "id": ["id", "ид", "№", "#", "external_id", "номер"],
-    "title": ["title", "название", "name", "наименование", "тест-кейс", "тест кейс", "test case"],
-    "folder": ["location", "раздел", "folder", "section", "путь", "path", "секция"],
+    "title": ["title", "название", "name", "наименование", "тест-кейс", "тест кейс", "test case", "test_case"],
+    "folder": ["location", "расположение", "раздел", "folder", "section", "путь", "path", "секция"],
     "steps": ["steps", "шаги", "step", "actions", "действия"],
     "preconditions": ["preconditions", "предусловия", "предусловие"],
     "postconditions": ["postconditions", "постусловия", "постусловие"],
@@ -71,7 +71,7 @@ _HEADER_PATTERNS: dict[str, list[str]] = {
     "priority": ["priority", "приоритет"],
     "status": ["status", "статус", "state", "состояние"],
     "automated": ["automated", "автоматизирован", "автоматизация", "automation"],
-    "tags": ["tags", "теги", "метки", "labels"],
+    "tags": ["tags", "теги", "тег", "метки", "labels"],
     "author": ["author", "автор", "created by", "создал"],
     "created_at": ["created", "создан", "дата создания", "created at", "date"],
 }
@@ -100,7 +100,8 @@ def extract_title(raw: str | None) -> tuple[str, str | None]:
     if not raw:
         return "", None
     raw = str(raw).strip()
-    match = re.search(r'HYPERLINK\("([^"]+)",\s*"(.*)"\)\s*$', raw, re.DOTALL)
+    # Match =HYPERLINK("url", "title") or HYPERLINK("url", "title")
+    match = re.search(r'=?HYPERLINK\(\s*"([^"]+)"\s*,\s*"(.*)"\s*\)\s*$', raw, re.DOTALL)
     if match:
         url = match.group(1)
         title = match.group(2).replace('""', '"').strip()
@@ -210,7 +211,7 @@ async def run_import(job_id: str, file_bytes: bytes, project_id: str) -> None:
         import openpyxl
         from io import BytesIO
 
-        wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
+        wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=False)
         ws = wb.active
 
         total = ws.max_row - 1 if ws.max_row else 0

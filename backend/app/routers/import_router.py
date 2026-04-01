@@ -68,7 +68,7 @@ async def preview_testit(
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(413, "File too large")
 
-    wb = openpyxl.load_workbook(BytesIO(content), read_only=True, data_only=True)
+    wb = openpyxl.load_workbook(BytesIO(content), read_only=True, data_only=False)
     ws = wb.active
 
     # Read header row to detect column mapping
