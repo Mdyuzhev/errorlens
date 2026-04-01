@@ -111,6 +111,21 @@
               <div class="theme-option-label">RetroWave</div>
               <div class="theme-option-badge">8-bit</div>
             </div>
+
+            <div
+              class="theme-option"
+              :class="{ active: themeStore.theme === 'corp' }"
+              @click="themeStore.setTheme('corp')"
+              data-testid="theme-option-corp"
+            >
+              <div class="theme-preview theme-preview--corp">
+                <div class="tp-bar"></div>
+                <div class="tp-card"></div>
+                <div class="tp-btn"></div>
+              </div>
+              <div class="theme-option-label">Corp</div>
+              <div class="theme-option-badge theme-option-badge--corp">Corp</div>
+            </div>
           </div>
         </div>
 
@@ -692,6 +707,27 @@ function copyBookmarklet() {
 .theme-preview--retrowave .tp-bar { background: #12002a; height: 14px; width: 100%; border-bottom: 1px solid rgba(5,217,232,0.4); }
 .theme-preview--retrowave .tp-card { background: #1a0035; margin: 6px 8px 0; height: 28px; border: 1px solid rgba(5,217,232,0.25); }
 .theme-preview--retrowave .tp-btn { background: #ff2d78; width: 36px; height: 8px; position: absolute; bottom: 6px; right: 8px; box-shadow: 0 0 6px rgba(255,45,120,0.6); }
+
+/* Corp preview */
+.theme-preview--corp { background: #f0f4ff; }
+.theme-preview--corp .tp-bar {
+  background: #ffffff; height: 14px; width: 100%;
+  border-bottom: 1px solid #e2e8f0;
+}
+.theme-preview--corp .tp-card {
+  background: #ffffff; margin: 6px 8px 0; height: 28px;
+  border-radius: 3px; border: 1px solid #e2e8f0;
+}
+.theme-preview--corp .tp-btn {
+  background: #2563eb; width: 36px; height: 8px; border-radius: 2px;
+  position: absolute; bottom: 6px; right: 8px;
+}
+.theme-option-badge--corp {
+  position: absolute; top: 4px; right: 4px;
+  background: #2563eb; color: white;
+  font-size: 9px; font-weight: 700; padding: 1px 5px;
+  border-radius: 3px; letter-spacing: 0.05em;
+}
 
 .theme-option-label {
   font-size: 13px;

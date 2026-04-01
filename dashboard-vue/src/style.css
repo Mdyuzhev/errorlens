@@ -479,3 +479,56 @@ body.theme-retrowave .card {
   position: relative;
   overflow: hidden;
 }
+
+/* ============================================================ */
+/* Corp Theme — Corporate light-blue                           */
+/* ============================================================ */
+
+body.theme-corp {
+  --bg-primary:       #f0f4ff;
+  --bg-secondary:     #e8eef8;
+  --bg-card:          #ffffff;
+  --bg-tertiary:      #d4dff0;
+  --text-primary:     #1a1a2e;
+  --text-secondary:   #4a5568;
+  --accent:           #2563eb;
+  --accent-hover:     #1d4ed8;
+  --accent-muted:     rgba(37, 99, 235, 0.08);
+  --accent-subtle:    rgba(37, 99, 235, 0.14);
+  --accent-bg:        rgba(37, 99, 235, 0.05);
+  --success:          #059669;
+  --error:            #dc2626;
+  --warning:          #d97706;
+  --border-color:     #e2e8f0;
+  --shadow:           0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-dropdown:  0 4px 12px rgba(0, 0, 0, 0.1);
+  --code-bg:          #f8faff;
+  --placeholder-color: rgba(26, 26, 46, 0.4);
+  --spinner-color:    rgba(26, 26, 46, 0.3);
+}
+
+body.theme-corp .navbar {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+}
+body.theme-corp .navbar .nav-link { color: #4a5568; }
+body.theme-corp .navbar .nav-link:hover,
+body.theme-corp .navbar .nav-link.router-link-active { background: #f0f4ff; color: #2563eb; }
+body.theme-corp .navbar .nav-brand a { color: #1e3a8a; }
+body.theme-corp .navbar .username { color: #4a5568; }
+body.theme-corp .navbar .btn-logout { border-color: #2563eb; color: #2563eb; }
+body.theme-corp .navbar .btn-logout:hover { background: #2563eb; color: #ffffff; }
+body.theme-corp .switcher-btn { color: #4a5568; border-color: #e2e8f0; }
+body.theme-corp .switcher-btn:hover { border-color: #2563eb; color: #1a1a2e; background: #f0f4ff; }
+body.theme-corp .proj-key { background: rgba(37, 99, 235, 0.08); color: #2563eb; }
+body.theme-corp .btn-primary { background: #2563eb; box-shadow: none; }
+body.theme-corp .btn-primary:hover { background: #1d4ed8; transform: none; box-shadow: none; }
+body.theme-corp input, body.theme-corp select, body.theme-corp textarea {
+  background: #ffffff; border: 1px solid #e2e8f0; color: #1a1a2e;
+}
+body.theme-corp input:focus, body.theme-corp select:focus, body.theme-corp textarea:focus {
+  border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+body.theme-corp ::-webkit-scrollbar-thumb { background: #93c5fd; }
+body.theme-corp ::-webkit-scrollbar-thumb:hover { background: #2563eb; }
+body.theme-corp ::-webkit-scrollbar-track { background: #e8eef8; }
