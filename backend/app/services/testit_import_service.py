@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import async_session_maker
 from app.models.testcase import TestCase, TestCaseFolder
+from app.services.project_service import ProjectService
 
 logger = logging.getLogger(__name__)
 
@@ -130,16 +131,30 @@ def map_automation(raw: str | None) -> str:
 def parse_steps(steps_text: str | None, expected_text: str | None) -> list[dict]:
     if not steps_text and not expected_text:
         return []
+
+    steps_str = str(steps_text).strip() if steps_text else ""
+    expected_str = str(expected_text).strip() if expected_text else ""
+
+    # Split by --- separator if present (multi-step in single cell)
+    if "---" in steps_str or "---" in expected_str:
+        action_parts = [p.strip() for p in steps_str.split("---") if p.strip()] if steps_str else []
+        expected_parts = [p.strip() for p in expected_str.split("---") if p.strip()] if expected_str else []
+        max_len = max(len(action_parts), len(expected_parts))
+        result = []
+        for i in range(max_len):
+            result.append({
+                "action": action_parts[i] if i < len(action_parts) else "",
+                "expected": expected_parts[i] if i < len(expected_parts) else "",
+                "data": None,
+            })
+        return result
+
+    # Single step
     result = []
-    if steps_text:
-        lines = [ln.strip() for ln in str(steps_text).splitlines() if ln.strip()]
-        for i, line in enumerate(lines):
-            expected = ""
-            if i == 0 and expected_text:
-                expected = str(expected_text).strip()
-            result.append({"action": line, "expected": expected, "data": None})
-    elif expected_text:
-        result.append({"action": "", "expected": str(expected_text).strip(), "data": None})
+    if steps_str:
+        result.append({"action": steps_str, "expected": expected_str, "data": None})
+    elif expected_str:
+        result.append({"action": "", "expected": expected_str, "data": None})
     return result
 
 
@@ -287,8 +302,17 @@ async def run_import(job_id: str, file_bytes: bytes, project_id: str) -> None:
                         if folder_id:
                             folders_created_set.add(folder_id)
 
+                    # Generate human_id
+                    human_id = None
+                    try:
+                        ps = ProjectService(db)
+                        human_id = await ps.next_human_id(project_id)
+                    except Exception:
+                        pass
+
                     tc = TestCase(
                         project_id=project_id,
+                        human_id=human_id,
                         title=title[:500],
                         preconditions=str(preconditions).strip() if preconditions else None,
                         postconditions=str(postconditions).strip() if postconditions else None,
