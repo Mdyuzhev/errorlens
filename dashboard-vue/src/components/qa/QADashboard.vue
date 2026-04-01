@@ -154,12 +154,24 @@ function legendStyle() {
   }
 }
 
+// ── Helpers: normalize by_status (array → dict) ───────────
+function getStatusDict(dashboard) {
+  const raw = dashboard?.by_status
+  if (!raw) return {}
+  if (Array.isArray(raw)) {
+    const d = {}
+    raw.forEach(x => { d[x.status || 'unknown'] = x.count || 0 })
+    return d
+  }
+  return raw
+}
+
 // ── Chart builders ──────────────────────────────────────────
 function buildStatusChart(canvas, dashboard) {
-  if (!dashboard?.by_status) return null
-  const data = dashboard.by_status
+  const data = getStatusDict(dashboard)
   const labels = Object.keys(data)
   const values = Object.values(data)
+  if (!labels.length || !values.some(v => v > 0)) return null
   const colorMap = { ready: '--success', needs_work: '--warning', draft: '--accent-hover', review: '--accent' }
   const colors = labels.map(l => getCssVar(colorMap[l] || '--text-secondary'))
   return new Chart(canvas, {
@@ -269,9 +281,11 @@ const TcSummaryWidget = defineComponent({
     return () => {
       const d = props.dashboard
       if (!d) return h('div', { class: 'widget-empty' }, 'Нет данных')
-      const total = d.total_cases ?? 0
-      const ready = total ? Math.round(((d.by_status?.ready || 0) / total) * 100) : 0
-      const needsWork = total ? Math.round(((d.by_status?.needs_work || 0) / total) * 100) : 0
+      const statusDict = getStatusDict(d)
+      const total = Object.values(statusDict).reduce((s, v) => s + v, 0)
+      if (!total) return h('div', { class: 'widget-empty' }, 'Нет тест-кейсов')
+      const ready = Math.round(((statusDict.ready || statusDict.Ready || 0) / total) * 100)
+      const needsWork = Math.round(((statusDict.needs_work || statusDict.Needs_work || 0) / total) * 100)
       return h('div', { class: 'kpi-grid' }, [
         h('div', { class: 'kpi-card' }, [h('div', { class: 'kpi-value' }, `${total}`), h('div', { class: 'kpi-label' }, 'Total cases')]),
         h('div', { class: 'kpi-card' }, [h('div', { class: 'kpi-value kpi-value--success' }, `${ready}%`), h('div', { class: 'kpi-label' }, 'Ready')]),
