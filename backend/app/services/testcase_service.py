@@ -96,6 +96,7 @@ class TestCaseService:
         status: str | None = None,
         priority: str | None = None,
         linked_issue_id: str | None = None,
+        project_id: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
@@ -108,6 +109,25 @@ class TestCaseService:
                 .offset(offset)
                 .limit(limit)
             )
+            if project_id:
+                query = query.where(TestCase.project_id == project_id)
+            result = await self.db.execute(query)
+            testcases = result.scalars().all()
+        elif project_id:
+            # Filter by project with optional sub-filters
+            query = (
+                select(TestCase)
+                .where(TestCase.project_id == project_id)
+                .order_by(TestCase.created_at.desc())
+                .offset(offset)
+                .limit(limit)
+            )
+            if folder_id:
+                query = query.where(TestCase.folder_id == folder_id)
+            if status:
+                query = query.where(TestCase.status == status)
+            if priority:
+                query = query.where(TestCase.priority == priority)
             result = await self.db.execute(query)
             testcases = result.scalars().all()
         elif folder_id:
@@ -128,11 +148,24 @@ class TestCaseService:
     async def search_testcases(
         self,
         query: str,
+        project_id: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
         """Search test cases by title or description."""
-        testcases = await self.repo.search(query, skip=offset, limit=limit)
+        if project_id:
+            stmt = (
+                select(TestCase)
+                .where(TestCase.project_id == project_id)
+                .where(TestCase.title.ilike(f'%{query}%'))
+                .order_by(TestCase.created_at.desc())
+                .offset(offset)
+                .limit(limit)
+            )
+            result = await self.db.execute(stmt)
+            testcases = result.scalars().all()
+        else:
+            testcases = await self.repo.search(query, skip=offset, limit=limit)
         return [self._to_list_dict(tc) for tc in testcases]
 
     async def get_by_tags(
@@ -159,9 +192,12 @@ class TestCaseService:
         status: str | None = None,
         priority: str | None = None,
         q: str | None = None,
+        project_id: str | None = None,
     ) -> int:
         """Count test cases matching filters."""
         query = select(func.count(TestCase.id))
+        if project_id:
+            query = query.where(TestCase.project_id == project_id)
         if folder_id:
             query = query.where(TestCase.folder_id == folder_id)
         elif folder:

@@ -56,6 +56,7 @@ async def list_testcases(
     status: str | None = None,
     priority: str | None = None,
     linked_issue_id: str | None = None,
+    project_id: str | None = None,
     limit: int = Query(default=10, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -65,8 +66,8 @@ async def list_testcases(
     service = TestCaseService(db)
 
     if q and not linked_issue_id:
-        items = await service.search_testcases(q, limit=limit, offset=offset)
-        total = await service.count_testcases(folder_id=folder_id, q=q)
+        items = await service.search_testcases(q, project_id=project_id, limit=limit, offset=offset)
+        total = await service.count_testcases(folder_id=folder_id, q=q, project_id=project_id)
     else:
         items = await service.list_testcases(
             folder=folder,
@@ -74,6 +75,7 @@ async def list_testcases(
             status=status,
             priority=priority,
             linked_issue_id=linked_issue_id,
+            project_id=project_id,
             limit=limit,
             offset=offset,
         )
@@ -82,6 +84,7 @@ async def list_testcases(
             folder=folder,
             status=status,
             priority=priority,
+            project_id=project_id,
         )
 
     return {
