@@ -57,6 +57,45 @@ STATUS_MAP = {
 }
 
 
+# ── Column detection ─────────────────────────────────────────────
+
+# Known header patterns for TestIT export formats
+_HEADER_PATTERNS: dict[str, list[str]] = {
+    "id": ["id", "ид", "№", "#", "external_id", "номер"],
+    "title": ["title", "название", "name", "наименование", "тест-кейс", "тест кейс", "test case"],
+    "folder": ["location", "раздел", "folder", "section", "путь", "path", "секция"],
+    "steps": ["steps", "шаги", "step", "actions", "действия"],
+    "preconditions": ["preconditions", "предусловия", "предусловие"],
+    "postconditions": ["postconditions", "постусловия", "постусловие"],
+    "expected": ["expected", "ожидаемый", "expected result", "ожидаемый результат"],
+    "priority": ["priority", "приоритет"],
+    "status": ["status", "статус", "state", "состояние"],
+    "automated": ["automated", "автоматизирован", "автоматизация", "automation"],
+    "tags": ["tags", "теги", "метки", "labels"],
+    "author": ["author", "автор", "created by", "создал"],
+    "created_at": ["created", "создан", "дата создания", "created at", "date"],
+}
+
+
+def detect_columns(headers: list[str]) -> dict[str, int | None]:
+    """Map logical field names to column indices by matching header text."""
+    result: dict[str, int | None] = {k: None for k in _HEADER_PATTERNS}
+
+    for i, header in enumerate(headers):
+        h = header.lower().strip()
+        if not h:
+            continue
+        for field, patterns in _HEADER_PATTERNS.items():
+            if result[field] is not None:
+                continue
+            for pattern in patterns:
+                if pattern in h or h in pattern:
+                    result[field] = i
+                    break
+
+    return result
+
+
 def extract_title(raw: str | None) -> tuple[str, str | None]:
     if not raw:
         return "", None
@@ -177,6 +216,16 @@ async def run_import(job_id: str, file_bytes: bytes, project_id: str) -> None:
         total = ws.max_row - 1 if ws.max_row else 0
         job["total"] = total
 
+        # Detect columns from header row
+        headers = []
+        for row in ws.iter_rows(min_row=1, max_row=1, values_only=True):
+            headers = [str(h).strip().lower() if h else "" for h in row]
+            break
+        col_map = detect_columns(headers)
+        ncols = max(len(headers), 16)
+
+        logger.info("Import %s: headers=%s, col_map=%s", job_id, headers, col_map)
+
         folder_cache: dict = {}
         imported = 0
         skipped = 0
@@ -185,18 +234,32 @@ async def run_import(job_id: str, file_bytes: bytes, project_id: str) -> None:
 
         BATCH_SIZE = 100
 
+        def _get(padded: list, field: str) -> Any:
+            idx = col_map.get(field)
+            if idx is None or idx >= len(padded):
+                return None
+            return padded[idx]
+
         async with async_session_maker() as db:
             for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=1):
                 if not row or not any(row):
                     continue
 
                 try:
-                    # Pad row to at least 16 columns
-                    padded = list(row) + [None] * max(0, 16 - len(row))
-                    (ext_id, location, title_raw, automated,
-                     preconditions, steps_raw, postconditions, expected,
-                     test_data, comments, iterations, priority_raw,
-                     status_raw, created_at_raw, author, tags_raw) = padded[:16]
+                    padded = list(row) + [None] * max(0, ncols - len(row))
+
+                    ext_id = _get(padded, "id")
+                    location = _get(padded, "folder")
+                    title_raw = _get(padded, "title")
+                    automated = _get(padded, "automated")
+                    preconditions = _get(padded, "preconditions")
+                    steps_raw = _get(padded, "steps")
+                    postconditions = _get(padded, "postconditions")
+                    expected = _get(padded, "expected")
+                    priority_raw = _get(padded, "priority")
+                    status_raw = _get(padded, "status")
+                    author = _get(padded, "author")
+                    tags_raw = _get(padded, "tags")
 
                     # Check duplicate
                     if ext_id:
