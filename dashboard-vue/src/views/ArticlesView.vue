@@ -159,6 +159,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { useArticlesStore } from '@/stores/articles'
+import { useCurrentProjectStore } from '@/stores/currentProject'
 import { articlesApi } from '@/services/api'
 import FolderTree from '@/components/articles/FolderTree.vue'
 import GridEditor from '@/components/articles/GridEditor.vue'
@@ -168,6 +169,7 @@ import AppIcon from '@/components/common/AppIcon.vue'
 
 const route = useRoute()
 const store = useArticlesStore()
+const currentProjectStore = useCurrentProjectStore()
 
 const showEditor = ref(false)
 const showViewer = ref(false)
@@ -240,7 +242,7 @@ const folders = computed(() => store.folders)
 
 async function loadArticles() {
   store.filters = { ...filters.value }
-  await store.fetchArticles()
+  await store.fetchArticles({ project_id: currentProjectStore.currentProjectId })
 }
 
 function createArticle() {
@@ -543,10 +545,22 @@ async function openFromRoute() {
 
 watch(() => route.params.slug, openFromRoute)
 
+watch(
+  () => currentProjectStore.currentProjectId,
+  async (newId) => {
+    if (!newId) return
+    await loadArticles()
+    await store.fetchFoldersTree({ project_id: newId })
+  }
+)
+
 onMounted(async () => {
+  if (!currentProjectStore.currentProjectId) {
+    await currentProjectStore.init()
+  }
   await loadArticles()
   store.fetchCategories()
-  store.fetchFoldersTree()
+  store.fetchFoldersTree({ project_id: currentProjectStore.currentProjectId })
   await openFromRoute()
 })
 </script>
