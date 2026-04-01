@@ -182,10 +182,12 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useImportStore } from '@/stores/import'
+import { useCurrentProjectStore } from '@/stores/currentProject'
 import { projectsApi } from '@/services/api'
 
 const router = useRouter()
 const store = useImportStore()
+const currentProjectStore = useCurrentProjectStore()
 const isDragging = ref(false)
 const uploadError = ref(null)
 const importing = ref(false)
@@ -246,13 +248,31 @@ async function handleStartImport() {
   }
 }
 
-function goToQA() { router.push('/qa') }
+async function goToQA() {
+  // Switch to the project where cases were imported
+  if (store.targetProjectId) {
+    const proj = currentProjectStore.projects.find(p => p.id === store.targetProjectId)
+    if (proj) {
+      currentProjectStore.setProject(proj)
+    } else {
+      await currentProjectStore.fetchProjects()
+      const fresh = currentProjectStore.projects.find(p => p.id === store.targetProjectId)
+      if (fresh) currentProjectStore.setProject(fresh)
+    }
+  }
+  router.push('/qa')
+}
 
 onMounted(async () => {
   try {
     const resp = await projectsApi.list()
     projects.value = Array.isArray(resp.data) ? resp.data : (resp.data?.items || [])
   } catch { /* silent */ }
+  // Default: import into current project
+  if (currentProjectStore.currentProjectId) {
+    store.useNewProject = false
+    store.targetProjectId = currentProjectStore.currentProjectId
+  }
 })
 
 onUnmounted(() => { store.stopPolling() })
