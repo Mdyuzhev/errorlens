@@ -17,7 +17,7 @@
     <div class="nav-user">
       <!-- Theme toggle -->
       <button class="btn-theme" @click="themeStore.toggle()" :title="themeToggleTitle" data-testid="navbar-theme-btn">
-        {{ themeIcon }}
+        <AppIcon :name="themeIconName" :size="18" :glow="false" />
       </button>
 
       <!-- Language switcher -->
@@ -90,6 +90,7 @@ import { useNotificationsStore } from '@/stores/notifications'
 import { useThemeStore } from '@/stores/theme'
 import { useLocaleStore } from '@/stores/locale'
 import ProjectSwitcher from '@/components/common/ProjectSwitcher.vue'
+import AppIcon from '@/components/common/AppIcon.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -102,16 +103,17 @@ const notifWrapper = ref(null)
 const showLangMenu = ref(false)
 const langWrapper = ref(null)
 
-const themeIcon = computed(() => {
-  const icons = { dark: '🌙', light: '☀️', retrowave: '👾' }
-  return icons[themeStore.theme] || '🌙'
+const themeIconName = computed(() => {
+  const icons = { dark: 'moon', light: 'sun', retrowave: 'zap', corp: 'building' }
+  return icons[themeStore.theme] || 'moon'
 })
 
 const themeToggleTitle = computed(() => {
   const titles = {
     dark: 'Светлая тема',
     light: 'RetroWave тема',
-    retrowave: 'Тёмная тема'
+    retrowave: 'Корп тема',
+    corp: 'Тёмная тема'
   }
   return titles[themeStore.theme] || 'Переключить тему'
 })
@@ -420,7 +422,6 @@ onUnmounted(() => {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 18px;
   padding: 6px;
   border-radius: 8px;
   transition: background 0.2s;
