@@ -1,5 +1,5 @@
 <template>
-  <div class="qa-tree-layout">
+  <div class="qa-tree-layout" :style="{ gridTemplateColumns: sidebarWidth + 'px 1fr' }">
     <!-- Left: Folder sidebar -->
     <aside class="qa-sidebar">
       <FolderTree
@@ -12,6 +12,9 @@
         @delete="store.deleteFolder($event)"
       />
     </aside>
+
+    <!-- Resize handle -->
+    <div class="resize-handle" :style="{ left: sidebarWidth + 'px' }" @mousedown="startResize"></div>
 
     <!-- Right: Toolbar + list -->
     <div class="qa-main">
@@ -137,7 +140,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, watch } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useQAStore } from '@/stores/qa'
 import FolderTree from '@/components/testcases/FolderTree.vue'
 
@@ -192,6 +195,25 @@ watch(() => props.projectId, (newId, oldId) => {
   }
 })
 
+// Resizable sidebar
+const sidebarWidth = ref(parseInt(localStorage.getItem('qa-sidebar-width') || '280'))
+
+function startResize(e) {
+  e.preventDefault()
+  const startX = e.clientX
+  const startW = sidebarWidth.value
+  function onMove(ev) {
+    sidebarWidth.value = Math.max(180, Math.min(500, startW + ev.clientX - startX))
+  }
+  function onUp() {
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+    localStorage.setItem('qa-sidebar-width', String(sidebarWidth.value))
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
+
 onMounted(() => {
   loadData()
 })
@@ -200,15 +222,33 @@ onMounted(() => {
 <style scoped>
 .qa-tree-layout {
   display: grid;
-  grid-template-columns: 240px 1fr;
   height: 100%;
+  position: relative;
 }
 
 .qa-sidebar {
   background: var(--bg-secondary);
-  border-right: 1px solid var(--border-color);
   overflow-y: auto;
   padding: 12px 0;
+  min-width: 0;
+}
+
+.resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 10;
+  background: var(--border-color);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.resize-handle:hover,
+.resize-handle:active {
+  opacity: 1;
+  background: var(--accent);
 }
 
 .qa-main {

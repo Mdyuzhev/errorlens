@@ -67,6 +67,17 @@ class TestCaseFolderRepository(BaseRepository[TestCaseFolder]):
             else:
                 roots.append(node)
 
+        # Calculate test_cases_count recursively (own + descendants)
+        def calc_count(node: dict) -> int:
+            own = len(node["test_cases"])
+            for child in node["children"]:
+                own += calc_count(child)
+            node["test_cases_count"] = own
+            return own
+
+        for root in roots:
+            calc_count(root)
+
         return roots
 
     async def get_children(self, folder_id: str) -> list[TestCaseFolder]:
