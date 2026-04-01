@@ -54,8 +54,7 @@ class TestCaseFolderService:
 
     async def get_tree(self, project_id: str) -> list[dict[str, Any]]:
         """Get full folder tree with test cases."""
-        folders = await self.repo.get_tree(project_id)
-        return [self._folder_to_tree(f) for f in folders]
+        return await self.repo.get_tree(project_id)
 
     async def update_folder(
         self, folder_id: str, name: str, project_id: str

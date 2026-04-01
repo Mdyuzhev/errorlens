@@ -14,29 +14,60 @@ class TestCaseFolderRepository(BaseRepository[TestCaseFolder]):
     def __init__(self, db: AsyncSession):
         super().__init__(TestCaseFolder, db)
 
-    async def get_tree(self, project_id: str) -> list[TestCaseFolder]:
-        """Get all root folders with eager-loaded children and test_cases."""
-        query = (
+    async def get_tree(self, project_id: str) -> list[dict]:
+        """Get full folder tree as dicts (flat query + Python assembly)."""
+        from app.models.testcase import TestCase as TC
+
+        # Load all folders flat
+        q_folders = (
             select(TestCaseFolder)
-            .where(
-                TestCaseFolder.project_id == project_id,
-                TestCaseFolder.parent_id.is_(None),
-            )
-            .options(
-                selectinload(TestCaseFolder.children)
-                .selectinload(TestCaseFolder.children)
-                .selectinload(TestCaseFolder.test_cases),
-                selectinload(TestCaseFolder.children)
-                .selectinload(TestCaseFolder.test_cases),
-                selectinload(TestCaseFolder.children)
-                .selectinload(TestCaseFolder.children)
-                .selectinload(TestCaseFolder.children),
-                selectinload(TestCaseFolder.test_cases),
-            )
+            .where(TestCaseFolder.project_id == project_id)
             .order_by(TestCaseFolder.sort_order, TestCaseFolder.name)
         )
-        result = await self.session.execute(query)
-        return list(result.scalars().all())
+        result = await self.session.execute(q_folders)
+        all_folders = list(result.scalars().all())
+
+        # Load all test cases for this project (id, title, status, priority, folder_id)
+        q_tc = (
+            select(TC.id, TC.title, TC.status, TC.priority, TC.human_id, TC.folder_id)
+            .where(TC.project_id == project_id)
+            .order_by(TC.title)
+        )
+        tc_result = await self.session.execute(q_tc)
+        tc_rows = tc_result.all()
+
+        # Group test cases by folder_id
+        tc_by_folder: dict[str, list[dict]] = {}
+        for row in tc_rows:
+            fid = row[5]
+            if fid:
+                tc_by_folder.setdefault(fid, []).append({
+                    "id": row[0], "title": row[1], "status": row[2],
+                    "priority": row[3], "human_id": row[4],
+                })
+
+        # Build dict nodes
+        nodes: dict[str, dict] = {}
+        for f in all_folders:
+            nodes[f.id] = {
+                "id": f.id,
+                "name": f.name,
+                "parent_id": f.parent_id,
+                "sort_order": f.sort_order,
+                "children": [],
+                "test_cases": tc_by_folder.get(f.id, []),
+            }
+
+        # Assemble tree
+        roots = []
+        for f in all_folders:
+            node = nodes[f.id]
+            if f.parent_id and f.parent_id in nodes:
+                nodes[f.parent_id]["children"].append(node)
+            else:
+                roots.append(node)
+
+        return roots
 
     async def get_children(self, folder_id: str) -> list[TestCaseFolder]:
         """Get direct children of a folder."""
