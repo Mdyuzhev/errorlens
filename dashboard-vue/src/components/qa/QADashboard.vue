@@ -13,7 +13,7 @@
           class="widget-picker-item"
           @click="addWidget(w.id)"
         >
-          <span class="widget-picker-icon">{{ w.icon }}</span>
+          <AppIcon :name="w.icon" :size="16" :glow="false" class="widget-picker-icon" />
           <span class="widget-picker-label">{{ w.label }}</span>
         </div>
         <div v-if="!availableWidgets.length" class="widget-picker-empty">
@@ -37,7 +37,7 @@
         :class="{ 'dash-card--wide': w.wide }"
       >
         <div class="dash-card-header">
-          <span class="dash-card-icon">{{ w.icon }}</span>
+          <AppIcon :name="w.icon" :size="16" :glow="false" class="dash-card-icon" />
           <h4 class="dash-card-title">{{ w.label }}</h4>
           <button class="btn-remove-widget" @click="removeWidget(w.id)" title="Убрать виджет">&times;</button>
         </div>
@@ -60,6 +60,7 @@ import {
   LinearScale, CategoryScale, BarController, BarElement, Tooltip, Legend
 } from 'chart.js'
 import { useQAStore } from '@/stores/qa'
+import AppIcon from '@/components/common/AppIcon.vue'
 
 Chart.register(
   DoughnutController, ArcElement, LineController, LineElement, PointElement,
@@ -76,14 +77,14 @@ const pickerRef = ref(null)
 
 // ── Widget catalog ──────────────────────────────────────────
 const WIDGET_CATALOG = [
-  { id: 'tc_summary',    label: 'Test Cases Summary', icon: '📊', type: 'kpi',      wide: true },
-  { id: 'tc_by_status',  label: 'Cases by Status',    icon: '🟢', type: 'doughnut', wide: false },
-  { id: 'tc_by_priority',label: 'Cases by Priority',  icon: '🔺', type: 'bar',      wide: false },
-  { id: 'tc_automation', label: 'Automation Coverage', icon: '🤖', type: 'doughnut', wide: false },
-  { id: 'trend',         label: 'Trend: Pass/Fail',   icon: '📈', type: 'line',     wide: true,  requires_runs: true },
-  { id: 'top_failed',    label: 'Top Failed Cases',   icon: '💥', type: 'table',    wide: false, requires_runs: true },
-  { id: 'coverage',      label: 'Coverage by Folder', icon: '📁', type: 'bar',      wide: false, requires_runs: true },
-  { id: 'plans_status',  label: 'Plans by Status',    icon: '📋', type: 'doughnut', wide: false },
+  { id: 'tc_summary',    label: 'Test Cases Summary', icon: 'pie-chart',      type: 'kpi',      wide: true },
+  { id: 'tc_by_status',  label: 'Cases by Status',    icon: 'circle-dot',     type: 'doughnut', wide: false },
+  { id: 'tc_by_priority',label: 'Cases by Priority',  icon: 'bar-chart-2',    type: 'bar',      wide: false },
+  { id: 'tc_automation', label: 'Automation Coverage', icon: 'cpu',            type: 'doughnut', wide: false },
+  { id: 'trend',         label: 'Trend: Pass/Fail',   icon: 'trending-up',    type: 'line',     wide: true,  requires_runs: true },
+  { id: 'top_failed',    label: 'Top Failed Cases',   icon: 'alert-triangle', type: 'table',    wide: false, requires_runs: true },
+  { id: 'coverage',      label: 'Coverage by Folder', icon: 'layers',         type: 'bar',      wide: false, requires_runs: true },
+  { id: 'plans_status',  label: 'Plans by Status',    icon: 'clipboard-list', type: 'doughnut', wide: false },
 ]
 
 const DEFAULT_WIDGETS = ['tc_summary', 'tc_by_status', 'tc_by_priority', 'tc_automation']
@@ -459,7 +460,6 @@ onBeforeUnmount(() => {
 }
 
 .widget-picker-icon {
-  font-size: 16px;
   flex-shrink: 0;
 }
 
@@ -536,7 +536,6 @@ onBeforeUnmount(() => {
 }
 
 .dash-card-icon {
-  font-size: 16px;
   flex-shrink: 0;
 }
 
