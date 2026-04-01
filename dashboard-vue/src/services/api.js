@@ -384,11 +384,11 @@ export const issuesApi = tasksApi
 // QA API
 export const qaApi = {
   getDashboard: (projectId) =>
-    api.get('/api/v1/qa/dashboard', { params: { project_id: projectId } }),
+    api.get('/v1/qa/dashboard', { params: { project_id: projectId } }),
   getProjectRuns: (projectId) =>
     api.get(`/v1/test-plans/project/${projectId}/runs`),
   getCoverage: (projectId, params = {}) =>
-    api.get('/api/v1/qa/coverage', {
+    api.get('/v1/qa/coverage', {
       params: { project_id: projectId, ...params }
     }),
   exportCsv: (projectId, folderId, ids) => {
