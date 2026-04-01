@@ -4,6 +4,8 @@
       <router-link to="/">ErrorLens</router-link>
     </div>
 
+    <ProjectSwitcher />
+
     <div class="nav-links">
       <router-link to="/qa" class="nav-link">{{ t('nav.qa') }}</router-link>
       <router-link to="/issues" class="nav-link">{{ t('nav.issues') }}</router-link>
@@ -87,6 +89,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useThemeStore } from '@/stores/theme'
 import { useLocaleStore } from '@/stores/locale'
+import ProjectSwitcher from '@/components/common/ProjectSwitcher.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -207,6 +210,10 @@ onUnmounted(() => {
   padding: 12px 24px;
   background: var(--bg-card);
   border-bottom: 1px solid var(--bg-secondary);
+}
+
+.nav-brand {
+  margin-right: 4px;
 }
 
 .nav-brand a {

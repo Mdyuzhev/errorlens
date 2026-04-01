@@ -22,18 +22,21 @@ export const useArticlesStore = defineStore('articles', {
   }),
 
   actions: {
-    async fetchArticles() {
+    async fetchArticles(extraParams = {}) {
       this.loading = true
       this.error = null
 
       try {
-        const params = {}
-        if (this.filters.category) params.category = this.filters.category
-        if (this.filters.status) params.status = this.filters.status
-        if (this.selectedFolderId) params.folder_id = this.selectedFolderId
+        const params = {
+          ...this.filters,
+          folder_id: this.selectedFolderId || undefined,
+          ...extraParams,
+        }
+        if (!params.category) delete params.category
+        if (!params.status) delete params.status
 
         const response = await articlesApi.list(params)
-        this.articles = response.data
+        this.articles = response.data.items || response.data
       } catch (error) {
         this.error = error.response?.data?.detail || 'Failed to load articles'
       } finally {
@@ -101,9 +104,9 @@ export const useArticlesStore = defineStore('articles', {
     },
 
     // Folder actions
-    async fetchFoldersTree() {
+    async fetchFoldersTree(params = {}) {
       try {
-        const response = await articlesApi.getFoldersTree()
+        const response = await articlesApi.getFoldersTree(params)
         this.folders = response.data.folders || []
       } catch {
         this.folders = []
