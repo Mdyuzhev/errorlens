@@ -89,7 +89,8 @@ class ProjectService:
         project_count = await self.project_repo.count_user_projects(owner_id)
         limits = get_plan_limits(ProjectPlan.FREE)  # TODO: get user's plan
 
-        if project_count >= limits.max_projects:
+        is_admin = getattr(user, 'is_superuser', False) or getattr(user, 'role', '') == 'admin'
+        if project_count >= limits.max_projects and not is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Project limit reached ({limits.max_projects}). Upgrade to PRO.",

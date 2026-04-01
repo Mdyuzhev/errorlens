@@ -30,6 +30,7 @@ from app.routers import (
     exports,
     generation,
     gitlab_connections,
+    import_router,
     integrations,
     issue_attachments,
     issue_custom_fields,
@@ -175,6 +176,7 @@ app.include_router(analysis.router)
 app.include_router(projects.router)
 app.include_router(test_plans.router)
 app.include_router(qa.router)  # EL-QA: QA dashboard
+app.include_router(import_router.router)  # EL089: TestIT import
 app.include_router(generation.router)  # Wave 4.0: Generation API
 app.include_router(spec_gen.router)  # EL039: Static spec test generator
 app.include_router(eva.router)  # EVA v2.1: Test quality analyzer

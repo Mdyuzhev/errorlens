@@ -5,7 +5,7 @@ Project, Folder, ProjectMember Pydantic Schemas
 from datetime import datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ProjectPlan(StrEnum):
@@ -27,6 +27,15 @@ class ProjectCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     description: str | None = None
     key: str | None = None
+    prefix: str | None = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def resolve_prefix(cls, data):
+        if isinstance(data, dict):
+            if data.get('prefix') and not data.get('key'):
+                data['key'] = data['prefix']
+        return data
 
 
 class ProjectUpdate(BaseModel):
@@ -118,7 +127,7 @@ class PlanLimits(BaseModel):
 
 
 FREE_LIMITS = PlanLimits(
-    max_projects=1,
+    max_projects=10,
     max_folders_per_project=10,
     max_sessions_total=100,
     max_members_per_project=3,

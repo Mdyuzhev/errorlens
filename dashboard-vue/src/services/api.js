@@ -462,3 +462,17 @@ export const pechkinApi = {
     document.body.removeChild(a)
   },
 }
+
+// Import API (EL089)
+export const importApi = {
+  preview: (formData) =>
+    api.post('/api/v1/import/testit/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  importTestIt: (formData, projectId) =>
+    api.post(`/api/v1/import/testit?project_id=${projectId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  getJob: (jobId) =>
+    api.get(`/api/v1/import/jobs/${jobId}`),
+}

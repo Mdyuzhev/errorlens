@@ -33,6 +33,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/import',
+    name: 'import',
+    component: () => import('@/views/ImportView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/qa/:tab',
     name: 'qa-tab',
     component: () => import('@/views/QAView.vue'),
