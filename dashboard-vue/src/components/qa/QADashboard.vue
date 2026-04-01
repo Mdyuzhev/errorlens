@@ -270,6 +270,15 @@ function buildCoverageChart() {
   })
 }
 
+watch(() => props.projectId, async (newId) => {
+  if (!newId) return
+  await store.fetchDashboard(newId)
+  await nextTick()
+  buildChart()
+  buildTrendChart()
+  buildCoverageChart()
+})
+
 onMounted(async () => {
   await store.fetchDashboard(props.projectId)
   await nextTick()

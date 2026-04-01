@@ -137,7 +137,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { useQAStore } from '@/stores/qa'
 import FolderTree from '@/components/testcases/FolderTree.vue'
 
@@ -178,9 +178,22 @@ function onSearchInput() {
   searchTimer = setTimeout(() => store.setTcSearch(searchInput.value), 300)
 }
 
+function loadData() {
+  store.fetchFoldersTree({ project_id: props.projectId })
+  store.fetchTestCases({ project_id: props.projectId })
+}
+
+watch(() => props.projectId, (newId, oldId) => {
+  if (newId && newId !== oldId) {
+    store.selectedFolderId = null
+    store.tcPage = 1
+    store.selectedIds.clear()
+    loadData()
+  }
+})
+
 onMounted(() => {
-  store.fetchFoldersTree()
-  store.fetchTestCases()
+  loadData()
 })
 </script>
 

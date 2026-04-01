@@ -153,7 +153,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive, watch } from 'vue'
 import { useQAStore } from '@/stores/qa'
 import { testPlansApi, testCasesApi } from '@/services/api'
 import RunsMatrix from './RunsMatrix.vue'
@@ -188,6 +188,13 @@ async function loadAllCases() {
 
 onMounted(() => {
   store.fetchPlans(props.projectId)
+  loadAllCases()
+})
+
+watch(() => props.projectId, (newId) => {
+  if (!newId) return
+  selectedPlan.value = null
+  store.fetchPlans(newId)
   loadAllCases()
 })
 

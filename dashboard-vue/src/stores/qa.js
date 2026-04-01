@@ -30,16 +30,22 @@ export const useQAStore = defineStore('qa', {
 
     coverage: null,
     coverageLoading: false,
+
+    currentProjectId: null,
   }),
 
   actions: {
-    async fetchTestCases() {
+    async fetchTestCases(extraParams = {}) {
+      if (extraParams.project_id) {
+        this.currentProjectId = extraParams.project_id
+      }
       this.loading = true
       try {
         const params = {
           limit: this.tcPageSize,
           offset: (this.tcPage - 1) * this.tcPageSize,
         }
+        if (this.currentProjectId) params.project_id = this.currentProjectId
         if (this.selectedFolderId) params.folder_id = this.selectedFolderId
         if (this.filters.status) params.status = this.filters.status
         if (this.filters.priority) params.priority = this.filters.priority
@@ -109,9 +115,11 @@ export const useQAStore = defineStore('qa', {
       this.selectedIds.clear()
     },
 
-    async fetchFoldersTree() {
+    async fetchFoldersTree(params = {}) {
       try {
-        const res = await testCasesApi.getFoldersTree()
+        const p = { ...params }
+        if (!p.project_id && this.currentProjectId) p.project_id = this.currentProjectId
+        const res = await testCasesApi.getFoldersTree(p)
         this.treeFolders = res.data.folders || []
       } catch { this.treeFolders = [] }
     },

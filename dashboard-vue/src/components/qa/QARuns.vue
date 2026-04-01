@@ -66,7 +66,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQAStore } from '@/stores/qa'
 
@@ -94,6 +94,12 @@ const filteredRuns = computed(() => {
 onMounted(() => {
   store.fetchAllRuns(props.projectId)
   store.fetchPlans(props.projectId)
+})
+
+watch(() => props.projectId, (newId) => {
+  if (!newId) return
+  store.fetchAllRuns(newId)
+  store.fetchPlans(newId)
 })
 
 function formatDate(d) {
