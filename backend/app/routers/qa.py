@@ -129,6 +129,22 @@ async def get_qa_dashboard(
             covered = covered_res.scalar() or 0
             coverage["All"] = round(covered / total * 100)
 
+    # --- by_priority ---
+    result_priority = await db.execute(
+        select(TestCase.priority, func.count(TestCase.id).label("count"))
+        .where(TestCase.project_id == project_id)
+        .group_by(TestCase.priority)
+    )
+    by_priority = {r.priority or "none": r.count for r in result_priority.all()}
+
+    # --- by_automation ---
+    result_automation = await db.execute(
+        select(TestCase.automation_status, func.count(TestCase.id).label("count"))
+        .where(TestCase.project_id == project_id)
+        .group_by(TestCase.automation_status)
+    )
+    by_automation = {r.automation_status or "Manual": r.count for r in result_automation.all()}
+
     # --- plans_by_status: count plans by status ---
     plans_q = (
         select(TestPlan.status, func.count(TestPlan.id).label("count"))
@@ -140,6 +156,8 @@ async def get_qa_dashboard(
 
     data = {
         "by_status": by_status,
+        "by_priority": by_priority,
+        "by_automation": by_automation,
         "plans_by_status": plans_by_status,
         "top_failed": top_failed,
         "trend": trend,
