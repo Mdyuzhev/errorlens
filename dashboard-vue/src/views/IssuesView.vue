@@ -237,7 +237,8 @@ import { ref, computed, watch, onMounted, inject, defineAsyncComponent } from 'v
 import { useRoute, useRouter } from 'vue-router'
 import { useIssuesStore } from '@/stores/issues'
 import { useJqlStore } from '@/stores/jql'
-import { taskSettingsApi, projectsApi } from '@/services/api'
+import { taskSettingsApi } from '@/services/api'
+import { useCurrentProjectStore } from '@/stores/currentProject'
 import RichEditor from '@/components/common/RichEditor.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 import IssueDetailView from '@/components/issues/IssueDetailView.vue'
@@ -258,6 +259,7 @@ const router = useRouter()
 const store = useIssuesStore()
 const jqlStore = useJqlStore()
 const toast = inject('toast', null)
+const currentProjectStore = useCurrentProjectStore()
 
 const columns = [
   { id: 'todo', title: 'To Do' },
@@ -310,7 +312,7 @@ const editorTask = ref(null)
 const taskTypes = ref([])
 const activeTypeFilter = ref('all')
 const viewMode = ref('board')
-const currentProjectId = ref(null)
+const currentProjectId = computed(() => currentProjectStore.currentProjectId)
 const jqlBarRef = ref(null)
 const showFilterPanel = ref(false)
 const filterPanelRef = ref(null)
@@ -473,14 +475,10 @@ async function createSprint() {
 
 async function loadTaskTypes() {
   try {
-    const projectsRes = await projectsApi.list()
-    const projects = projectsRes.data.items || projectsRes.data
-    if (projects.length > 0) {
-      currentProjectId.value = projects[0].id
-      const typesRes = await taskSettingsApi.getTypes(projects[0].id)
-      taskTypes.value = typesRes.data.filter(t => t.is_active)
-      jqlStore.fetchSavedFilters(projects[0].id)
-    }
+    if (!currentProjectId.value) return
+    const typesRes = await taskSettingsApi.getTypes(currentProjectId.value)
+    taskTypes.value = typesRes.data.filter(t => t.is_active)
+    jqlStore.fetchSavedFilters(currentProjectId.value)
   } catch { taskTypes.value = [] }
 }
 
@@ -528,7 +526,25 @@ watch(activeTab, async (tab) => {
 
 watch(currentProjectId, () => { loadWipLimits() })
 
+watch(
+  () => currentProjectStore.currentProjectId,
+  async (newId, oldId) => {
+    if (!newId || newId === oldId) return
+    taskTypes.value = []
+    activeTypeFilter.value = 'all'
+    await loadTaskTypes()
+    loadWipLimits()
+    await Promise.all([
+      store.fetchBoard({ project_id: newId }),
+      store.fetchTasks({ project_id: newId }),
+    ])
+  }
+)
+
 onMounted(async () => {
+  if (!currentProjectStore.currentProjectId) {
+    await currentProjectStore.init()
+  }
   await loadTaskTypes()
   loadWipLimits()
   await Promise.all([

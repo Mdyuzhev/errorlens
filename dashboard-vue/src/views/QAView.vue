@@ -104,7 +104,7 @@ import { ref, watch, onMounted, computed, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQAStore } from '@/stores/qa'
 import { useLocaleStore } from '@/stores/locale'
-import { projectsApi } from '@/services/api'
+import { useCurrentProjectStore } from '@/stores/currentProject'
 import QATree from '@/components/qa/QATree.vue'
 import QATestCaseViewer from '@/components/qa/QATestCaseViewer.vue'
 
@@ -121,6 +121,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useQAStore()
 const localeStore = useLocaleStore()
+const currentProjectStore = useCurrentProjectStore()
 function t(key) { return localeStore.t(key) }
 
 const tabs = computed(() => [
@@ -136,7 +137,7 @@ const tabs = computed(() => [
 ])
 
 const activeTab = ref('tree')
-const projectId = ref(null)
+const projectId = computed(() => currentProjectStore.currentProjectId)
 const viewingTestCase = ref(null)
 const showCreateModal = ref(false)
 const newCase = ref({ title: '', priority: 'medium' })
@@ -145,14 +146,8 @@ onMounted(async () => {
   if (route.query.tab && tabs.value.some(tab => tab.key === route.query.tab)) {
     activeTab.value = route.query.tab
   }
-  try {
-    const res = await projectsApi.list()
-    const projects = res.data
-    if (projects.length > 0) {
-      projectId.value = projects[0].id
-    }
-  } catch {
-    // no projects
+  if (!currentProjectStore.currentProjectId) {
+    await currentProjectStore.init()
   }
 
   if (route.query.open) {

@@ -35,7 +35,7 @@
         <div v-else-if="store.projects.length === 0" class="empty">No projects yet</div>
 
         <div
-          v-for="project in store.projects"
+          v-for="project in dedupedProjects"
           :key="project.id"
           class="project-card"
           :class="{ active: store.selectedProject?.id === project.id }"
@@ -100,11 +100,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAdminStore } from '@/stores/admin'
 import { projectsApi } from '@/services/api'
 
 const store = useAdminStore()
+
+const dedupedProjects = computed(() => {
+  const seen = new Set()
+  return store.projects.filter(p => {
+    if (seen.has(p.id)) return false
+    seen.add(p.id)
+    return true
+  })
+})
 
 const showCreateForm = ref(false)
 const showAddMember = ref(false)
