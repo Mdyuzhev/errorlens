@@ -363,10 +363,21 @@ async def improve_testcase(
     try:
         result = json_lib.loads(cleaned)
     except json_lib.JSONDecodeError:
-        raise HTTPException(
-            status_code=502,
-            detail="LLM returned invalid JSON",
-        )
+        # Try to fix common LLM JSON issues: trailing commas, unescaped quotes
+        fixed = re.sub(r',\s*([}\]])', r'\1', cleaned)  # trailing commas
+        fixed = re.sub(r'""([^"]+)""', r'"\1"', fixed)  # double-double quotes
+        try:
+            result = json_lib.loads(fixed)
+        except json_lib.JSONDecodeError:
+            # Last resort: extract first { ... } block
+            m = re.search(r'\{[\s\S]*\}', fixed)
+            if m:
+                try:
+                    result = json_lib.loads(m.group())
+                except json_lib.JSONDecodeError:
+                    raise HTTPException(status_code=502, detail="LLM returned invalid JSON")
+            else:
+                raise HTTPException(status_code=502, detail="LLM returned invalid JSON")
 
     def _str(val: object) -> str | None:
         if val is None:
