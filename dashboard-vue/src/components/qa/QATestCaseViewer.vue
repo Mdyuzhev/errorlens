@@ -7,6 +7,17 @@
         <span class="tcv-human-id">{{ testCase?.human_id || '' }}</span>
       </div>
       <div class="tcv-topbar-right">
+        <button
+          class="btn-imp"
+          :class="{ 'btn-imp--loading': impLoading }"
+          :disabled="impLoading"
+          @click="handleImprove"
+          title="Improve with AI (Ollama)"
+        >
+          <span v-if="impLoading" class="imp-spinner"></span>
+          {{ impLoading ? 'Improving...' : 'IMP' }}
+        </button>
+        <span v-if="impError" class="imp-error">{{ impError }}</span>
         <button class="btn-delete" @click="$emit('delete', testCase.id)">Delete</button>
         <button class="btn-cancel" @click="$emit('close')">Cancel</button>
         <button class="btn-save" @click="handleSave">Save</button>
@@ -200,7 +211,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { entityLinksApi } from '@/services/api'
+import api, { entityLinksApi } from '@/services/api'
 import StepsEditor from './StepsEditor.vue'
 import LinkSearch from './LinkSearch.vue'
 
@@ -221,6 +232,8 @@ const detailTabs = [
 
 const activeDetailTab = ref('details')
 const tagInput = ref('')
+const impLoading = ref(false)
+const impError = ref('')
 
 const form = ref({
   title: '',
@@ -382,6 +395,40 @@ const paramCombinations = computed(() => {
     return acc * (vals.length || 1)
   }, 1)
 })
+
+async function handleImprove() {
+  if (impLoading.value) return
+  impLoading.value = true
+  impError.value = ''
+
+  const provider = localStorage.getItem('llm_default_provider') || 'ollama'
+  const model = 'qwen2.5-coder:7b'
+
+  try {
+    const resp = await api.post(`/testcases/${props.testCase.id}/improve`, {
+      provider,
+      model,
+    })
+    const improved = resp.data
+
+    if (improved.title)        form.value.title        = improved.title
+    if (improved.description !== undefined) form.value.description  = improved.description
+    if (improved.preconditions !== undefined) form.value.preconditions = improved.preconditions
+    if (improved.postconditions !== undefined) form.value.postconditions = improved.postconditions
+    if (improved.steps?.length) {
+      form.value.steps = improved.steps.map(s => ({
+        action:   s.action   || '',
+        expected: s.expected || '',
+        data:     s.data     || '',
+      }))
+    }
+  } catch (err) {
+    impError.value = err.response?.data?.detail || 'Ollama unavailable'
+    setTimeout(() => { impError.value = '' }, 5000)
+  } finally {
+    impLoading.value = false
+  }
+}
 
 function handleSave() {
   const saveData = {
@@ -700,5 +747,53 @@ function onTagBackspace() {
   font-size: 12px;
   color: var(--accent);
   font-weight: 500;
+}
+
+/* IMP button */
+.btn-imp {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+.btn-imp:hover:not(:disabled) {
+  background: var(--accent-muted);
+}
+.btn-imp:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+.btn-imp--loading {
+  opacity: 0.75;
+}
+
+.imp-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--accent-subtle);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: imp-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes imp-spin {
+  to { transform: rotate(360deg); }
+}
+
+.imp-error {
+  font-size: 12px;
+  color: var(--error);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
