@@ -368,4 +368,23 @@ async def improve_testcase(
             detail="LLM returned invalid JSON",
         )
 
-    return ImproveResponse(**result)
+    def _str(val: object) -> str | None:
+        if val is None:
+            return None
+        return val if isinstance(val, str) else json_lib.dumps(val, ensure_ascii=False)
+
+    steps = []
+    for s in result.get("steps", []):
+        steps.append(ImprovedStep(
+            action=_str(s.get("action", "")) or "",
+            expected=_str(s.get("expected", "")) or "",
+            data=_str(s.get("data")),
+        ))
+
+    return ImproveResponse(
+        title=_str(result.get("title", tc.title)) or tc.title,
+        description=_str(result.get("description")),
+        preconditions=_str(result.get("preconditions")),
+        postconditions=_str(result.get("postconditions")),
+        steps=steps,
+    )
