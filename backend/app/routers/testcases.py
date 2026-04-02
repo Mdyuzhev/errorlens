@@ -339,9 +339,10 @@ async def improve_testcase(
         f"Предусловия: {tc.preconditions or 'Нет'}\n"
         f"Постусловия: {tc.postconditions or 'Нет'}\n"
         f"Шаги:\n{steps_text or '  Нет'}\n\n"
-        "Верни ТОЛЬКО валидный JSON (без markdown), строго такой структуры:\n"
-        '{"title": "...", "description": "...", "preconditions": "...", '
-        '"postconditions": "...", "steps": [{"action": "...", "expected": "...", "data": "..."}]}'
+        "Верни ТОЛЬКО валидный JSON (без markdown). ВСЕ значения — строки (не объекты, не массивы).\n"
+        "Структура:\n"
+        '{"title": "строка", "description": "строка", "preconditions": "строка", '
+        '"postconditions": "строка", "steps": [{"action": "строка", "expected": "строка", "data": "строка"}]}'
     )
 
     provider = ProviderFactory.create(
@@ -354,7 +355,7 @@ async def improve_testcase(
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM error: {e}")
 
-    logger.info("LLM improve raw response (first 500 chars): %s", raw[:500])
+    logger.info("LLM improve raw response (first 1500 chars): %s", raw[:1500])
 
     # Strip markdown code fences if present
     cleaned = re.sub(r"^```(?:json)?\s*", "", raw.strip())
