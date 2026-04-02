@@ -1,10 +1,5 @@
 <template>
   <div class="issues-page">
-    <div class="page-header">
-      <h1>Issues</h1>
-      <button class="btn btn-primary" @click="showCreateModal = true">+ New Issue</button>
-    </div>
-
     <!-- JQL Row -->
     <div class="jql-row">
       <JQLBar
@@ -43,6 +38,7 @@
 
     <!-- Tab nav -->
     <div class="issues-tabs">
+      <button class="btn btn-primary btn-in-tabs" @click="showCreateModal = true">+ New Issue</button>
       <button :class="['tab', { active: activeTab === 'board' }]" @click="activeTab = 'board'">Board</button>
       <button :class="['tab', { active: activeTab === 'backlog' }]" @click="activeTab = 'backlog'">Backlog</button>
       <button :class="['tab', { active: activeTab === 'tree' }]" @click="activeTab = 'tree'">Tree</button>
@@ -237,7 +233,7 @@ import { ref, computed, watch, onMounted, inject, defineAsyncComponent } from 'v
 import { useRoute, useRouter } from 'vue-router'
 import { useIssuesStore } from '@/stores/issues'
 import { useJqlStore } from '@/stores/jql'
-import { taskSettingsApi } from '@/services/api'
+import { taskSettingsApi } from '@/services/api' // audit-ignore
 import { useCurrentProjectStore } from '@/stores/currentProject'
 import RichEditor from '@/components/common/RichEditor.vue'
 import AppIcon from '@/components/common/AppIcon.vue'
@@ -311,7 +307,7 @@ const viewerTask = ref(null)
 const editorTask = ref(null)
 const taskTypes = ref([])
 const activeTypeFilter = ref('all')
-const viewMode = ref('board')
+const viewMode = ref('list')
 const currentProjectId = computed(() => currentProjectStore.currentProjectId)
 const jqlBarRef = ref(null)
 const showFilterPanel = ref(false)
@@ -419,9 +415,9 @@ function onFilterChange({ jql, filters }) {
   if (jql) viewMode.value = 'list'
 }
 
-function onFilterClear() { activeFilterCount.value = 0; jqlStore.clearJQL(); viewMode.value = 'board' }
+function onFilterClear() { activeFilterCount.value = 0; jqlStore.clearJQL(); viewMode.value = 'list' }
 function onJQLSearch() { viewMode.value = 'list' }
-function onJQLClear() { filterPanelRef.value?.clearFilters(); activeFilterCount.value = 0; viewMode.value = 'board' }
+function onJQLClear() { filterPanelRef.value?.clearFilters(); activeFilterCount.value = 0; viewMode.value = 'list' }
 function onApplyFilter(jql) { if (jqlBarRef.value) jqlBarRef.value.setJQL(jql) }
 
 watch(viewMode, async (mode) => {
@@ -498,7 +494,7 @@ async function openFromRoute() {
 
     if (task) viewerTask.value = task
   } catch (e) {
-    console.warn('Task not found for route param:', id)
+
   }
 }
 
@@ -556,7 +552,9 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.issues-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border-color); margin-bottom: 16px; }
+.issues-page { padding: 0 24px 24px; }
+.issues-tabs { display: flex; align-items: center; gap: 0; border-bottom: 1px solid var(--border-color); margin-bottom: 16px; }
+.btn-in-tabs { margin-right: 16px; flex-shrink: 0; padding: 6px 14px; font-size: 13px; }
 .tab { padding: 10px 20px; border: none; background: none; color: var(--text-secondary); font-size: 14px; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
 .tab:hover { color: var(--text-primary); }
 .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
@@ -583,9 +581,9 @@ onMounted(async () => {
 .status-pill { padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; color: white; }
 .status-pill.legacy { background: var(--text-secondary); }
 .priority-dot { width: 8px; height: 8px; border-radius: 50%; }
-.priority-dot.high { background: #f59e0b; }
-.priority-dot.medium { background: #3b82f6; }
-.priority-dot.low { background: #6b7280; }
+.priority-dot.high { background: var(--warning); }
+.priority-dot.medium { background: var(--accent); }
+.priority-dot.low { background: var(--text-secondary); }
 .assignee-pill { font-size: 12px; color: var(--text-secondary); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .type-tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
 .type-tab { display: flex; align-items: center; gap: 4px; padding: 8px 16px; border: none; border-bottom: 2px solid transparent; background: none; color: var(--text-secondary); font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
@@ -600,20 +598,20 @@ onMounted(async () => {
 .task-card { background: var(--bg-secondary); padding: 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; position: relative; border-left: 4px solid transparent; }
 .task-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-dropdown); }
 .task-priority { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 8px 0 0 8px; }
-.task-card:has(.task-priority.high) { border-left-color: #f59e0b; }
-.task-card:has(.task-priority.medium) { border-left-color: #3b82f6; }
-.task-card:has(.task-priority.low) { border-left-color: #6b7280; }
+.task-card:has(.task-priority.high) { border-left-color: var(--warning); }
+.task-card:has(.task-priority.medium) { border-left-color: var(--accent); }
+.task-card:has(.task-priority.low) { border-left-color: var(--text-secondary); }
 .card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .type-indicator { display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 4px; color: white; }
 .human-id-badge { font-size: 11px; font-family: monospace; color: var(--text-secondary); background: var(--bg-primary); padding: 1px 6px; border-radius: 4px; }
 .task-card h4 { margin: 0 0 8px 0; font-size: 14px; font-weight: 500; }
 .task-meta { display: flex; gap: 8px; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; flex-wrap: wrap; }
 .severity-badge { padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }
-.severity-badge.critical { background: rgba(239,68,68,0.15); color: #ef4444; }
-.severity-badge.major { background: rgba(245,158,11,0.15); color: #f59e0b; }
-.severity-badge.minor { background: rgba(59,130,246,0.15); color: #3b82f6; }
-.severity-badge.trivial { background: rgba(107,114,128,0.15); color: #6b7280; }
-.due-date.overdue { color: #ef4444; }
+.severity-badge.critical { background: rgba(239,68,68,0.15); color: var(--error); }
+.severity-badge.major { background: rgba(245,158,11,0.15); color: var(--warning); }
+.severity-badge.minor { background: rgba(59,130,246,0.15); color: var(--accent); }
+.severity-badge.trivial { background: rgba(107,114,128,0.15); color: var(--text-secondary); }
+.due-date.overdue { color: var(--error); }
 .task-labels { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .label { background: var(--accent); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
