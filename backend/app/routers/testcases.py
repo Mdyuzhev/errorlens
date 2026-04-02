@@ -3,6 +3,7 @@
 import csv
 import io
 import json as json_lib
+import logging
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,6 +16,8 @@ from app.middleware.jwt_auth import require_auth
 from app.models.user import User
 from app.providers.factory import ProviderFactory
 from app.services.testcase_service import TestCaseService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/testcases", tags=["testcases"])
 
@@ -346,7 +349,12 @@ async def improve_testcase(
         api_key=data.api_key or None,
         model=data.model or None,
     )
-    raw = await provider.generate(prompt, max_tokens=2048)
+    try:
+        raw = await provider.generate(prompt, max_tokens=2048)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"LLM error: {e}")
+
+    logger.info("LLM improve raw response (first 500 chars): %s", raw[:500])
 
     # Strip markdown code fences if present
     cleaned = re.sub(r"^```(?:json)?\s*", "", raw.strip())
