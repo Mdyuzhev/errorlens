@@ -331,15 +331,15 @@ async def improve_testcase(
             steps_text += f"  {i}. Action: {action} | Expected: {expected}\n"
 
     prompt = (
-        "You are a senior QA engineer. Improve the following test case: "
-        "make steps clearer, add missing validations, improve expected results, "
-        "and enhance preconditions/postconditions.\n\n"
-        f"Title: {tc.title}\n"
-        f"Description: {tc.description or 'N/A'}\n"
-        f"Preconditions: {tc.preconditions or 'N/A'}\n"
-        f"Postconditions: {tc.postconditions or 'N/A'}\n"
-        f"Steps:\n{steps_text or '  None'}\n\n"
-        "Return ONLY valid JSON (no markdown) with this structure:\n"
+        "Ты опытный QA-инженер. Улучши следующий тест-кейс: "
+        "сделай шаги конкретнее, добавь недостающие проверки, улучши ожидаемые результаты, "
+        "дополни предусловия и постусловия. Отвечай ТОЛЬКО на русском языке.\n\n"
+        f"Название: {tc.title}\n"
+        f"Описание: {tc.description or 'Нет'}\n"
+        f"Предусловия: {tc.preconditions or 'Нет'}\n"
+        f"Постусловия: {tc.postconditions or 'Нет'}\n"
+        f"Шаги:\n{steps_text or '  Нет'}\n\n"
+        "Верни ТОЛЬКО валидный JSON (без markdown), строго такой структуры:\n"
         '{"title": "...", "description": "...", "preconditions": "...", '
         '"postconditions": "...", "steps": [{"action": "...", "expected": "...", "data": "..."}]}'
     )
