@@ -402,7 +402,7 @@ async function handleImprove() {
   impError.value = ''
 
   const provider = localStorage.getItem('llm_default_provider') || 'ollama'
-  const model = 'qwen2.5-coder:7b'
+  const model = localStorage.getItem('llm_default_model') || 'mistral'
 
   try {
     const resp = await api.post(`/testcases/${props.testCase.id}/improve`, {

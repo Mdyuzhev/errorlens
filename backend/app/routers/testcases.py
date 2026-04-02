@@ -40,7 +40,7 @@ class TestCaseCreate(BaseModel):
 
 class ImproveRequest(BaseModel):
     provider: str = "ollama"
-    model: str = "qwen2.5-coder:7b"
+    model: str = "mistral"
     api_key: str | None = None
 
 
