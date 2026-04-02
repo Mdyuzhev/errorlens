@@ -1,14 +1,14 @@
 <template>
   <div class="llm-settings">
-    <h3>🤖 LLM Providers</h3>
+    <h3><AppIcon name="cpu" :size="16" :glow="false" /> LLM Providers</h3>
     <div class="provider-list">
       <div v-for="p in providers" :key="p.id" class="provider-item"
            :class="{ active: p.id === activeProvider, configured: p.configured }"
            @click="activeProvider = p.id">
-        <span style="font-size:24px">{{ p.icon }}</span>
+        <span style="display:flex;align-items:center"><AppIcon v-if="p.iconName" :name="p.iconName" :size="16" :glow="false" /></span>
         <div>
           <span style="font-weight:600">{{ p.name }}</span><br>
-          <span style="font-size:12px;color:var(--text-secondary)">{{ p.configured ? '✓ Настроен' : 'Требует API ключ' }}</span>
+          <span style="font-size:12px;color:var(--text-secondary)"><template v-if="p.configured"><AppIcon name="check" :size="14" :glow="false" /> Настроен</template><template v-else>Требует API ключ</template></span>
         </div>
       </div>
     </div>
@@ -22,12 +22,12 @@
                style="flex:1;padding:10px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px;font-family:monospace" />
         <button @click="showKey = !showKey"
                 style="padding:10px 12px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px">
-          {{ showKey ? '🙈' : '👁️' }}
+          <AppIcon :name="showKey ? 'x' : 'eye'" :size="16" :glow="false" />
         </button>
       </div>
       <button @click="saveApiKey"
               :disabled="!apiKey"
-              style="margin-top:12px;padding:10px 20px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer">
+              style="margin-top:12px;padding:10px 20px;background:var(--accent);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer">
         Сохранить
       </button>
     </div>
@@ -41,7 +41,7 @@
     </div>
 
     <div v-if="message"
-         :style="{ marginTop: '12px', padding: '10px', borderRadius: '8px', background: 'rgba(76,175,80,0.1)', color: '#4CAF50' }">
+         :style="{ marginTop: '12px', padding: '10px', borderRadius: '8px', background: 'rgba(16,185,129,0.1)', color: 'var(--success)' }">
       {{ message }}
     </div>
   </div>
@@ -49,6 +49,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import AppIcon from '@/components/common/AppIcon.vue'
 
 const props = defineProps({
   modelValue: {
@@ -80,8 +81,8 @@ const providerModels = {
     { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' }
   ],
   ollama: [
-    { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B' },
-    { id: 'codellama:7b', name: 'CodeLlama 7B' }
+    { id: 'mistral', name: 'Mistral 7B' },
+    { id: 'tinyllama', name: 'TinyLlama 1B' }
   ]
 }
 
@@ -89,7 +90,7 @@ const providers = ref([
   {
     id: 'anthropic',
     name: 'Anthropic Claude',
-    icon: '🟣',
+    iconName: 'layers',
     keyPlaceholder: 'sk-ant-...',
     configured: false,
     isLocal: false
@@ -97,7 +98,7 @@ const providers = ref([
   {
     id: 'openai',
     name: 'OpenAI GPT',
-    icon: '🟢',
+    iconName: 'globe',
     keyPlaceholder: 'sk-...',
     configured: false,
     isLocal: false
@@ -105,7 +106,7 @@ const providers = ref([
   {
     id: 'groq',
     name: 'Groq',
-    icon: '🔵',
+    iconName: 'zap',
     keyPlaceholder: 'gsk_...',
     configured: false,
     isLocal: false
@@ -113,7 +114,7 @@ const providers = ref([
   {
     id: 'gemini',
     name: 'Google Gemini',
-    icon: '🟡',
+    iconName: 'sun',
     keyPlaceholder: 'AIza...',
     configured: false,
     isLocal: false
@@ -121,7 +122,7 @@ const providers = ref([
   {
     id: 'ollama',
     name: 'Ollama (Local)',
-    icon: '🏠',
+    iconName: 'cpu',
     configured: true,
     isLocal: true
   }
@@ -223,11 +224,12 @@ function saveApiKey() {
 }
 
 .provider-item.active {
-  border-color: #667eea;
-  background: rgba(102, 126, 234, 0.1);
+  border-color: var(--accent);
+  background: var(--accent-muted);
 }
 
 .provider-item.configured span:last-child span:last-child {
-  color: #4CAF50;
+  color: var(--success);
 }
+
 </style>
