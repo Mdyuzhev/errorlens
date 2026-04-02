@@ -552,7 +552,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.issues-page { padding: 0 24px 24px; }
+.issues-page { padding: 16px 24px 24px; }
 .issues-tabs { display: flex; align-items: center; gap: 0; border-bottom: 1px solid var(--border-color); margin-bottom: 16px; }
 .btn-in-tabs { margin-right: 16px; flex-shrink: 0; padding: 6px 14px; font-size: 13px; }
 .tab { padding: 10px 20px; border: none; background: none; color: var(--text-secondary); font-size: 14px; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
