@@ -40,7 +40,7 @@ class TestCaseCreate(BaseModel):
 
 class ImproveRequest(BaseModel):
     provider: str = "ollama"
-    model: str = "mistral"
+    model: str = "qwen2.5-coder:7b"
     api_key: str | None = None
 
 
@@ -351,7 +351,7 @@ async def improve_testcase(
         model=data.model or None,
     )
     try:
-        raw = await provider.generate(prompt, max_tokens=2048)
+        raw = await provider.generate(prompt, max_tokens=4096)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM error: {e}")
 
