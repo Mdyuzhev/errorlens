@@ -81,8 +81,11 @@ const providerModels = {
     { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' }
   ],
   ollama: [
-    { id: 'mistral', name: 'Mistral 7B' },
-    { id: 'tinyllama', name: 'TinyLlama 1B' }
+    { id: 'mistral', name: 'Mistral 7B (GPU)' },
+    { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B (GPU)' },
+    { id: 'qwen2.5-coder:1.5b', name: 'Qwen 2.5 Coder 1.5B' },
+    { id: 'sharmanka-v2', name: 'Sharmanka v2 1.5B' },
+    { id: 'sharmanka-coder', name: 'Sharmanka Coder 1.5B' }
   ]
 }
 
